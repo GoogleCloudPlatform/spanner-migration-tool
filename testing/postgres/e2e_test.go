@@ -61,6 +61,7 @@ type IndexLimitTestCase struct {
 
 	expectedTotalNumberOfIndexes int64
 	expectedNumberOfIndexesPerTable map[string]int64
+	expectedNumberOfColumnsPerIndex map[string]int64
 }
 
 func TestE2E_CheckTableLimits(t *testing.T) {
@@ -447,6 +448,48 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
 		},
+		{
+			name: "Spanner dialect with table with index with more than 16 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 17),
+
+			expectError: true,
+			expectErrorMessageContains: "too many keys",
+		},
+		{
+			name: "Postgres dialect with table with index with more than 16 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 17),
+
+			expectError: true,
+			expectErrorMessageContains: "too many keys",
+		},
+		{
+			name: "Spanner dialect with table with index with exactly 16 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 16),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+			// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+			// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+			// only actually include N-1 columns in the index.
+			expectedNumberOfColumnsPerIndex: map[string]int64{"t1_idx": 15},
+		},
+		{
+			name: "Postgres dialect with table with index with exactly 16 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 16),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+			// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+			// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+			// only actually include N-1 columns in the index.
+			expectedNumberOfColumnsPerIndex: map[string]int64{"t1_idx": 15},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
@@ -661,6 +704,7 @@ func checkDatabaseIndexes(t *testing.T, dbURI string, tc IndexLimitTestCase) {
 		checkTotalNumberOfIndexes(t, client, tc.expectedTotalNumberOfIndexes)
 	}
 	checkNumberOfIndexesPerTable(t, client, tc.expectedNumberOfIndexesPerTable)
+	checkNumberOfIndexColumns(t, client, tc.expectedNumberOfColumnsPerIndex)
 }
 
 func checkTotalNumberOfIndexes(t *testing.T, client *spanner.Client, expectedTotalNumberOfIndexes int64) {
@@ -709,6 +753,40 @@ func checkNumberOfIndexesPerTable(t *testing.T, client *spanner.Client, expected
 	}
 
 	assert.Equal(t, expectedNumberOfIndexesPerTable, actualNumberOfIndexesPerTable)
+}
+
+func checkNumberOfIndexColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerIndex map[string]int64) {
+	if len(expectedNumberOfColumnsPerIndex) == 0 {
+		return
+	}
+
+	indexNames := make([]string, 0, len(expectedNumberOfColumnsPerIndex))
+	for index := range expectedNumberOfColumnsPerIndex{
+		indexNames = append(indexNames, index)
+	}
+
+	var query spanner.Statement
+	query = spanner.Statement{
+		SQL: fmt.Sprintf("SELECT INDEX_NAME, count(1) FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE INDEX_NAME IN ('%s') GROUP BY INDEX_NAME", strings.Join(indexNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var indexName string
+	var numberOfColumns int64
+	actualNumberOfColumnsPerIndex := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&indexName, &numberOfColumns)
+		actualNumberOfColumnsPerIndex[indexName] = numberOfColumns
+	}
+
+	assert.Equal(t, expectedNumberOfColumnsPerIndex, actualNumberOfColumnsPerIndex)
 }
 
 func generateCreateTableDdls(numTables int) []string {
@@ -817,6 +895,25 @@ func generateCreateTableDdlWithIndexDdls(tableName string, numIndexes int) []str
 	}
 
 	return ddls
+}
+
+func generateCreateTableDdlWithSingleIndexDdl(tableName string, numColumnsInIndex int) []string {
+	columns := make(map[string]string, numColumnsInIndex)
+	// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+	// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+	// only actually include N-1 columns in the index.
+	indexColumns := make([]string, 0, numColumnsInIndex - 1)
+	columns["p1"] = "bigint"
+	for i := 1; i <= numColumnsInIndex - 1; i++ {
+		columnName := fmt.Sprintf("c%d", i)
+		columns[columnName] = "bigint"
+		indexColumns = append(indexColumns, columnName)
+	}
+
+	return []string{
+		generateCreateTableDdl(tableName, columns, []string{"p1"}),
+		generateCreateIndexDdl(tableName + "_idx", tableName, indexColumns),
+	}
 }
 
 func generateCreateIndexDdl(indexName, tableName string, columns []string) string {
