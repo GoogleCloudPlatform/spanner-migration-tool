@@ -91,7 +91,11 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	var dataSourceName string
 	switch config.Driver {
 	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+		sslmode := config.Sslmode
+		if sslmode == "" {
+			sslmode = "disable" // Default to disable SSL mode if not specified
+		}
+		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", config.Host, config.Port, config.User, config.Password, config.Database, sslmode)
 	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.SQLSERVER:
@@ -364,7 +368,11 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 	var dataSourceName string
 	switch config.Driver {
 	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+		sslmode := config.Sslmode
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", config.Host, config.Port, config.User, config.Password, config.Database, sslmode)
 	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.SQLSERVER:
