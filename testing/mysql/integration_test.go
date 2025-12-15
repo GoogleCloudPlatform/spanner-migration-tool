@@ -136,7 +136,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 func toDefaultTimezoneArg(defaultTimezone string) string {
 	defaultTimezoneArg := ""
 	if defaultTimezone != "" {
-		fmt.Sprintf(",defaultTimezone=%s", defaultTimezone)
+		_ = fmt.Sprintf(",defaultTimezone=%s", defaultTimezone)
 	}
 	return defaultTimezoneArg
 }

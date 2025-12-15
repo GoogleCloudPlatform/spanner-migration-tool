@@ -53,7 +53,7 @@ func GetColsAndSchemas(conv *internal.Conv, tableId string) (schema.Table, strin
 	spSchema, ok := conv.SpSchema[tableId]
 	var err error
 	if err1 != nil || err2 != nil || !ok {
-		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
+		err = fmt.Errorf("err1=%s, err2=%s, ok=%t", err1, err2, ok)
 	}
 	return srcSchema, spTableName, spCols, spSchema, err
 }

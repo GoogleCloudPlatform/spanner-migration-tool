@@ -25,7 +25,7 @@ func getTestData() []session.SchemaConversionSession {
 		SpDialect: constants.DIALECT_GOOGLESQL,
 	}
 
-	convStr, _ := json.Marshal(conv)
+	convStr, _ := json.Marshal(&conv)
 
 	return []session.SchemaConversionSession{
 		{

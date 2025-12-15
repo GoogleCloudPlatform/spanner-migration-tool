@@ -190,7 +190,7 @@ func extractDefaultIdentityOptions(params map[string]string) (DefaultIdentityOpt
 	if defaultSkipRangeStr, ok := params["defaultIdentitySkipRange"]; ok {
 		skipRangeMin, skipRangeMax, err := parseDefaultSkipRange(defaultSkipRangeStr)
 		if err != nil {
-			return DefaultIdentityOptions{}, fmt.Errorf(fmt.Sprintf("Invalid value for defaultIdentitySkipRange: %s, expected <min>-<max> where both <min> and <max> are integers and <min> is less than <max>. %s", defaultSkipRangeStr, err))
+			return DefaultIdentityOptions{}, fmt.Errorf("Invalid value for defaultIdentitySkipRange: %s, expected <min>-<max> where both <min> and <max> are integers and <min> is less than <max>. %v", defaultSkipRangeStr, err)
 		}
 		defaultIdentityOptions.SkipRangeMin = skipRangeMin
 		defaultIdentityOptions.SkipRangeMax = skipRangeMax

@@ -31,179 +31,179 @@ import (
 
 func TestToSpannerTypeInternal(t *testing.T) {
 
-	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck := toSpannerTypeInternal(schema.Type{Name: "bool", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in boolean to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bool", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
 	if errCheck == nil {
 		t.Errorf("Error in boolean to int64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in tinyint to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
 	if errCheck == nil {
 		t.Errorf("Error in tinyint to int64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"double", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "double", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in double to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in float to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "FLOAT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
 	if errCheck == nil {
 		t.Errorf("Error in float to float64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"decimal", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "decimal", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in decimal to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in bigint to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "NUMERIC")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
 	if errCheck == nil {
 		t.Errorf("Error in bigint to numeric conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint unsigned", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
 	if errCheck == nil {
 		t.Errorf("Error in bigint unsigned to int64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint unsigned", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in bigint unsigned to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "NUMERIC")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint unsigned", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
 	if errCheck == nil {
 		t.Errorf("Error in bigint unsigned to numeric conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"int", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bit", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in bit to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "char", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in char to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "char", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in char to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, "DEFAULT")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "char", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "DEFAULT")
 	if errCheck != nil {
 		t.Errorf("Error in char to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "text", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in text to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "json", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in json to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in binary to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, "DEFAULT")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "DEFAULT")
 	if errCheck != nil {
 		t.Errorf("Error in binary to default conversion")
 	}
-	spType, errCheck := toSpannerTypeInternal(schema.Type{"varbinary", []int64{10}, []int64{}}, "BYTES")
+	spType, errCheck := toSpannerTypeInternal(schema.Type{Name: "varbinary", Mods: []int64{10}, ArrayBounds: []int64{}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in varbinary to default conversion")
 	}
 	assert.Equal(t, "BYTES", spType.Name)
 	assert.Equal(t, int64(10), spType.Len)
 	assert.Equal(t, false, spType.IsArray)
-	spType, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{12}, []int64{}}, "BYTES")
+	spType, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{12}, ArrayBounds: []int64{}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in binary to default conversion")
 	}
 	assert.Equal(t, "BYTES", spType.Name)
 	assert.Equal(t, int64(12), spType.Len)
 	assert.Equal(t, false, spType.IsArray)
-	_, errCheck = toSpannerTypeInternal(schema.Type{"blob", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "blob", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in blob to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "date", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in date to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"datetime", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "datetime", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in datetime to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamp", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in timestamp to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"time", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in time to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"DEFAULT", []int64{1, 2, 3}, []int64{1, 2, 3}}, "")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "")
 	if errCheck == nil {
 		t.Errorf("Error in default conversion for unidentified source datatype")
 	}
 
-	blobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	blobToBytes, errCheck := toSpannerTypeInternal(schema.Type{Name: "blob", Mods: []int64{42}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in blob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", blobToBytes.Name)
 	assert.Equal(t, int64(42), blobToBytes.Len)
-	blobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	blobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "blob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in blob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", blobToBytesWithoutMods.Name)
 	assert.Equal(t, int64(65535), blobToBytesWithoutMods.Len)
 
-	tinyBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	tinyBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{Name: "tinyblob", Mods: []int64{42}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in tinyBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", tinyBlobToBytes.Name)
 	assert.Equal(t, int64(42), tinyBlobToBytes.Len)
-	tinyBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	tinyBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "tinyblob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in tinyBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", tinyBlobToBytesWithoutMods.Name)
 	assert.Equal(t, int64(255), tinyBlobToBytesWithoutMods.Len)
 
-	mediumBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	mediumBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{Name: "mediumblob", Mods: []int64{42}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in mediumBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", mediumBlobToBytes.Name)
 	assert.Equal(t, int64(42), mediumBlobToBytes.Len)
-	mediumBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	mediumBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "mediumblob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in mediumBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", mediumBlobToBytesWithoutMods.Name)
 	assert.Equal(t, int64(10_485_760), mediumBlobToBytesWithoutMods.Len)
 
-	longBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	longBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{Name: "longblob", Mods: []int64{42}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in longBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", longBlobToBytes.Name)
 	assert.Equal(t, int64(42), longBlobToBytes.Len)
-	longBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	longBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "longblob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in longBlob to byte conversion")
 	}
