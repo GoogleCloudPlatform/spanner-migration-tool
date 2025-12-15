@@ -29,8 +29,8 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.9.0
 	github.com/pganalyze/pg_query_go/v6 v6.1.0
-	github.com/pingcap/tidb v1.1.0-beta.0.20230918090611-71bcc44f77a3
-	github.com/pingcap/tidb/parser v0.0.0-20230918090611-71bcc44f77a3
+	github.com/pingcap/tidb v1.1.0-beta.0.20241016062529-7972ff1b35c6
+	github.com/pingcap/tidb/parser v0.0.0-20241016062529-7972ff1b35c6
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
@@ -38,7 +38,7 @@ require (
 	go.uber.org/ratelimit v0.3.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
-	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
+	golang.org/x/exp v0.0.0-20240531132922-fd00a4e0eefc
 	golang.org/x/net v0.39.0
 	golang.org/x/tools v0.22.0
 	google.golang.org/api v0.229.0
@@ -104,7 +104,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -124,7 +124,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pingcap/errors v0.11.5-0.20220729040631-518f63d66278 // indirect
 	github.com/pingcap/failpoint v0.0.0-20220423142525-ae43b7f4e5c3 // indirect
-	github.com/pingcap/kvproto v0.0.0-20230726063044-73d6d7f3756b // indirect
+	github.com/pingcap/kvproto v0.0.0-20240112060601-a0e3fbb1eeee // indirect
 	github.com/pingcap/log v1.1.1-0.20221116035753-734d527bc87c // indirect
 	github.com/pingcap/tipb v0.0.0-20221123081521-2fb828910813 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -138,7 +138,7 @@ require (
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/tikv/client-go/v2 v2.0.4-0.20230912041415-9c163cc8574b // indirect
+	github.com/tikv/client-go/v2 v2.0.4-0.20240611032030-02a6a912e7a8 // indirect
 	github.com/tikv/pd/client v0.0.0-20230904040343-947701a32c05 // indirect
 	github.com/uber/jaeger-client-go v2.22.1+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
