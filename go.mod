@@ -79,9 +79,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/mod v0.29.0 // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
 )
 
 require (
