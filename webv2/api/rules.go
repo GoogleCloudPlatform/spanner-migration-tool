@@ -113,7 +113,7 @@ func ApplyRule(w http.ResponseWriter, r *http.Request) {
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -222,7 +222,7 @@ func DropRule(w http.ResponseWriter, r *http.Request) {
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)

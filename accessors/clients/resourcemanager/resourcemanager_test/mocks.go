@@ -28,7 +28,7 @@ type ResourcemanagerProjectsClientMock struct {
 }
 
 // GetProject implements resourcemanagerclient.ResourcemanagerProjectsClient.
-func (m ResourcemanagerProjectsClientMock) GetProject(ctx context.Context, req *resourcemanagerpb.GetProjectRequest, opts ...gax.CallOption) (*resourcemanagerpb.Project, error) {
+func (m *ResourcemanagerProjectsClientMock) GetProject(ctx context.Context, req *resourcemanagerpb.GetProjectRequest, opts ...gax.CallOption) (*resourcemanagerpb.Project, error) {
 	args := m.Called(ctx, req, opts)
 	// Avoid panic for typeassertion due to null pointer.
 	if args.Get(0) == nil {

@@ -202,7 +202,7 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 	}
 	orderedTables := []utils.ManifestTable{}
 	for _, id := range tableIds {
-		orderedTables = append(orderedTables, utils.ManifestTable{conv.SpSchema[id].Name, nameToFiles[conv.SpSchema[id].Name]})
+		orderedTables = append(orderedTables, utils.ManifestTable{Table_name: conv.SpSchema[id].Name, File_patterns: nameToFiles[conv.SpSchema[id].Name]})
 	}
 
 	for _, table := range orderedTables {
@@ -221,7 +221,7 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 
 			csvFile, err := os.Open(filePath)
 			if err != nil {
-				return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
+				return fmt.Errorf("can't read csv file: %s due to: %v\n", filePath, err)
 			}
 			err = c.ProcessSingleCSV(conv, table.Table_name, colNames, colDefs,
 				csvFile, nullStr, delimiter)

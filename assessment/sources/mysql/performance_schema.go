@@ -66,7 +66,7 @@ ORDER BY
 		})
 	}
 	if errString != "" {
-		return queryInfo, fmt.Errorf(errString)
+		return queryInfo, fmt.Errorf("%s", errString)
 	}
 	return queryInfo, nil
 }

@@ -2433,7 +2433,7 @@ func buildConvMySQL(conv *internal.Conv) {
 			},
 		},
 	}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{ColId: "c20", Sequence: 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }
 
@@ -2530,7 +2530,7 @@ func buildConvPostgres(conv *internal.Conv) {
 			},
 		},
 	}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{ColId: "c20", Sequence: 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }
 

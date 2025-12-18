@@ -158,7 +158,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
@@ -225,7 +225,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
+		Conv:            conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -567,7 +567,7 @@ func RestoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -605,7 +605,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -700,7 +700,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -811,7 +811,7 @@ func UpdateForeignKeys(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -873,7 +873,7 @@ func RenameIndexes(w http.ResponseWriter, r *http.Request) {
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -929,7 +929,7 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	if update {
 		convm := session.ConvWithMetadata{
 			SessionMetadata: sessionState.SessionMetadata,
-			Conv:            *sessionState.Conv,
+			Conv:            sessionState.Conv,
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
@@ -972,7 +972,7 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -1033,7 +1033,7 @@ func UpdateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -1093,7 +1093,7 @@ func DropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -1167,7 +1167,7 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	return convm
 }
@@ -1391,7 +1391,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	return convm
 }
@@ -1534,7 +1534,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 			for _, issue := range issues {
 				briefs = append(briefs, reports.IssueDB[issue].Brief)
 			}
-			l = append(l, types.TypeIssue{T: spType, Brief: fmt.Sprintf(strings.Join(briefs, ", "))})
+			l = append(l, types.TypeIssue{T: spType, Brief: strings.Join(briefs, ", ")})
 		} else {
 			l = append(l, types.TypeIssue{T: spType})
 		}

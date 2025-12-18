@@ -87,7 +87,7 @@ func NewDynamoDBStream(client dynamodbiface.DynamoDBAPI, srcTable string) (strin
 // catchCtrlC catches the Ctrl+C signal if customer wants to exit.
 func catchCtrlC(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
 	defer wg.Done()
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
