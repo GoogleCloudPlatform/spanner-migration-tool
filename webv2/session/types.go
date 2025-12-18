@@ -30,7 +30,7 @@ type SessionMetadata struct {
 
 type ConvWithMetadata struct {
 	SessionMetadata
-	internal.Conv
+	*internal.Conv
 }
 
 type SourceDBConnDetails struct {

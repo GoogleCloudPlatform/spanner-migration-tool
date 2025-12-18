@@ -105,7 +105,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 
 	w.WriteHeader(http.StatusOK)

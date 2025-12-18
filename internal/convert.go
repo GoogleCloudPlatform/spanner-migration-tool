@@ -305,7 +305,7 @@ type Rule struct {
 	AssociatedObjects string
 	Enabled           bool
 	Data              interface{}
-	AddedOn           datetime.DateTime
+	AddedOn           *datetime.DateTime
 }
 
 type Tables struct {
@@ -313,11 +313,11 @@ type Tables struct {
 }
 
 type SchemaDetails struct {
-	TableDetails []TableDetails `json:TableDetails`
+	TableDetails []TableDetails `json:"TableDetails"`
 }
 
 type TableDetails struct {
-	TableName string `json:TableName`
+	TableName string `json:"TableName"`
 }
 
 type VerifyExpressionsInput struct {
