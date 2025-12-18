@@ -362,7 +362,7 @@ func expressionToString(expr ast.Node) string {
 	var sb strings.Builder
 	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase, &sb)
 	if err := expr.Restore(restoreCtx); err != nil {
-		fmt.Errorf("Error restoring expression: %v\n", err)
+		logger.Log.Warn(fmt.Sprintf("Error restoring expression: %v\n", err))
 		return ""
 	}
 	return sb.String()

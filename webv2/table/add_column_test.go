@@ -154,7 +154,7 @@ func TestAddNewColumn(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to unmarshal response body: %v", err)
 				}
-				tc.checkConv(t, &res.Conv, tc.expectedNewColId)
+				tc.checkConv(t, res.Conv, tc.expectedNewColId)
 			}
 		})
 	}

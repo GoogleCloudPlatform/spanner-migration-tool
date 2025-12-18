@@ -39,8 +39,8 @@ func TestUpdatePrimaryKey(t *testing.T) {
 		name         string
 		input        PrimaryKeyRequest
 		statusCode   int
-		conv         internal.Conv
-		expectedConv internal.Conv
+		conv         *internal.Conv
+		expectedConv *internal.Conv
 	}{
 		{
 			name: "Test PK update",
@@ -49,7 +49,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 				Columns: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 			},
 			statusCode: http.StatusOK,
-			conv: internal.Conv{
+			conv: &internal.Conv{
 
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -68,7 +68,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 				},
 				SchemaIssues: make(map[string]internal.TableIssues),
 			},
-			expectedConv: internal.Conv{
+			expectedConv: &internal.Conv{
 
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -94,7 +94,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 				Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}},
 			},
 			statusCode: http.StatusOK,
-			conv: internal.Conv{
+			conv: &internal.Conv{
 
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -120,7 +120,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
-			expectedConv: internal.Conv{
+			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "film_actor",
@@ -150,7 +150,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 		buffer := bytes.NewBuffer(inputBytes)
 		sessionState := session.GetSessionState()
 
-		sessionState.Conv = &tt.conv
+		sessionState.Conv = tt.conv
 		req, err := http.NewRequest("POST", "/primarykey", buffer)
 		if err != nil {
 			t.Fatal(err)
@@ -165,7 +165,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 		if tt.statusCode == http.StatusOK {
 			var res internal.Conv
 			json.Unmarshal(rr.Body.Bytes(), &res)
-			assert.Equal(t, tt.expectedConv, res)
+			assert.Equal(t, tt.expectedConv, &res)
 		}
 	}
 }
@@ -359,8 +359,8 @@ func TestPrimarykey(t *testing.T) {
 		name         string
 		input        PrimaryKeyRequest
 		statusCode   int
-		conv         internal.Conv
-		expectedConv internal.Conv
+		conv         *internal.Conv
+		expectedConv *internal.Conv
 	}{
 		{
 			name: "Table Id Not found",
@@ -420,11 +420,11 @@ func TestPrimarykey(t *testing.T) {
 
 		handler := http.HandlerFunc(PrimaryKey)
 		handler.ServeHTTP(rr, req)
-		var conv internal.Conv
+		var conv         *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &conv)
 		assert.Equal(t, tt.statusCode, rr.Code)
 		if tt.statusCode == http.StatusOK {
-			assert.Equal(t, tt.expectedConv, conv)
+			assert.Equal(t, tt.expectedConv, &conv)
 		}
 	}
 }
