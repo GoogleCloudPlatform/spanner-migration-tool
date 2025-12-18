@@ -252,7 +252,7 @@ func RunStreamingMigration(t *testing.T, args string, projectID string, client *
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf(fmt.Sprintf("error while starting command: %v", err))
+		return fmt.Errorf("error running command: %v", err)
 	}
 	// Wait for a maximum of 5 minutes
 	timeLimit := 300

@@ -105,7 +105,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := GetSessionState()
-	sessionState.Conv = &convm.Conv
+	sessionState.Conv = convm.Conv
 	sessionState.Driver = convm.DatabaseType
 	sessionState.DbName = convm.DatabaseName
 	sessionState.SourceDBConnDetails = SourceDBConnDetails{

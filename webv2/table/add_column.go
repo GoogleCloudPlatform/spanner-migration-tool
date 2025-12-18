@@ -108,7 +108,7 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.SpSchema[tableId] = ct
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)

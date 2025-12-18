@@ -303,10 +303,10 @@ WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
 database created by Spanner migration tool will inherit default permissions from this
 instance. All data written to Spanner will be visible to anyone who can
-access the created database. Note that `+driver+` table-level and row-level
+access the created database. Note that %s table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.
 
-`)
+`, driver)
 }
 
 // CheckEqualSets checks if the set of values in a and b are equal.
@@ -357,8 +357,8 @@ func Close(f *os.File) {
 func PrintSeekError(driver string, err error, out *os.File) {
 	fmt.Fprintf(out, "\nCan't get seekable input file: %v\n", err)
 	fmt.Fprintf(out, "Likely cause: not enough space in %s.\n", os.TempDir())
-	fmt.Fprintf(out, "Try writing "+driver+" output to a file first i.e.\n")
-	fmt.Fprintf(out, " "+driver+" > tmpfile\n")
+	fmt.Fprintf(out, "Try writing %s output to a file first i.e.\n", driver)
+	fmt.Fprintf(out, " %s > tmpfile\n", driver)
 	fmt.Fprintf(out, "  spanner-migration-tool < tmpfile\n")
 }
 
