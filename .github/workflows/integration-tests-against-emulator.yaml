@@ -107,6 +107,8 @@ jobs:
           sudo apt-get -yq install postgresql-client
       - run: psql --version
       - run: psql -f test_data/pg_dump.test.out
+      - run: psql -c 'CREATE DATABASE test_pg_data_types;'
+      - run: psql -d test_pg_data_types -f test_data/postgres_data_types_dump.test.out
 
       # init a MySQL database from the test_data
       - run: mysql --version
