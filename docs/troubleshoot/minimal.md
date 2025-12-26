@@ -136,21 +136,15 @@ gcloud  dataflow flex-template run <jobname> \
 --region=<the region where the dataflow job must run> \
 --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
 --additional-experiments=use_runner_v2 \
---parameters gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,streamName=<Datastream name>, \
+--parameters datastreamSourceType=<source_type for example mysql/oracle. This needs to be set in the absence of an actual datastream.>, \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
-dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>, \
 deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
-The following parameters can be taken from the regular forward migration Dataflow job:
+#### Checking if all DLQ entries are applied
+
+To check if all DLQ entries have been applied to spanner, you could count the DLQ files in GCS and wait for it to go to 0.
 
 ```sh
-region
-gcsPubSubSubscription
-streamName
-instanceId
-databaseId
-sessionFilePath
-deadLetterQueueDirectory
-dlqGcsPubSubSubscription
+gcloud storage ls <GCS path to the DLQ>/severe/**.json | wc -l
 ```
