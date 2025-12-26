@@ -50,6 +50,20 @@ type TableLimitTestCase struct {
 	expectedNumberOfPrimaryKeyColumnsPerTable map[string]int64
 }
 
+type IndexLimitTestCase struct {
+	name string
+
+	dialect string
+	ddls []string
+
+	expectError bool
+	expectErrorMessageContains string
+
+	expectedTotalNumberOfIndexes int64
+	expectedNumberOfIndexesPerTable map[string]int64
+	expectedNumberOfColumnsPerIndex map[string]int64
+}
+
 func TestE2E_CheckTableLimits(t *testing.T) {
 	onlyRunForEndToEndTest(t)
 
@@ -350,6 +364,250 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 	}
 }
 
+func TestE2E_CheckIndexLimits(t *testing.T) {
+	onlyRunForEndToEndTest(t)
+
+	testCases := []IndexLimitTestCase {
+		{
+			name: "Spanner dialect with more than 10000 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateIndexDdls(10001),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Postgres dialect with more than 10000 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateIndexDdls(10001),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Spanner dialect with exactly 10000 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateIndexDdls(10000),
+
+			expectedTotalNumberOfIndexes: 10000,
+		},
+		{
+			name: "Postgres dialect with exactly 10000 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateIndexDdls(10000),
+
+			expectedTotalNumberOfIndexes: 10000,
+		},
+		{
+			name: "Spanner dialect with table with more than 128 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 129),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Postgres dialect with table with more than 128 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 129),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Spanner dialect with table with exactly 128 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 128),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 128},
+		},
+		{
+			name: "Postgres dialect with table with exactly 128 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 128),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 128},
+		},
+		{
+			name: "Spanner dialect with index name longer than 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 129), "t1", []string{"c1"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "index name not valid",
+		},
+		{
+			name: "Postgres dialect with index name longer than 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 129), "t1", []string{"c1"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "index name not valid",
+		},
+		{
+			name: "Spanner dialect with index name exactly 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 128), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with index name exactly 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 128), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Spanner dialect with index name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 1), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with index name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 1), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Spanner dialect with table with index with more than 16 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 17),
+
+			expectError: true,
+			expectErrorMessageContains: "too many keys",
+		},
+		{
+			name: "Postgres dialect with table with index with more than 16 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 17),
+
+			expectError: true,
+			expectErrorMessageContains: "too many keys",
+		},
+		{
+			name: "Spanner dialect with table with index with exactly 16 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 16),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+			// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+			// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+			// only actually include N-1 columns in the index.
+			expectedNumberOfColumnsPerIndex: map[string]int64{"t1_idx": 15},
+		},
+		{
+			name: "Postgres dialect with table with index with exactly 16 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithSingleIndexDdl("t1", 16),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+			// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+			// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+			// only actually include N-1 columns in the index.
+			expectedNumberOfColumnsPerIndex: map[string]int64{"t1_idx": 15},
+		},
+		{
+			name: "Spanner dialect with table with index with size larger than 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Postgres dialect with table with index with size larger than 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Spanner dialect with table with index with size exactly 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with table with index with size exactly 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+	}
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	for idx, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runIndexLimitTestCase(t, tmpdir, tc, idx)
+		})
+	}
+}
+
 func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase, index int) {
 	dbName := "mysql-table-limits"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -378,6 +636,35 @@ func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase, i
 		assert.NoError(t, err)
 		checkSchemaIssues(t, filePrefix, tc.expectedTableLevelSchemaIssues)
 		checkDatabaseSchema(t, dbURI, tc)
+	}
+}
+
+func runIndexLimitTestCase(t *testing.T, tmpdir string, tc IndexLimitTestCase, index int) {
+	dbName := "mysql-index-limits"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	defer dropDatabase(t, dbURI)
+
+	filePrefix := filepath.Join(tmpdir, dbName + strconv.Itoa(index))
+	dumpFilePath := filepath.Join(tmpdir, dbName + strconv.Itoa(index) + "_dump.sql")
+
+	writeDumpFile(t, dumpFilePath, tc.ddls)
+
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s' < %s", filePrefix, instanceID, dbName, projectID, tc.dialect, dumpFilePath)
+	stdout, err := RunCommandReturningStdOut(args, projectID)
+
+	if tc.expectError {
+		assert.Error(t, err)
+
+		output := stdout
+		if err != nil {
+			output += err.Error()
+		}
+
+		assert.Contains(t, output, tc.expectErrorMessageContains)
+		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect)
+	} else {
+		assert.NoError(t, err)
+		checkDatabaseIndexes(t, dbURI, tc)
 	}
 }
 
@@ -512,6 +799,102 @@ func checkNumberOfPrimaryKeyColumns(t *testing.T, client *spanner.Client, expect
 	assert.Equal(t, expectedNumberOfPrimaryKeyColumnsPerTable, actualNumberOfPrimaryKeyColumnsPerTable)
 }
 
+func checkDatabaseIndexes(t *testing.T, dbURI string, tc IndexLimitTestCase) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	if tc.expectedTotalNumberOfIndexes != 0 {
+		checkTotalNumberOfIndexes(t, client, tc.expectedTotalNumberOfIndexes)
+	}
+	checkNumberOfIndexesPerTable(t, client, tc.expectedNumberOfIndexesPerTable)
+	checkNumberOfIndexColumns(t, client, tc.expectedNumberOfColumnsPerIndex)
+}
+
+func checkTotalNumberOfIndexes(t *testing.T, client *spanner.Client, expectedTotalNumberOfIndexes int64) {
+	query := spanner.Statement{SQL: `SELECT count(1) FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND INDEX_TYPE != 'PRIMARY_KEY'`}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var totalNumberOfIndexes int64
+	row, err := iter.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.Columns(&totalNumberOfIndexes)
+
+	assert.Equal(t, expectedTotalNumberOfIndexes, totalNumberOfIndexes)
+}
+
+func checkNumberOfIndexesPerTable(t *testing.T, client *spanner.Client, expectedNumberOfIndexesPerTable map[string]int64) {
+	if len(expectedNumberOfIndexesPerTable) == 0 {
+		return
+	}
+
+	tableNames := make([]string, 0, len(expectedNumberOfIndexesPerTable))
+	for table := range expectedNumberOfIndexesPerTable {
+		tableNames = append(tableNames, table)
+	}
+
+	var query spanner.Statement
+	query = spanner.Statement{
+		SQL: fmt.Sprintf("SELECT TABLE_NAME, count(1) FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME IN ('%s') AND INDEX_TYPE != 'PRIMARY_KEY' GROUP BY TABLE_NAME", strings.Join(tableNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var tableName string
+	var numberOfIndexes int64
+	actualNumberOfIndexesPerTable := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&tableName, &numberOfIndexes)
+		actualNumberOfIndexesPerTable[tableName] = numberOfIndexes
+	}
+
+	assert.Equal(t, expectedNumberOfIndexesPerTable, actualNumberOfIndexesPerTable)
+}
+
+func checkNumberOfIndexColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerIndex map[string]int64) {
+	if len(expectedNumberOfColumnsPerIndex) == 0 {
+		return
+	}
+
+	indexNames := make([]string, 0, len(expectedNumberOfColumnsPerIndex))
+	for index := range expectedNumberOfColumnsPerIndex{
+		indexNames = append(indexNames, index)
+	}
+
+	var query spanner.Statement
+	query = spanner.Statement{
+		SQL: fmt.Sprintf("SELECT INDEX_NAME, count(1) FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE INDEX_NAME IN ('%s') GROUP BY INDEX_NAME", strings.Join(indexNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var indexName string
+	var numberOfColumns int64
+	actualNumberOfColumnsPerIndex := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&indexName, &numberOfColumns)
+		actualNumberOfColumnsPerIndex[indexName] = numberOfColumns
+	}
+
+	assert.Equal(t, expectedNumberOfColumnsPerIndex, actualNumberOfColumnsPerIndex)
+}
+
 func generateCreateTableDdls(numTables int) []string {
 	tableDdls := make([]string, 0)
 	for i := 1; i <= numTables; i++ {
@@ -573,6 +956,74 @@ func generateCreateTableDdl(tableName string, columns map[string]string, primary
 		colDdls = append(colDdls, fmt.Sprintf("%s %s", columnName, columnType))
 	}
 	return fmt.Sprintf("CREATE TABLE %s (\n%s,\nPRIMARY KEY (%s));", tableName, strings.Join(colDdls, ",\n"), strings.Join(primaryKeyColumns, ", "))
+}
+
+func generateCreateIndexDdls(numIndexes int) []string {
+	// Determine how many tables we need, assuming 100 indexes per table (plus a potential extra table for any remaining
+	// indexes if numIndexes is not exactly divisible by 100)
+	numIndexesPerTable := 100
+	numTables := numIndexes / numIndexesPerTable
+	extraIndexes := numIndexes % numIndexesPerTable
+
+	tableDef := make(map[string]int)
+	for i := 1; i <= numTables; i++ {
+		tableName := fmt.Sprintf("t%d", i)
+		tableDef[tableName] = numIndexesPerTable
+	}
+	if extraIndexes > 0 {
+		tableName := fmt.Sprintf("t%d", numTables + 1)
+		tableDef[tableName] = extraIndexes
+	}
+
+	ddls := make([]string, 0, len(tableDef) + numIndexes)
+	for tableName, numCols := range tableDef {
+		ddls = append(ddls, generateCreateTableDdlWithIndexDdls(tableName, numCols)...)
+	}
+
+	return ddls
+}
+
+func generateCreateTableDdlWithIndexDdls(tableName string, numIndexes int) []string {
+	columns := make(map[string]string, numIndexes + 1)
+	columns["p1"] = "bigint"
+	for i := 1; i <= numIndexes; i++ {
+		columnName := fmt.Sprintf("c%d", i)
+		columns[columnName] = "bigint"
+	}
+
+	ddls := make([]string, 0, numIndexes + 1)
+	ddls = append(ddls, generateCreateTableDdl(tableName, columns, []string{"p1"}))
+
+	for i := 1; i <= numIndexes; i++ {
+		columnName := fmt.Sprintf("c%d", i)
+		indexName := fmt.Sprintf("%s_%s_idx", tableName, columnName)
+		ddls = append(ddls, generateCreateIndexDdl(indexName, tableName, []string{columnName}))
+	}
+
+	return ddls
+}
+
+func generateCreateTableDdlWithSingleIndexDdl(tableName string, numColumnsInIndex int) []string {
+	columns := make(map[string]string, numColumnsInIndex)
+	// The total number of columns in the index for the purposes of the limit includes the number of columns in the
+	// primary key. So, if we want to evaluate an index with N columns and there's 1 column in the primary key, we can
+	// only actually include N-1 columns in the index.
+	indexColumns := make([]string, 0, numColumnsInIndex - 1)
+	columns["p1"] = "bigint"
+	for i := 1; i <= numColumnsInIndex - 1; i++ {
+		columnName := fmt.Sprintf("c%d", i)
+		columns[columnName] = "bigint"
+		indexColumns = append(indexColumns, columnName)
+	}
+
+	return []string{
+		generateCreateTableDdl(tableName, columns, []string{"p1"}),
+		generateCreateIndexDdl(tableName + "_idx", tableName, indexColumns),
+	}
+}
+
+func generateCreateIndexDdl(indexName, tableName string, columns []string) string {
+	return fmt.Sprintf("CREATE INDEX %s ON %s (%s);", indexName, tableName, strings.Join(columns, ", "))
 }
 
 func writeDumpFile(t *testing.T, dumpFilePath string, ddls []string) {
