@@ -129,6 +129,13 @@ These job parameters can be taken from the original job.
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
 
+The following parameters can be taken from the regular forward migration Dataflow job:
+region
+instanceId
+databaseId
+sessionFilePath
+deadLetterQueueDirectory
+
 Sample command to run the Dataflow job in retryDLQ mode is
 
 ```sh
@@ -136,7 +143,7 @@ gcloud  dataflow flex-template run <jobname> \
 --region=<the region where the dataflow job must run> \
 --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
 --additional-experiments=use_runner_v2 \
---parameters datastreamSourceType=<source_type for example mysql/oracle. This needs to be set in the absence of an actual datastream.>, \
+--parameters datastreamSourceType="mysql", \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
 deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
