@@ -129,7 +129,11 @@ These job parameters can be taken from the original job.
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
 
-Sample command to run the Dataflow job in retryDLQ mode is
+##### Standard DLQ Retry:
+
+For a standard retry of severe errors, use the runMode=retryDLQ parameter. **Do not** include the dlqGcsPubSubSubscription parameter in this command.
+
+Sample command:
 
 ```sh
 gcloud  dataflow flex-template run <jobname> \
@@ -138,7 +142,6 @@ gcloud  dataflow flex-template run <jobname> \
 --additional-experiments=use_runner_v2 \
 --parameters gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,streamName=<Datastream name>, \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
-dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>, \
 deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
@@ -152,5 +155,27 @@ instanceId
 databaseId
 sessionFilePath
 deadLetterQueueDirectory
-dlqGcsPubSubSubscription
 ```
+
+#### Advanced: Handling Large Volumes of Severe Errors:
+
+If you have a large number of entries in the DLQ's severe bucket, running the standard retryDLQ mode might lead to Out of Memory (OOM) errors in the pipeline. To handle this, you can use a Pub/Sub-based approach to feed the severe error files back into the pipeline.
+
+**Only use the dlqGcsPubSubSubscription parameter in retryDLQ mode if you are following these specific steps:**
+
+1. Review and resolve the issues causing the severe errors.
+2. Create a temporary GCS bucket or folder to stage the severe error files (e.g., gs://bucket-name/severe-duplicate).
+3. Set up a new Pub/Sub topic and subscription.
+4. Create a Pub/Sub notification on the temporary GCS folder, publishing to the topic you just created.
+
+```sh
+gsutil notification create -f json -t projects/<project-id>/topics/<topic-id> -p 'severe-duplicate/' gs://<bucket-name>
+```
+5. **After confirming the Pub/Sub notification is active,** move the files from the dlq/severe folder to the temporary folder (e.g., severe-duplicate).
+
+```sh
+gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/severe-duplicate/
+```
+6. Now, run the Dataflow template in retryDLQ mode, passing the new subscription ID in the dlqGcsPubSubSubscription parameter.
+
+This process uses Pub/Sub to stream the file notifications to the Dataflow pipeline, avoiding potential OOM issues from listing many files at once.
