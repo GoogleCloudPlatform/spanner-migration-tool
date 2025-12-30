@@ -163,19 +163,37 @@ If you have a large number of entries in the DLQ's severe bucket, running the st
 
 **Only use the dlqGcsPubSubSubscription parameter in retryDLQ mode if you are following these specific steps:**
 
-1. Review and resolve the issues causing the severe errors.
-2. Create a temporary GCS bucket or folder to stage the severe error files (e.g., gs://bucket-name/severe-duplicate).
-3. Set up a new Pub/Sub topic and subscription.
-4. Create a Pub/Sub notification on the temporary GCS folder, publishing to the topic you just created.
-
+1. **Resolve Issues:** Review and address the root causes of the errors in the files located in gs://<bucket-name>/<dlq-path>/severe/.
+2. **Isolate Backlog:** Temporarily move the existing files from the severe directory to a backup location within the same bucket:
 ```sh
-gsutil notification create -f json -t projects/<project-id>/topics/<topic-id> -p 'severe-duplicate/' gs://<bucket-name>
+gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/<dlq-path>/severe-backlog/
 ```
-5. **After confirming the Pub/Sub notification is active,** move the files from the dlq/severe folder to the temporary folder (e.g., severe-duplicate).
-
+3. **Configure Pub/Sub for DLQ Severe:**
+- You need a Pub/Sub subscription that receives notifications for file creation events within the gs://<bucket-name>/<dlq-path>/severe/ path.
+- **Option A (New, Recommended):** Create a new Pub/Sub topic (e.g., dlq-severe-topic) and subscription (e.g., dlq-severe-sub). Set up a GCS notification specifically for the severe path:
 ```sh
-gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/severe-duplicate/
+gsutil notification create -f json -t projects/<project-id>/topics/dlq-severe-topic -e OBJECT_FINALIZE -p '<dlq-path>/severe/' gs://<bucket-name>
 ```
-6. Now, run the Dataflow template in retryDLQ mode, passing the new subscription ID in the dlqGcsPubSubSubscription parameter.
+- **Option B (Reuse dlqGcsPubSubSubscription):** You can reuse the subscription ID originally passed as dlqGcsPubSubSubscription in the Regular Mode IF AND ONLY IF the associated GCS notification was configured to watch the entire gs://<bucket-name>/dlq/ prefix rather than being specific to gs://<bucket-name>/dlq/retry/. Ensure that there are no pending messages from the retry/ path in the subscription otherwise they will be lost.
+4. **Run Dataflow Job in retryDLQ Mode:**
+- Start the Dataflow job, including runMode=retryDLQ and the chosen dlqGcsPubSubSubscription. Ensure that deadLetterQueueDirectory is correctly configured.
+```sh
+gcloud dataflow flex-template run <jobname-retry> \
+--region=<region> \
+--template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
+--parameters \
+runMode=retryDLQ,\
+gcsPubSubSubscription=<main_pubsub_subscription>,\
+dlqGcsPubSubSubscription=<your_dlq_severe_subscription_id>,\
+deadLetterQueueDirectory=gs://<bucket-name>/<dlq-path>/,\
+streamName=<Datastream name>, \
+instanceId=<Spanner Instance Id>, \
+databaseId=<Spanner Database Id>, \
+sessionFilePath=<GCS path to session file>
+```
+5. **Move Files Back to severe bucket:** Once the retryDLQ job is running, move the files from the backup directory back into the severe directory to trigger the Pub/Sub notifications:
+```sh
+gsutil -m mv gs://<bucket-name>/<dlq-path>/severe-backlog/* gs://<bucket-name>/<dlq-path>/severe/
+```
 
-This process uses Pub/Sub to stream the file notifications to the Dataflow pipeline, avoiding potential OOM issues from listing many files at once.
+**Behavior for New Errors During Retry:** Any records that fail again during this retryDLQ run will be written as new files to gs://<bucket-name>/<dlq-path>/severe/. Since the GCS notification is active on this path, these new error files will also generate Pub/Sub messages, which the running retryDLQ job will consume.
