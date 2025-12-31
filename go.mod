@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/datastream v1.13.0
 	cloud.google.com/go/monitoring v1.24.2
 	cloud.google.com/go/pubsub v1.47.0
-	cloud.google.com/go/resourcemanager v1.10.6
+	cloud.google.com/go/resourcemanager v1.10.7
 	cloud.google.com/go/spanner v1.79.0
 	cloud.google.com/go/storage v1.50.0
 	cloud.google.com/go/vertexai v0.13.3
