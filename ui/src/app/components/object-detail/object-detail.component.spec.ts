@@ -12,7 +12,7 @@ import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar} from '@angular/material/snack-bar'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
-import mockIConv from 'src/mocks/conv'
+import { createMockIConv } from 'src/mocks/conv'
 import { of } from 'rxjs'
 import { FormBuilder } from '@angular/forms'
 import { FlatNode } from 'src/app/model/schema-object-node'
@@ -26,10 +26,13 @@ describe('ObjectDetailComponent', () => {
   let fixture: ComponentFixture<ObjectDetailComponent>
   let dataServiceSpy: jasmine.SpyObj<DataService>;
   let conversionServiceSpy: jasmine.SpyObj<ConversionService>
+  let mockIConv = createMockIConv();
   let dialogSpyObj: jasmine.SpyObj<MatDialog>;
   let rowData: IColumnTabData[]
 
-  beforeEach(async () => {    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave', 'dropTable', 'getConversionRate']);
+  beforeEach(async () => {
+    mockIConv = createMockIConv();
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave', 'dropTable', 'getConversionRate']);
     dataServiceSpy.updateSequence.and.returnValue(of({}));
     dataServiceSpy.dropSequence.and.returnValue(of(''));
     dataServiceSpy.reviewTableUpdate.and.returnValue(of(''));

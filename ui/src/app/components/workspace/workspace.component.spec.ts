@@ -11,7 +11,7 @@ import { InputType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 's
 import { of, Subscription } from 'rxjs'
 import * as JSZip from 'jszip'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import mockIConv, { mockIConv2 } from 'src/mocks/conv'
+import { createMockIConv, createMockIConv2 } from 'src/mocks/conv'
 import mockSpannerConfig from 'src/mocks/spannerConfig'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DataService } from 'src/app/services/data/data.service'
@@ -49,6 +49,7 @@ const mockStructuredReport: IStructuredReport = {
 describe('WorkspaceComponent', () => {
   let component: WorkspaceComponent
   let fixture: ComponentFixture<WorkspaceComponent>
+  let mockIConv: IConv;
   let dialogSpyObj: jasmine.SpyObj<MatDialog>;
   let clickEventSpyObj: jasmine.SpyObj<ClickEventService>;
   let sidenavSpyObj: jasmine.SpyObj<SidenavService>;
@@ -58,6 +59,7 @@ describe('WorkspaceComponent', () => {
   let conversionServiceSpy: jasmine.SpyObj<ConversionService>;
 
   beforeEach(async () => {
+    mockIConv = createMockIConv();
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
     clickEventSpyObj = jasmine.createSpyObj('ClickEventService', ['setViewAssesmentData', 'setTabToSpanner']);
     sidenavSpyObj = jasmine.createSpyObj('SidenavService', ['openSidenav', 'setSidenavComponent', 'setSidenavDatabaseName', 'setMiddleColumnComponent']);
@@ -178,7 +180,7 @@ describe('WorkspaceComponent', () => {
   })
 
   it('existing conv and data mismatch', () => {
-    component.conv = mockIConv2
+    component.conv = createMockIConv2()
     component.ngOnInit();
     expect(component.conv).toEqual(mockIConv)
   })
@@ -357,7 +359,7 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should return true when indexes are added or removed', () => {
-    let mockData = mockIConv2;
+    let mockData = createMockIConv2();
     const result = component.isIndexAddedOrRemoved(mockData);
     expect(result).toBeTruthy();
   });
