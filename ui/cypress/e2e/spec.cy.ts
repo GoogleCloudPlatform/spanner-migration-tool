@@ -1,4 +1,4 @@
-import mockIConv from "../../src/mocks/conv";
+import { createMockIConv } from "../../src/mocks/conv";
 
 describe('template spec', () => {
   let url = window.location.origin;
@@ -14,7 +14,7 @@ describe('template spec', () => {
 
   it('verify direct connection to mysql non-sharded database', () => {
     cy.intercept('GET', `${url}/ping`, { statusCode: 200 }).as('checkBackendHealth');
-    cy.intercept('GET', `${url}/convert/infoschema`, { statusCode: 200, body: mockIConv }).as('directConnection');
+    cy.intercept('GET', `${url}/convert/infoschema`, { statusCode: 200, body: createMockIConv() }).as('directConnection');
 
     cy.get('.primary-header').eq(0).should('have.text', 'Get started with Spanner migration tool');
     cy.get('#edit-icon').should('exist').click();

@@ -4,7 +4,7 @@ import { DataService } from './data.service'
 import { FetchService } from '../fetch/fetch.service'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import { of } from 'rxjs'
-import mockIConv from 'src/mocks/conv'
+import { createMockIConv } from 'src/mocks/conv'
 import mockSpannerConfig from 'src/mocks/spannerConfig'
 
 describe('DataService', () => {
@@ -26,7 +26,7 @@ describe('DataService', () => {
         provideHttpClient(withInterceptorsFromDi()),
     ]
 })
-        fetchServiceSpy.getLastSessionDetails.and.returnValue(of(mockIConv));
+        fetchServiceSpy.getLastSessionDetails.and.returnValue(of(createMockIConv()));
         fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
         fetchServiceSpy.getIsOffline.and.returnValue(of(false));
         snackbarService = TestBed.inject(SnackbarService);
