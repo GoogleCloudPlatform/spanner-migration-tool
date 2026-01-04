@@ -1,0 +1,12 @@
+globalClientConfigs:
+  enableBuiltInMetrics: true
+  healthCheckEndpoint: "127.0.0.1:8080"
+
+listeners:
+  - name: "listener_1"
+    host: "127.0.0.1"
+    port: 9042
+    spanner:
+      databaseUri: "projects/${SPANNER_PROJECT}/instances/${SPANNER_INSTANCE}/databases/${SPANNER_DATABASE}"
+      numGrpcChannels: ${GRPC_CHANNELS}
+      maxCommitDelayMillis: ${MAX_COMMIT_DELAY}
