@@ -177,5 +177,5 @@ gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/<dlq-path
 ```
 4. Outcome:
 - If a file is processed successfully, it is fully handled.
-- If a file fails processing again, the standard Regular Mode retry logic applies. The event will be retried up to the configured maxRetries attempts within the retry mechanism.
+- If a file fails processing again, the standard Regular Mode retry logic applies. The event will be retried up to the configured maxRetries attempts within the retry mechanism or till a severe failure occurs.
 - If the file still fails after all retries are exhausted in Regular Mode, the pipeline will move it back to the gs://deadLetterQueueDirectory/severe/ directory.
