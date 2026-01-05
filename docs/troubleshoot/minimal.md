@@ -168,11 +168,6 @@ Instead of using the runMode=retryDLQ, you can re-process files from the severe 
 2. Resolve Issues: Address the underlying cause of the errors in the files located within gs://deadLetterQueueDirectory/severe/.
 3. Move Files to Retry: Gradually move the files you want to reprocess from the severe directory to the retry directory.
 
-Command to move a single file
-
-```sh
-gsutil mv gs://<bucket-name>/<dlq-path>/severe/failed-file-01.json gs://<bucket-name>/<dlq-path>/retry/
-```
 Command to move all files
 
 ```sh
