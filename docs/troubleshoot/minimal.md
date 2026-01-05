@@ -156,7 +156,7 @@ dlqGcsPubSubSubscription
 ```
 
 
-#### Alternative: Retrying Severe Errors via the Regular Mode Pipeline
+##### Alternative: Retrying Severe Errors via the Regular Mode Pipeline
 
 Instead of using the runMode=retryDLQ, you can re-process files from the severe directory using the currently running Regular Mode pipeline. 
 
