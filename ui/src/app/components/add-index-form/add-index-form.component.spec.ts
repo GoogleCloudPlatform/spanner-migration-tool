@@ -12,7 +12,7 @@ import IRule from 'src/app/model/rule';
 import { ConversionService } from 'src/app/services/conversion/conversion.service';
 import { DataService } from 'src/app/services/data/data.service';
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service';
-import mockIConv from 'src/mocks/conv';
+import { createMockIConv } from 'src/mocks/conv';
 import { AddIndexFormComponent } from './add-index-form.component';
 
 describe('AddIndexFormComponent', () => {
@@ -22,6 +22,7 @@ describe('AddIndexFormComponent', () => {
   let sidenavServiceSpy: jasmine.SpyObj<SidenavService>;
   let fb: FormBuilder;
   let conversionServiceSpy: jasmine.SpyObj<ConversionService>;
+  let localIConv: IConv;
 
   beforeEach(async () => {
     dataServiceSpy = jasmine.createSpyObj('DataService', ['conv', 'applyRule', 'dropRule']);
@@ -55,7 +56,8 @@ describe('AddIndexFormComponent', () => {
     // Added the spy methods in beforeEach block because these are referred in the ngOnInit function
     conversionServiceSpy.getColIdFromSpannerColName.withArgs(jasmine.any(String),jasmine.any(String),jasmine.objectContaining<IConv>({})).and.returnValue("TestId")
     conversionServiceSpy.getTableIdFromSpName.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue("t1")
-    dataServiceSpy.conv = of(mockIConv);
+    localIConv = createMockIConv();
+    dataServiceSpy.conv = of(localIConv);
     sidenavServiceSpy.sidenavAddIndexTable = of("t1");
     sidenavServiceSpy.displayRuleFlag = of(true)
     sidenavServiceSpy.ruleData = of()
@@ -98,10 +100,11 @@ describe('AddIndexFormComponent', () => {
     }
     sidenavServiceSpy.ruleData = of(addIndexRule)
     component.ngOnInit()
-    const columnName = mockIConv.SpSchema[addIndexRule.Data.TableId]?.ColDefs[addIndexRule.Data.Keys[0].ColId].Name;
+    component.ngOnInit()
+    const columnName = localIConv.SpSchema[addIndexRule.Data.TableId]?.ColDefs[addIndexRule.Data.Keys[0].ColId].Name;
     expect(component.ColsArray.length).toBe(1);
     expect(component.ColsArray.at(0).value.columnName).toEqual(columnName);
-    expect(component.addIndexForm.controls['tableName'].value).toEqual(mockIConv.SpSchema[addIndexRule.Data.TableId].Name);
+    expect(component.addIndexForm.controls['tableName'].value).toEqual(localIConv.SpSchema[addIndexRule.Data.TableId].Name);
     expect(component.addIndexForm.controls['indexName'].value).toEqual(addIndexRule.Data.Name)
     expect(component.addIndexForm.status).toEqual("DISABLED");
   });
@@ -136,7 +139,7 @@ describe('AddIndexFormComponent', () => {
       ],
     };
     component.setColArraysForViewRules(tableId, ruleData.Keys);
-    const columnName = mockIConv.SpSchema[tableId]?.ColDefs[ruleData.Keys[0].ColId].Name;
+    const columnName = localIConv.SpSchema[tableId]?.ColDefs[ruleData.Keys[0].ColId].Name;
     expect(component.ColsArray.length).toBe(1);
     expect(component.ColsArray.at(0).value.columnName).toEqual(columnName);
   });

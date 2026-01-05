@@ -129,6 +129,13 @@ These job parameters can be taken from the original job.
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
 
+The following parameters can be taken from the regular forward migration Dataflow job:
+region
+instanceId
+databaseId
+sessionFilePath
+deadLetterQueueDirectory
+
 Sample command to run the Dataflow job in retryDLQ mode is
 
 ```sh
@@ -136,25 +143,18 @@ gcloud  dataflow flex-template run <jobname> \
 --region=<the region where the dataflow job must run> \
 --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
 --additional-experiments=use_runner_v2 \
---parameters gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,streamName=<Datastream name>, \
+--parameters datastreamSourceType="mysql", \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
-dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>, \
 deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
-The following parameters can be taken from the regular forward migration Dataflow job:
+#### Checking if all DLQ entries are applied
+
+To check if all DLQ entries have been applied to spanner, you could count the DLQ files in GCS and wait for it to go to 0.
 
 ```sh
-region
-gcsPubSubSubscription
-streamName
-instanceId
-databaseId
-sessionFilePath
-deadLetterQueueDirectory
-dlqGcsPubSubSubscription
+gcloud storage ls <GCS path to the DLQ>/severe/**.json | wc -l
 ```
-
 
 ##### Alternative: Retrying Severe Errors via the Regular Mode Pipeline
 
