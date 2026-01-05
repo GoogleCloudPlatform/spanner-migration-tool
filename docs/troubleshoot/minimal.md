@@ -157,6 +157,7 @@ dlqGcsPubSubSubscription
 
 
 #### Alternative: Retrying Severe Errors via the Regular Mode Pipeline
+
 Instead of using the runMode=retryDLQ, you can re-process files from the severe directory using the currently running Regular Mode pipeline. 
 
 **Important Note:** If you have a large number of entries in the DLQ, running the standard retryDLQ mode might lead to Out of Memory (OOM) errors in the pipeline. To handle this, you can use this retrial method **along with Pub/Sub approach by passing dlqGcsPubSubSubscription parameter.**
@@ -168,13 +169,16 @@ Instead of using the runMode=retryDLQ, you can re-process files from the severe 
 3. Move Files to Retry: Gradually move the files you want to reprocess from the severe directory to the retry directory.
 
 Command to move a single file
+
 ```sh
 gsutil mv gs://<bucket-name>/<dlq-path>/severe/failed-file-01.json gs://<bucket-name>/<dlq-path>/retry/
 ```
 Command to move all files
+
 ```sh
 gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/<dlq-path>/retry/
 ```
+
 4. Outcome:
 - If a file is processed successfully, it is fully handled.
 - If a file fails processing again, the standard Regular Mode retry logic applies. The event will be retried up to the configured maxRetries attempts within the retry mechanism or till a severe failure occurs.
