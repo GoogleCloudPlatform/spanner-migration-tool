@@ -37,6 +37,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
+	defer f.Close()
 
 	// The schema file we write out below is optimized for reading. It includes comments, foreign keys
 	// and doesn't add backticks around table and column names. This file is
@@ -66,6 +67,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		fmt.Fprintf(out, "Can't create legal schema ddl file %s: %v\n", name, err)
 		return
 	}
+	defer f.Close()
 
 	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
 	// schema file that is a legal Cloud Spanner DDL.
@@ -91,6 +93,7 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
 		return
 	}
+	defer f.Close()
 	// Session file will basically contain 'conv' struct in JSON format.
 	// It contains all the information for schema and data conversion state.
 	convJSON, err := json.MarshalIndent(conv, "", " ")
@@ -162,6 +165,7 @@ func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name stri
 		fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
 		return
 	}
+	defer f.Close()
 	f.WriteString(banner)
 	maxRows := 100
 	if badConversions > 0 {
@@ -274,6 +278,7 @@ func WriteOverridesFile(conv *internal.Conv, name string, out *os.File) {
 		fmt.Fprintf(out, "Can't create overrides file %s: %v\n", name, err)
 		return
 	}
+	defer f.Close()
 
 	// Extract renamed tables and columns from conv object
 	overrides := internal.ExtractOverridesFromConv(conv)
