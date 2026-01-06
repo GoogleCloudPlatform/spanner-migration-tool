@@ -2201,8 +2201,8 @@ func TestWriteRawSnippets(t *testing.T) {
 			snippets:   []utils.Snippet{snippet1},
 			expectFile: false,
 			setupFailure: func(dir string) {
-				// Make the directory read-only to cause os.Create to fail.
-				err := os.Chmod(dir, 0555)
+				// Remove the directory to cause os.Create to fail.
+				err := os.RemoveAll(dir)
 				assert.NoError(t, err)
 			},
 		},
@@ -2277,9 +2277,9 @@ func TestDumpCsvReport(t *testing.T) {
 			records:    [][]string{{"data"}},
 			expectFile: false,
 			setupFailure: func(filePath string) {
-				// Make the parent directory read-only to cause os.Create to fail.
+				// Remove the parent directory to cause os.Create to fail.
 				dir := filepath.Dir(filePath)
-				err := os.Chmod(dir, 0555) // Read and execute permissions only
+				err := os.RemoveAll(dir)
 				assert.NoError(t, err)
 			},
 		},
@@ -2297,10 +2297,6 @@ func TestDumpCsvReport(t *testing.T) {
 			dumpCsvReport(filePath, tc.records)
 			if !tc.expectFile {
 				assert.NoFileExists(t, filePath)
-				// Restore permissions so the temp directory can be cleaned up.
-				if tc.setupFailure != nil {
-					os.Chmod(filepath.Dir(filePath), 0755)
-				}
 				return
 			}
 
