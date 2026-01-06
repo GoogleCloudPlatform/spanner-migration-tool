@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -31,7 +30,12 @@ func TestFileReaderFile(t *testing.T) {
 			name:          "Local file open error",
 			dumpUri:       "nonexistent_file.sql",
 			wantErr:       true,
-			expectedError: "stat nonexistent_file.sql: no such file or directory",
+			expectedError: func() string {
+				if runtime.GOOS == "windows" {
+					return "The system cannot find the file specified"
+				}
+				return "stat nonexistent_file.sql: no such file or directory"
+			}(),
 		},
 	}
 
@@ -49,11 +53,7 @@ func TestFileReaderFile(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.expectedError != "" {
-					if runtime.GOOS == "windows" && tt.name == "Local file open error" {
-						assert.True(t, strings.Contains(err.Error(), "The system cannot find the file specified"), "Error should match Windows file error")
-					} else {
-						assert.Contains(t, err.Error(), tt.expectedError)
-					}
+					assert.Contains(t, err.Error(), tt.expectedError)
 				}
 				assert.Nil(t, reader)
 				return
