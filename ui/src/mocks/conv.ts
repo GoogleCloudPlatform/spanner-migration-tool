@@ -1,6 +1,7 @@
 import IConv from "src/app/model/conv";
 
-const mockIConv: IConv = {
+export function createMockIConv(): IConv {
+    return {
     SpSchema: {
         "t1": {
             Name: "table1",
@@ -20,7 +21,12 @@ const mockIConv: IConv = {
                     Opts: {},
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {
@@ -80,7 +86,12 @@ const mockIConv: IConv = {
                     },
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {
@@ -139,9 +150,11 @@ const mockIConv: IConv = {
         },
     },
     SrcSequences: {}
-};
+    };
+}
 
-export const mockIConv2: IConv = {
+export function createMockIConv2(): IConv {
+    return {
     SpSchema: {
         "t1": {
             Name: "table1",
@@ -223,7 +236,12 @@ export const mockIConv2: IConv = {
                     },
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {
@@ -276,6 +294,5 @@ export const mockIConv2: IConv = {
     IsSharded: false,
     SpSequences: {},
     SrcSequences: {}
-};
-
-export default mockIConv;
+    };
+}

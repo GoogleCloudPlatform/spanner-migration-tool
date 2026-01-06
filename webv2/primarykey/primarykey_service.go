@@ -15,7 +15,6 @@
 package primarykey
 
 import (
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
@@ -76,29 +75,6 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 		return false
 	}
 	return true
-}
-
-func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
-	if spannertable.ParentTable.Id != "" {
-		var childPkFirstColumn string
-		var parentPkFirstColumn string
-		for i := 0; i < len(spannertable.PrimaryKeys); i++ {
-			if spannertable.PrimaryKeys[i].Order == 1 {
-				childPkFirstColumn = spannertable.PrimaryKeys[i].ColId
-			}
-		}
-		for i := 0; i < len(conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys); i++ {
-			if conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys[i].Order == 1 {
-				parentPkFirstColumn = conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys[i].ColId
-			}
-		}
-		if childPkFirstColumn != parentPkFirstColumn {
-			spannertable.ParentTable.Id = ""
-			spannertable.ParentTable.OnDelete = ""
-			spannertable.ParentTable.InterleaveType = ""
-			conv.SpSchema[spannertable.Name] = spannertable
-		}
-	}
 }
 
 // isValidColumnOrder make sure two primary key column can not have same order.

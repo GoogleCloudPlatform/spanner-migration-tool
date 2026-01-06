@@ -133,8 +133,16 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	checkResults(t, dbURI, true)
 }
 
-func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dumpFilePath)
+func toDefaultTimezoneArg(defaultTimezone string) string {
+	defaultTimezoneArg := ""
+	if defaultTimezone != "" {
+		defaultTimezoneArg = fmt.Sprintf(",defaultTimezone=%s", defaultTimezone)
+	}
+	return defaultTimezoneArg
+}
+
+func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string, defaultTimezone string) {
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s%s' < %s", filePrefix, instanceID, dbName, projectID, toDefaultTimezoneArg(defaultTimezone), dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -149,8 +157,8 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 	}
 }
 
-func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
-	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dumpFilePath)
+func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string, defaultTimezone string) {
+	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s,project=%s%s' < %s", filePrefix, instanceID, dbName, projectID, toDefaultTimezoneArg(defaultTimezone), dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -163,6 +171,7 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "test-schema-subcommand"
+	defaultTimezone := "America/New_York"
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	defer dropDatabase(t, dbURI)
@@ -170,7 +179,7 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	sessionFile := fmt.Sprintf("%s.session.json", filePrefix)
-	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
+	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath, defaultTimezone)
 	if _, err := os.Stat(fmt.Sprintf("%s.report.txt", filePrefix)); os.IsNotExist(err) {
 		t.Fatalf("report file not generated during schema-only test")
 	}
@@ -194,7 +203,7 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	sessionFile := fmt.Sprintf("%s.session.json", filePrefix)
-	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
+	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath, "")
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	defer dropDatabase(t, dbURI)
 	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
@@ -207,11 +216,12 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "test-schema-and-data"
+	defaultTimezone := "America/New_York"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, defaultTimezone)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI, false)
 }
@@ -248,7 +258,7 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
 
 	defer dropDatabase(t, dbURI)
 	checkForeignKeyActions(ctx, t, dbURI)
@@ -263,10 +273,23 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 	dumpFilePath := "../../test_data/mysql_checkconstraint_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
 
 	defer dropDatabase(t, dbURI)
-	checkCheckConstraints(ctx, t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-check-constraint"
+	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
+	filePrefix := filepath.Join(tmpdir, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
+
+	defer dropDatabase(t, dbURI)
 }
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {

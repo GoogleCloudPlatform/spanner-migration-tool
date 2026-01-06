@@ -23,30 +23,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 type ReviewTableSchemaResponse struct {
-	DDL     string
-	Changes []InterleaveTableSchema
-}
-
-type InterleaveTableSchema struct {
-	Table                   string
-	InterleaveColumnChanges []InterleaveColumn
-}
-
-type InterleaveColumn struct {
-	ColumnName       string
-	Type             string
-	Size             int
-	UpdateColumnName string
-	UpdateType       string
-	UpdateSize       int
-	ColumnId         string
+	DDL string
 }
 
 // ReviewTableSchema review Spanner Table Schema.
@@ -73,6 +60,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	var conv *internal.Conv
 
 	convByte, err := json.Marshal(sessionState.Conv)
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("conversion object parse error : %v", err), http.StatusInternalServerError)
 		return
@@ -84,9 +72,14 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	conv.UsedNames = internal.ComputeUsedNames(conv)
 
-	interleaveTableSchema := []InterleaveTableSchema{}
-
 	for colId, v := range t.UpdateCols {
+
+		interleavingImpact := IsInterleavingImpacted(v, tableId, colId, conv)
+
+		if interleavingImpact != "" {
+			http.Error(w, interleavingImpact, http.StatusBadRequest)
+			return
+		}
 
 		if v.Add {
 			addColumn(tableId, colId, conv)
@@ -114,8 +107,13 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
 			}
 
-			interleaveTableSchema = reviewRenameColumn(v.Rename, tableId, colId, conv, interleaveTableSchema)
-
+			sp := conv.SpSchema[tableId]
+			column, ok := sp.ColDefs[colId]
+			if ok {
+				column.Name = v.Rename
+				sp.ColDefs[colId] = column
+				conv.SpSchema[tableId] = sp
+			}
 		}
 
 		_, found := conv.SrcSchema[tableId].ColDefs[colId]
@@ -128,9 +126,25 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
+				sp, ty, err := utilities.GetType(conv, v.ToType, tableId, colId)
 
-				interleaveTableSchema, err = ReviewColumnType(v.ToType, tableId, colId, conv, interleaveTableSchema, w)
+				colDef := sp.ColDefs[colId]
+				colDef.T = ty
+				if conv.Source == constants.CASSANDRA {
+					toddl := cassandra.InfoSchemaImpl{}.GetToDdl()
+					if optionProvider, ok := toddl.(common.OptionProvider); ok {
+						srcCol := conv.SrcSchema[tableId].ColDefs[colId]
+						option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
+						if colDef.Opts == nil {
+							colDef.Opts = make(map[string]string)
+						}
+						colDef.Opts["cassandra_type"] = option
+					}
+				}
+				sp.ColDefs[colId] = colDef
+				conv.SpSchema[tableId] = sp
 				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 			}
@@ -148,7 +162,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
 			}
 			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
-				interleaveTableSchema = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema)
+				sp := conv.SpSchema[tableId]
+				colDef := sp.ColDefs[colId]
+				colDef.T.Len = colMaxLength
+				sp.ColDefs[colId] = colDef
+				conv.SpSchema[tableId] = sp
 			}
 		}
 
@@ -161,13 +179,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)
 
-	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
-	// update interleaveTableSchema by filling the missing fields.
-	interleaveTableSchema = updateInterleaveTableSchema(conv, interleaveTableSchema)
-
 	resp := ReviewTableSchemaResponse{
-		DDL:     ddl,
-		Changes: interleaveTableSchema,
+		DDL: ddl,
 	}
 
 	sessionMetaData := session.GetSessionState().SessionMetadata

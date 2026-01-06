@@ -76,6 +76,7 @@ type TargetDetails struct {
 	ReplicationSlot             string          `json:"ReplicationSlot"`
 	Publication                 string          `json:"Publication"`
 	GcsMetadataPath             GcsMetadataPath `json:"GcsMetadataPath"`
+	DefaultTimezone             string          `json:"DefaultTimezone"`
 }
 
 type GcsMetadataPath struct {
@@ -178,4 +179,5 @@ type TableInterleaveStatus struct {
 	Parent   string
 	OnDelete string
 	Comment  string
+	InterleaveType string
 }

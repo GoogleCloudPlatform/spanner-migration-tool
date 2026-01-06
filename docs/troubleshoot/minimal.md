@@ -129,6 +129,13 @@ These job parameters can be taken from the original job.
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
 
+The following parameters can be taken from the regular forward migration Dataflow job:
+region
+instanceId
+databaseId
+sessionFilePath
+deadLetterQueueDirectory
+
 Sample command to run the Dataflow job in retryDLQ mode is
 
 ```sh
@@ -136,21 +143,38 @@ gcloud  dataflow flex-template run <jobname> \
 --region=<the region where the dataflow job must run> \
 --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
 --additional-experiments=use_runner_v2 \
---parameters gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,streamName=<Datastream name>, \
+--parameters datastreamSourceType="mysql", \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
-dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>, \
 deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
-The following parameters can be taken from the regular forward migration Dataflow job:
+#### Checking if all DLQ entries are applied
+
+To check if all DLQ entries have been applied to spanner, you could count the DLQ files in GCS and wait for it to go to 0.
 
 ```sh
-region
-gcsPubSubSubscription
-streamName
-instanceId
-databaseId
-sessionFilePath
-deadLetterQueueDirectory
-dlqGcsPubSubSubscription
+gcloud storage ls <GCS path to the DLQ>/severe/**.json | wc -l
 ```
+
+##### Alternative: Retrying Severe Errors via the Regular Mode Pipeline
+
+Instead of using the runMode=retryDLQ, you can re-process files from the severe directory using the currently running Regular Mode pipeline. 
+
+**Important Note:** If you have a large number of entries in the DLQ, running the standard retryDLQ mode might lead to Out of Memory (OOM) errors in the pipeline. To handle this, you can use this retrial method **along with Pub/Sub approach by passing dlqGcsPubSubSubscription parameter.**
+
+
+**Steps:**
+1. Ensure pipeline is running in regular mode. If not, restart the pipeline in regular mode.
+2. Resolve Issues: Address the underlying cause of the errors in the files located within gs://deadLetterQueueDirectory/severe/.
+3. Move Files to Retry: Gradually move the files you want to reprocess from the severe directory to the retry directory.
+
+Command to move all files
+
+```sh
+gsutil -m mv gs://<bucket-name>/<dlq-path>/severe/* gs://<bucket-name>/<dlq-path>/retry/
+```
+
+4. Outcome:
+- If a file is processed successfully, it is fully handled.
+- If a file fails processing again, the standard Regular Mode retry logic applies. The event will be retried up to the configured maxRetries attempts within the retry mechanism or till a severe failure occurs.
+- If the file still fails after all retries are exhausted in Regular Mode, the pipeline will move it back to the gs://deadLetterQueueDirectory/severe/ directory.

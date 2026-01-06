@@ -90,6 +90,10 @@
         <div class="interleave-parent-name">
           {{ interleaveParentName }}
         </div>
+         Interleave Type:
+        <div class="interleave-type">
+          {{ interleaveType }}
+        </div>
       </div>
     </span>
     <button id="middle-column-toggle-button" (click)="middleColumnToggle()">
@@ -139,7 +143,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="srcAutoGen" *ngIf="mySqlSource">
+            <ng-container matColumnDef="srcAutoGen" *ngIf="supportsAutoGen">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
@@ -166,7 +170,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="srcDefaultValue" *ngIf="mySqlSource">
+            <ng-container matColumnDef="srcDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div
@@ -203,7 +207,7 @@
                       ADD COLUMN
                     </button>
                   </div>
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted && mySqlSource">
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted && supportsDefaultAndSequence">
                     <button mat-stroked-button color="primary" (click)="addNewSequence()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
@@ -258,7 +262,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="spAutoGen" *ngIf="mySqlSource">
+            <ng-container matColumnDef="spAutoGen" *ngIf="supportsAutoGen">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
@@ -272,7 +276,12 @@
                         </ng-container>
                         <ng-container *ngIf="element.get('spDataType').value as spDataType">
                           <ng-container *ngFor="let typeGroup of (processedAutoGenMap[spDataType] | keyvalue)">
-                            <mat-optgroup *ngIf="typeGroup.key !== ''" [label]="typeGroup.key">
+                            <ng-container *ngIf="typeGroup.key === 'Identity'">
+                              <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
+                                {{ autoGen.Name }}
+                              </mat-option>
+                            </ng-container>
+                            <mat-optgroup *ngIf="typeGroup.key !== '' && typeGroup.key !== 'Identity'" [label]="typeGroup.key">
                               <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
                                 {{ autoGen.Name }}
                               </mat-option>
@@ -288,6 +297,55 @@
                 </div>
               </td>
             </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMin" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMin')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMin')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMin').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMax" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Max</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMax')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMax')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMax').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spStartCounterWith" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Start Counter With</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spStartCounterWith')"
+                    matTooltip="Should be a number"
+                    [matTooltipDisabled]="!element.get('spStartCounterWith')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spStartCounterWith').value }}</p>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spColMaxLength">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
@@ -317,7 +375,7 @@
               </ng-container>
             </ng-container>
 
-            <ng-container matColumnDef="spDefaultValue" *ngIf="mySqlSource">
+            <ng-container matColumnDef="spDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="!isEditMode" class="trimmed-text"
@@ -481,7 +539,7 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="srcAutoGen" *ngIf="mySqlSource">
+          <ng-container matColumnDef="srcAutoGen" *ngIf="supportsAutoGen">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
             <td mat-cell *matCellDef="let element">
               {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
@@ -519,7 +577,7 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="spAutoGen" *ngIf="mySqlSource">
+          <ng-container matColumnDef="spAutoGen" *ngIf="supportsAutoGen">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
             <td mat-cell *matCellDef="let element">
               <p>{{ element.get('spAutoGen').value.Name !== '' ? element.get('spAutoGen').value.Name : 'None' }}</p>
@@ -726,27 +784,6 @@
                   <button [disabled]="element.get('spName').value === ''" mat-menu-item (click)="dropFk(element)">
                     <span>Drop Foreign Key</span>
                   </button>
-                  <ng-container *ngIf="interleaveStatus.tableInterleaveStatus && interleaveStatus.tableInterleaveStatus.Possible">
-                    <div mat-menu-item style="pointer-events: none; font-weight: bold; color: rgba(0,0,0,.87);">
-                      <span>Convert to Interleave</span>
-                    </div>
-                    <button
-                      mat-menu-item
-                      [disabled]="element.get('spName').value === ''"
-                      (click)="setInterleave('In PARENT')"> <span>Convert to Interleave In Parent</span>
-                    </button>
-                    &nbsp;<button
-                      mat-menu-item
-                      [disabled]="element.get('spName').value === ''"
-                      (click)="setInterleave('IN')"> <span>Convert to Interleave In</span>
-                    </button>
-                    &nbsp;<div style="display: inline-flex; align-items: center;">
-                      <mat-icon color="primary">info_outline</mat-icon>&nbsp;
-                      <a href="https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables" target="_blank">
-                        Interleaving Information
-                      </a>
-                    </div>
-                  </ng-container>
                 </mat-menu>
               </div>
             </td>
@@ -760,53 +797,46 @@
     </mat-tab>
 
     <mat-tab label="INTERLEAVE" *ngIf="
-        ((interleaveStatus.tableInterleaveStatus &&
-          interleaveStatus.tableInterleaveStatus.Possible) ||
-          this.interleaveParentName !== null) &&
-        currentObject.isSpannerNode
-      ">
-      <div class="interleave-tab-container">
-        <ng-container *ngIf="
-        interleaveStatus.tableInterleaveStatus &&
-        interleaveStatus.tableInterleaveStatus.Possible &&
-        this.interleaveParentName === null">
-        <h4>Convert to Interleave</h4>
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="setInterleave('IN PARENT')"> Convert to Interleave In Parent
-        </button>
-        &nbsp;<button
-          mat-raised-button
-          color="primary"
-          (click)="setInterleave('IN')"> Convert to Interleave In
-        </button>
-        &nbsp;<div style="display: inline-flex; align-items: center;">
-          <mat-icon color="primary">info_outline</mat-icon>&nbsp;
-          <a href="https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables" target="_blank">
-            Interleaving Information
-          </a>
-        </div>
-        </ng-container>
-        <button *ngIf="
-            (interleaveStatus.tableInterleaveStatus &&
-              !interleaveStatus.tableInterleaveStatus.Possible) ||
-            this.interleaveParentName !== null
-          " mat-raised-button color="primary" (click)="removeInterleave()">
-          Convert Back to Foreign Key
-        </button>
-        <br />
-        <div *ngIf="
-            (interleaveStatus.tableInterleaveStatus &&
-              !interleaveStatus.tableInterleaveStatus.Possible) ||
-            this.interleaveParentName !== null
-          ">
-          This table is interleaved with
-          <span class="interleave-parent-table">{{ interleaveParentName }}</span> with Interleave Type {{ interleaveType }}. Click on the above button to convert
-          back to foreign key.
-        </div>
-      </div>
-    </mat-tab>
+      (currentObject.isSpannerNode)
+    ">
+    <div class="interleave-tab-container">
+    <ng-select [items]="spTablesForInterleaving"
+               [searchFn]="customSearchFn"
+               placeholder="Select Table to interleave with"
+               [clearable]="true"
+               [(ngModel)]="interleaveParentId"
+               appendTo="body"
+               bindLabel="name"
+               bindValue="id">
+    </ng-select>
+
+    <ng-select [items]="[{'name':'IN', 'value':'IN'}, {'name':'IN PARENT', 'value':'IN PARENT'}]"
+               bindLabel="name"
+               bindValue="value"
+               placeholder="Select Interleave Type"
+               [clearable]="false"
+               appendTo="body"
+               [(ngModel)]="interleaveType" (change)="interleaveType === 'IN' ? (onDeleteAction = '') : null">
+    </ng-select>
+
+    <ng-select *ngIf="interleaveType === 'IN PARENT'"
+               [items]="[{'name':'NO ACTION', 'value':'NO ACTION'}, {'name':'CASCADE', 'value':'CASCADE'}]"
+               placeholder="Select On Delete Action"
+               bindLabel="name"
+               bindValue="value"
+               [clearable]="false"
+               appendTo="body"
+               [(ngModel)]="onDeleteAction">
+    </ng-select>
+
+    <button mat-raised-button color="primary" (click)="setInterleave(interleaveParentId!, interleaveType, onDeleteAction)" [disabled]="!interleaveParentId || !interleaveType || (interleaveType === 'IN PARENT' && !onDeleteAction)">
+      SAVE
+    </button>
+    <button mat-raised-button color="warn" (click)="removeInterleave()" *ngIf="getInterleaveParentIdFromConv()">
+      CLEAR
+    </button>
+</div>
+  </mat-tab>
 
     <mat-tab>
       <ng-template mat-tab-label>
@@ -1046,7 +1076,7 @@
     </div>
   </div>
 
-  <div *ngIf="currentObject!.type === 'sequenceName' && mySqlSource" class="sequence-tab-container">
+  <div *ngIf="currentObject!.type === 'sequenceName' && supportsDefaultAndSequence" class="sequence-tab-container">
     <table mat-table [dataSource]="spDataSource">
       <ng-container matColumnDef="spDatabase">
         <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
@@ -1164,7 +1194,7 @@
         CANCEL
       </button>
     </div>
-    <div class="save-button" *ngIf="isCcEditMode && (interleaveParentName !== null ? currentTabIndex === 4:currentTabIndex === 3)">
+    <div class="save-button" *ngIf="isCcEditMode && (interleaveParentId !== null ? currentTabIndex === 4:currentTabIndex === 3)">
       <button mat-raised-button color="primary" (click)="saveCc()" [disabled]="!ccArray.valid" >
         SAVE & CONVERT
       </button>

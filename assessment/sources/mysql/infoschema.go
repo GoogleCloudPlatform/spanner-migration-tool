@@ -91,7 +91,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 		tb[table.Id] = utils.TableAssessmentInfo{Name: table.Name, TableDef: table, ColumnAssessmentInfos: columnAssessments, Db: dbIdentifier, Charset: charset, Collation: collation}
 	}
 	if errString != "" {
-		return tb, fmt.Errorf(errString)
+		return tb, fmt.Errorf("%s", errString)
 	}
 	return tb, nil
 }
@@ -151,7 +151,7 @@ func (isi InfoSchemaImpl) GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error
 		})
 	}
 	if errString != "" {
-		return triggers, fmt.Errorf(errString)
+		return triggers, fmt.Errorf("%s", errString)
 	}
 	return triggers, nil
 }
@@ -183,7 +183,7 @@ func (isi InfoSchemaImpl) GetStoredProcedureInfo() ([]utils.StoredProcedureAsses
 		})
 	}
 	if errString != "" {
-		return storedProcedures, fmt.Errorf(errString)
+		return storedProcedures, fmt.Errorf("%s", errString)
 	}
 	return storedProcedures, nil
 }
@@ -216,7 +216,7 @@ func (isi InfoSchemaImpl) GetFunctionInfo() ([]utils.FunctionAssessmentInfo, err
 		})
 	}
 	if errString != "" {
-		return functions, fmt.Errorf(errString)
+		return functions, fmt.Errorf("%s", errString)
 	}
 	return functions, nil
 }
@@ -249,7 +249,7 @@ func (isi InfoSchemaImpl) GetViewInfo() ([]utils.ViewAssessmentInfo, error) {
 		})
 	}
 	if errString != "" {
-		return views, fmt.Errorf(errString)
+		return views, fmt.Errorf("%s", errString)
 	}
 	return views, nil
 }

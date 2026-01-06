@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"go.uber.org/zap"
@@ -39,7 +40,7 @@ import (
 
 type SchemaFromSourceInterface interface {
 	schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error)
-	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
+	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface, defaultIdentityOptions profiles.DefaultIdentityOptions) (*internal.Conv, error)
 }
 
 type SchemaFromSourceImpl struct {
@@ -60,6 +61,11 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	conv.SpProjectId = targetProfile.Conn.Sp.Project
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
+	conv.DefaultIdentityOptions = ddl.IdentityOptions{
+		SkipRangeMin: targetProfile.DefaultIdentityOptions.SkipRangeMin,
+		SkipRangeMax: targetProfile.DefaultIdentityOptions.SkipRangeMax,
+		StartCounterWith: targetProfile.DefaultIdentityOptions.StartCounterWith,
+	}
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
@@ -112,7 +118,7 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface, defaultIdentityOptions profiles.DefaultIdentityOptions) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -125,6 +131,11 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	conv.Source = driver
 	conv.SpProjectId = SpProjectId
 	conv.SpInstanceId = SpInstanceId
+	conv.DefaultIdentityOptions = ddl.IdentityOptions{
+		SkipRangeMin: defaultIdentityOptions.SkipRangeMin,
+		SkipRangeMax: defaultIdentityOptions.SkipRangeMax,
+		StartCounterWith: defaultIdentityOptions.StartCounterWith,
+	}
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
@@ -132,7 +143,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	err = processDump.ProcessDump(driver, conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
-		return nil, fmt.Errorf("failed to parse the data file")
+		return nil, fmt.Errorf("failed to parse the data file: %w", err)
 	}
 	p.Done()
 	return conv, nil

@@ -88,6 +88,27 @@ CREATE TABLE public.test3 (
 ALTER TABLE public.test3 OWNER TO postgres;
 
 --
+-- Name: test_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.test_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.test_id_seq OWNER TO postgres;
+
+--
+-- Name: test_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.test_id_seq OWNED BY public.test.id;
+
+
+--
 -- Name: test_numeric_pk; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -97,6 +118,13 @@ CREATE TABLE public.test_numeric_pk (
 
 
 ALTER TABLE public.test_numeric_pk OWNER TO postgres;
+
+--
+-- Name: test id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.test ALTER COLUMN id SET DEFAULT nextval('public.test_id_seq'::regclass);
+
 
 --
 -- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres

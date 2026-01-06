@@ -179,6 +179,8 @@ export interface ISyntheticPKey {
 }
 export interface ITableInterleaveStatus {
   Possible: boolean
+  Type: string
+  OnDeleteAction: string
   Parent: string
   Comment: string
 }
@@ -195,6 +197,13 @@ export interface IPrimaryKey {
 export interface IAutoGen {
   Name: string
   GenerationType: string
+  IdentityOptions: IIdentityOptions;
+}
+
+export interface IIdentityOptions {
+  SkipRangeMin: string;
+  SkipRangeMax: string;
+  StartCounterWith: string;
 }
 
 export interface ISessionSummary {

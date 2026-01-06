@@ -155,6 +155,8 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 			}
 			// Drop the database later.
 			defer dropDatabase(t, dbURI)
+
+			checkSerialForDbURI(ctx, t, dbURI, ExpectedIdentityOptions{})
 		})
 	}
 }
@@ -202,6 +204,8 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	}
 
 	defer dropDatabase(t, dbURI)
+
+	checkSerialForDbURI(ctx, t, dbURI, ExpectedIdentityOptions{})
 }
 
 func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
@@ -252,6 +256,33 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	checkForeignKeyActions(ctx, t, dbURI)
 }
 
+func TestIntegration_POSTGRES_DefaultIdentityOptions(t *testing.T) {
+	for _, d := range []string{"google_standard_sql", "postgresql"} {
+		dialect := d
+		t.Run(dialect, func(t *testing.T) {
+			onlyRunForEmulatorTest(t)
+			t.Parallel()
+
+			tmpdir := prepareIntegrationTest(t)
+			defer os.RemoveAll(tmpdir)
+
+			now := time.Now()
+			g := utils.GetUtilInfoImpl{}
+			dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+			filePrefix := filepath.Join(tmpdir, dbName)
+
+			args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s,defaultIdentitySkipRange=100-1000,defaultIdentityStartCounterWith=10'", filePrefix, instanceID, dbName, projectID, dialect)
+			err := common.RunCommand(args, "emulator-test-project")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer dropDatabase(t, dbURI)
+			checkSerialForDbURI(ctx, t, dbURI, ExpectedIdentityOptions{StartCounterWith: "10", SkipRangeMin: "100", SkipRangeMax: "1000"})
+		})
+	}
+}
+
 func checkResults(t *testing.T, dbURI string) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)
@@ -264,6 +295,7 @@ func checkResults(t *testing.T, dbURI string) {
 	checkTimestamps(ctx, t, client)
 	checkCoreTypes(ctx, t, client)
 	checkArrays(ctx, t, client)
+	checkSerial(ctx, t, client, ExpectedIdentityOptions{})
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -379,6 +411,38 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
+}
+
+type ExpectedIdentityOptions struct {
+	SkipRangeMin string
+	SkipRangeMax string
+	StartCounterWith string
+}
+
+func checkSerialForDbURI(ctx context.Context, t *testing.T, dbURI string, expectedIdentityOptions ExpectedIdentityOptions) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+	checkSerial(ctx, t, client, expectedIdentityOptions)
+}
+
+func checkSerial(ctx context.Context, t *testing.T, client *spanner.Client, expectedIdentityOptions ExpectedIdentityOptions) {
+	stmt := spanner.Statement{SQL: `SELECT IS_IDENTITY, IDENTITY_GENERATION, IDENTITY_KIND, IDENTITY_START_WITH_COUNTER, IDENTITY_SKIP_RANGE_MIN, IDENTITY_SKIP_RANGE_MAX FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'test' AND COLUMN_NAME = 'id'`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ := iter.Next()
+
+	var isIdentity, identityGeneration, identityKind, startCounterWith, skipRangeMin, skipRangeMax string
+	row.Columns(&isIdentity, &identityGeneration, &identityKind, &startCounterWith, &skipRangeMin, &skipRangeMax)
+
+	assert.Equal(t, "YES", isIdentity)
+	assert.Equal(t, "BY DEFAULT", identityGeneration)
+	assert.Equal(t, "BIT_REVERSED_POSITIVE_SEQUENCE", identityKind)
+	assert.Equal(t, expectedIdentityOptions.StartCounterWith, startCounterWith)
+	assert.Equal(t, expectedIdentityOptions.SkipRangeMin, skipRangeMin)
+	assert.Equal(t, expectedIdentityOptions.SkipRangeMax, skipRangeMax)
 }
 
 func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {

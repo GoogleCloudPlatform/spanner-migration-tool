@@ -28,7 +28,7 @@ func TestDetectHotspot(t *testing.T) {
 		name          string
 		tableId       string
 		columnId      string
-		conv          internal.Conv
+		conv          *internal.Conv
 		statusCode    int
 		expectedIssue []internal.SchemaIssue
 	}{
@@ -36,7 +36,7 @@ func TestDetectHotspot(t *testing.T) {
 			name:     "timeStamp_t1",
 			tableId:  "t1",
 			columnId: "c3",
-			conv: internal.Conv{
+			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Id:     "t1",
@@ -64,7 +64,7 @@ func TestDetectHotspot(t *testing.T) {
 
 	for _, tt := range tc {
 		sessionState := session.GetSessionState()
-		sessionState.Conv = &tt.conv
+		sessionState.Conv = tt.conv
 		DetectHotspot()
 		actual := sessionState.Conv.SchemaIssues[tt.tableId].ColumnLevelIssues[tt.columnId]
 		if !reflect.DeepEqual(actual, tt.expectedIssue) {

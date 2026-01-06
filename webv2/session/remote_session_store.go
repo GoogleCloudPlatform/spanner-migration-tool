@@ -113,7 +113,7 @@ func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId strin
 		return convm, err
 	}
 
-	convm.Conv = conv
+	convm.Conv = &conv
 	convm.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 
 	convm.SessionMetadata = SessionMetadata{

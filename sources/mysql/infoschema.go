@@ -200,17 +200,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		ignored.Default = colDefault.Valid
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
-			sequence := createSequence(conv)
 			colAutoGen = ddl.AutoGenCol{
-				Name:           sequence.Name,
+				Name:           constants.AUTO_INCREMENT,
 				GenerationType: constants.AUTO_INCREMENT,
 			}
-			sequence.ColumnsUsingSeq = map[string][]string{
-				table.Id: {colId},
-			}
-			conv.ConvLock.Lock()
-			conv.SrcSequences[sequence.Id] = sequence
-			conv.ConvLock.Unlock()
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
