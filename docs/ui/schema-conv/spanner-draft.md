@@ -26,7 +26,7 @@ Users can view detailed information for a table by selecting it from the **Spann
 
 ### Column
 
-Column tab provides information on the columns that are a part of the selected table. It also provides the option to edit the column wherein a user can modify a column name, delete a column, change the data type of the column, add auto-generation to the column, modify the default value or modify the null property of the column. Once the user is done with required modifications, they can click on **SAVE & CONVERT **and the update would reflect in the session file and across all the components in the database.
+Column tab provides information on the columns that are a part of the selected table. It also provides the option to edit the column wherein a user can modify a column name, delete a column, change the data type of the column, add and configure auto-generation for the column, modify the default value or modify the null property of the column. Once the user is done with required modifications, they can click on **SAVE & CONVERT **and the update would reflect in the session file and across all the components in the database.
 
 ![](https://services.google.com/fh/files/misc/dv1.png)
 
@@ -48,47 +48,23 @@ Users can view and edit the primary key of a table from the primary key tab. The
 
 ### Foreign Key
 
-Users can view and edit the foreign key of a table from the foreign key tab. They can modify the foreign key constraint name, drop the foreign key or convert the foreign key into interleave, if the table is interleavable. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
+Users can view and edit the foreign key of a table from the foreign key tab. They can modify the foreign key constraint name or drop the foreign key. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
 
-![](https://services.google.com/fh/files/helpcenter/asset-2tfzryfujfp.png)
+![](https://services.google.com/fh/files/misc/smt_foreign_key_change_options.png)
 
 ### Interleave
 
 Interleaving physically co-locates child rows with parent rows in storage. Co-location can significantly improve performance.For example, if there is a _Customers_ table and an _Invoices_ table, and the application frequently fetches all the invoices for a customer, users can define Invoices as an interleaved child table of Customers. In doing so, a data locality relationship between two independent tables is declared resulting in significant performance improvement.
-Spanner Migration Tool provides the option to convert a table into an interleaved table if it fulfills all the criteria.The Interleave tab shows up only for tables which are possible candidates for interleaving, based on the existing foreign keys. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property and restore the foreign key by clicking on ‘**Convert back to foreign key**'.
+Spanner Migration Tool provides the option to convert a table into an interleaved table by providing the intended parent table if it fulfills interleave requirements. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property.
 Currently Spanner Migration Tool allows users to choose between INTERLEAVE IN feature that allows child rows to be inserted
-without parent being present or INTERLEAVE IN PARENT feature which maintains the referential integrity. The INTERLEAVE IN
+without parent being present or INTERLEAVE IN PARENT feature which maintains the referential integrity. Users have to choose the ON DELETE action for INTERLEAVE IN PARENT setting. The INTERLEAVE IN
 feature leads to a faster migration. After the migration is completed, users need to modify the
 DDL to shift from INTERLEAVE IN to INTERLEAVE IN PARENT so that the check for parent and child rows can be inforced.
 
 {: .note }
 Interleaving property needs to be set during the migration and a table cannot be interleaved after migration.
 
-![](https://services.google.com/fh/files/helpcenter/asset-jni7ugajpw.png)
-
-
-#### Interleave any table on any table
-
-Interleaving one table within another without Foreign key relationship is not currently supported on the Spanner migration tool UI. However, there is a workaround that customers can use to achieve this.
-
-##### Prerequisites
-
-To interleave a `child table` within a `parent table`, the following conditions must be met:
-
-1. The column names in the child table that reference the parent table must exactly match the column names in the parent table. The columns must also have the same data type and constraints (e.g., NOT NULL).
-2. The child table must reference all of the primary key columns from the parent table, and these columns must also be part of the primary key in the child table.
-3. The column order for the referenced columns in the primary key of the child table must match the column order of the primary key in the parent table. Additionally, the referenced columns must appear at the beginning of the primary key set in the child table.
-
-##### Procedure
-
-1. Download the session file from the Spanner migration tool after connecting to the source database.
-2. Locate the table ID of the parent table in the session file.
-3. In the spSchema object, within the child table's section, set the Id field in the parentTable object to the parent table's ID. Also, specify the desired OnDelete action in the OnDelete field (NO ACTION or CASCADE), as illustrated below.
-
-![](https://services.google.com/fh/files/misc/smt_session_interleaving_parent.png)
-![](https://services.google.com/fh/files/misc/smt_session_interleaving_child.png)
-
-4. Use the modified session file in the [SMT commands](../../cli/cli.md) or it can be imported via [SMT UI](../connect-source.md#load-session-file) and proceed further.
+![](https://services.google.com/fh/files/misc/smt_interleave_tab.png)
 
 ### Check Constraints
 Users have the ability to view and modify check constraints of a table via the check constraints tab. They can alter the check constraint's name, condition, and even remove the check constraint entirely. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
@@ -144,7 +120,8 @@ Apart from the existing indexes for the source database, users can also add seco
 
 Auto-Generated Columns populate Spanner columns automatically if no value is provided. Currently Spanner Migration Tool support the following techniques for auto-generation:
 1. UUID function: Generate a UUID (v4) as part of a table’s primary key DEFAULT expression.
-2. Bit reverse function: Map existing integer keys using the same logic as a bit-reversed sequence to avoid hotspotting.
+2. Identity columns: automatically generate integer values without having to manually maintain an underlying sequence. Existing auto-incrementing columns are mapped to Identity columns.
+3. Bit reverse function: Map existing integer keys using the same logic as a bit-reversed sequence to avoid hotspotting.
 
 Refer to [documentation](https://cloud.google.com/spanner/docs/primary-key-default-value).
 
@@ -153,9 +130,17 @@ Refer to [documentation](https://cloud.google.com/spanner/docs/primary-key-defau
 The default recommendation for primary keys in Spanner is to use a Universally Unique Identifier, or UUID. Users can convert existing columns to be filled by UUID by choosing the **Edit** option in a table and under the **Auto-Generated** column choosing UUID.
 ![](https://services.google.com/fh/files/misc/column-edit-uuid.png)
 
+### Identity Columns
+
+Identity columns automatically generate integer values without requiring manual maintenance or management of an underlying sequence by users.
+
+By default, the Spanner Migration Tool maps auto-incrementing columns from the source database to Identity columns in Spanner, without setting any SKIP RANGE or START COUNTER WITH values. In order to avoid duplicates, it is recommended to set either a SKIP RANGE or a START COUNTER WITH value for all auto-incrementing columns that will be migrated.
+
+See [documentation](https://cloud.google.com/spanner/docs/primary-key-default-value#identity-columns) for more details on Identity columns.
+
 ### Sequences
 
-Spanner offers a SEQUENCE object that generates unique integers as part of a primary key DEFAULT expression. However, unlike a monotonic sequence, the values generated by a Spanner sequence are distributed uniformly and thus won’t hotspot at scale. Existing **Auto-Increment** columns will be mapped to a new Sequence.
+Spanner offers a SEQUENCE object that generates unique integers as part of a primary key DEFAULT expression. However, unlike a monotonic sequence, the values generated by a Spanner sequence are distributed uniformly and thus won’t hotspot at scale.
 
 #### Create a new Sequence
 In order to add a sequence, the user needs to select the **Add Sequence** option and provide some details mandatory to create a sequence like **sequence name** and **sequence type**. An existing sequence can also be modified using the **Edit** button.

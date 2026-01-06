@@ -324,6 +324,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("Column '%s' is an autoincrement column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
+				case internal.IdentitySkipRange:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Column '%s' has been converted to an identity column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief),
+					}
+					l = append(l, toAppend)
 				case internal.SequenceCreated:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -635,6 +641,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.DecimalThatFits:      {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", Severity: suggestion, Category: "DECIMAL_THAT_FITS"},
 	internal.Serial:               {Brief: "Spanner does not support autoincrementing types", Severity: warning, Category: "AUTOINCREMENTING_TYPE_USES"},
 	internal.AutoIncrement:        {Brief: "Spanner does not support auto_increment attribute", Severity: warning, Category: "AUTO_INCREMENT_ATTRIBUTE_USES"},
+	internal.IdentitySkipRange:    {Brief: "Set Skip Range or Start Counter With values to avoid duplicate value errors.", Severity: note, Category: "IDENTITY_SKIP_RANGE_SUGGESTION"},
 	internal.Timestamp:            {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", Severity: suggestion, batch: true, Category: "TIMESTAMP_SUGGESTION"},
 	internal.Datetime:             {Brief: "Spanner timestamp is closer to MySQL timestamp", Severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
 	internal.Time:                 {Brief: "Spanner does not support time/year types", Severity: warning, batch: true, Category: "TIME_YEAR_TYPE_USES"},

@@ -32,7 +32,7 @@ func (c *DefaultLLMRetryClient) GenerateContentWithRetry(
 		if err == nil {
 			return resp, nil
 		}
-		if strings.Contains(err.Error(), "ResourceExhausted") || strings.Contains(err.Error(), "429") {
+		if strings.Contains(err.Error(), "ResourceExhausted") || strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "502") {
 			backoff := time.Duration(math.Pow(2, float64(i))) * time.Second
 			logger.Warn("Vertex AI rate limited, backing off", zap.Int("attempt", i+1), zap.Duration("backoff", backoff), zap.Error(err))
 			time.Sleep(backoff)

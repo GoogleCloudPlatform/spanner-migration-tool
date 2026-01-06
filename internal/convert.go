@@ -58,6 +58,8 @@ type Conv struct {
 	SpProjectId        string                  // Spanner Project Id
 	SpInstanceId       string                  // Spanner Instance Id
 	Source             string                  // Source Database type being migrated
+	DatabaseOptions    ddl.DatabaseOptions
+	DefaultIdentityOptions ddl.IdentityOptions // Default values to use for IDENTITY columns
 }
 
 type InvalidCheckExp struct {
@@ -99,6 +101,8 @@ type SchemaIssue int
 // Defines all of the schema issues we track. Includes issues
 // with type mappings, as well as features (such as source
 // DB constraints) that aren't supported in Spanner.
+// TODO: Remove the following issues later as they cannot be removed now because they are referenced by index in session files
+// InterleavedRenameColumn, InterleavedChangeColumnSize, InterleavedNotInOrder, InterleavedOrder, InterleavedAddColumn
 const (
 	DefaultValue SchemaIssue = iota
 	ForeignKey
@@ -153,6 +157,7 @@ const (
 	CassandraTIMEUUID
 	CassandraMAP
 	PossibleOverflow
+	IdentitySkipRange
 )
 
 const (
@@ -300,7 +305,7 @@ type Rule struct {
 	AssociatedObjects string
 	Enabled           bool
 	Data              interface{}
-	AddedOn           datetime.DateTime
+	AddedOn           *datetime.DateTime
 }
 
 type Tables struct {
@@ -308,11 +313,11 @@ type Tables struct {
 }
 
 type SchemaDetails struct {
-	TableDetails []TableDetails `json:TableDetails`
+	TableDetails []TableDetails `json:"TableDetails"`
 }
 
 type TableDetails struct {
-	TableName string `json:TableName`
+	TableName string `json:"TableName"`
 }
 
 type VerifyExpressionsInput struct {
@@ -372,6 +377,7 @@ func MakeConv() *Conv {
 		Rules:        []Rule{},
 		SpSequences:  make(map[string]ddl.Sequence),
 		SrcSequences: make(map[string]ddl.Sequence),
+		DatabaseOptions: ddl.DatabaseOptions{},
 	}
 }
 

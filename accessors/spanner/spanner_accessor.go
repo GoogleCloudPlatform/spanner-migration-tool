@@ -306,9 +306,9 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		if migrationType == constants.DATAFLOW_MIGRATION {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 		} else {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 		}
 
 	}
@@ -350,7 +350,7 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 	if len(schema) == 0 {
 		return nil
 	}
@@ -377,6 +377,10 @@ func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, dbURI
 	dbExists, err := sp.VerifyDb(ctx, dbURI, conv, tablesExistingOnSpanner)
 	if err != nil {
 		return err
+	}
+	if conv.DatabaseOptions.DefaultTimezone != "" && len(tablesExistingOnSpanner) > 0 {
+		logger.Log.Warn("Spanner database already contains tables, can not set default time zone of '" + conv.DatabaseOptions.DefaultTimezone + "'. See https://docs.cloud.google.com/spanner/docs/set-default-time-zone#limitations.")
+		conv.DatabaseOptions.DefaultTimezone = ""
 	}
 	if dbExists {
 		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
@@ -477,7 +481,8 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI s
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Sequences will not be passed as they have already been created.
-	fkStmts := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, make(map[string]ddl.Sequence))
+	// Database options will not be passed since they have also already been set.
+	fkStmts := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, make(map[string]ddl.Sequence), ddl.DatabaseOptions{})
 	if len(fkStmts) == 0 {
 		return
 	}

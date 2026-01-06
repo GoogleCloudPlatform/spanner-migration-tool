@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
 import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
@@ -16,6 +16,7 @@ import IConv, {
   ICreateIndex,
   IForeignKey,
   IIndexKey,
+  ITableInterleaveStatus,
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -28,14 +29,15 @@ import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.co
 import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
-import { autoGenSupportedDbs } from 'src/app/app.constants'
+import { defaultAndSequenceSupportedDbs, identitySupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
+import { title } from 'process'
 @Component({
   selector: 'app-object-detail',
   templateUrl: './object-detail.component.html',
   styleUrls: ['./object-detail.component.scss'],
 })
-export class ObjectDetailComponent implements OnInit {
+export class ObjectDetailComponent implements OnInit, OnDestroy {
   userAddressValidations!: FormGroup
   constructor(
     private data: DataService,
@@ -62,9 +64,11 @@ export class ObjectDetailComponent implements OnInit {
   @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
+  private subscriptions = new Subscription()
   conv: IConv = {} as IConv
-  interleaveObj!: Subscription
-  interleaveStatus: any
+  interleaveStatus: ITableInterleaveStatus = {} as ITableInterleaveStatus
+  onDeleteAction: string = ''
+  interleaveParentId: string | null = null
   interleaveParentName: string | null = null
   interleaveType: string | null = null
   localTableData: IColumnTabData[] = []
@@ -74,23 +78,39 @@ export class ObjectDetailComponent implements OnInit {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  mySqlSource: boolean = false
+  supportsDefaultAndSequence: boolean = false
+  supportsAutoGen: boolean = false
   foreignKeyActionsSupported: boolean = false
+  spTablesForInterleaving: { id: string; name: string }[] = [];
 
   ngOnInit(): void {
-    this.data.conv.subscribe({
-      next: (res: IConv) => {
-        this.conv = res
-        this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
-      },
-    })
-    if (this.conv.DatabaseType) {
-      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
-    }
-    this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
-    if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
-          this.foreignKeyActionsSupported = true
-        }
+    this.subscriptions.add(
+      this.data.conv.subscribe({
+        next: (res: IConv) => {
+          this.conv = res
+          this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
+          if (this.conv.DatabaseType) {
+            this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
+          }
+          this.supportsDefaultAndSequence = defaultAndSequenceSupportedDbs.includes(this.srcDbName)
+          this.supportsAutoGen = identitySupportedDbs.includes(this.srcDbName)
+          if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
+            this.foreignKeyActionsSupported = true
+          }
+          this.spTablesForInterleaving = Object.values(this.conv.SpSchema).map((tableSchema) => ({
+            id: tableSchema.Id,
+            name: tableSchema.Name,
+          }));
+        },
+      })
+    )
+    this.subscriptions.add(
+      this.data.tableInterleaveStatus.subscribe({
+        next: (res: {} | ITableInterleaveStatus) => {
+          this.interleaveStatus = res as ITableInterleaveStatus
+        },
+      })
+    )
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -201,8 +221,13 @@ export class ObjectDetailComponent implements OnInit {
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence? -1 : 0
     this.isObjectSelected = this.currentObject ? true : false
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    this.interleaveParentName = this.getInterleaveParentFromConv()
 
+    this.interleaveParentId = this.getInterleaveParentIdFromConv()
+    this.interleaveParentName = this.conv.SpSchema?.[this.interleaveParentId ?? '']?.Name ?? null
+    this.interleaveType = this.getInterleaveTypeFromConv()
+    this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
+
+  
     this.isEditMode = false
     this.isFkEditMode = false
     this.isIndexEditMode = false
@@ -214,7 +239,6 @@ export class ObjectDetailComponent implements OnInit {
     this.droppedColumns = []
     this.droppedSourceColumns = []
     this.pkColumnNames = []
-    this.interleaveParentName = this.getInterleaveParentFromConv()
 
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
@@ -224,15 +248,19 @@ export class ObjectDetailComponent implements OnInit {
       this.spDisplayedColumns.splice(3, 0, 'spCassandraOption');
     }
 
-    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
-      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+    if (this.supportsAutoGen && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen", "spSkipRangeMin", "spSkipRangeMax", "spStartCounterWith");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
-      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
-      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
+      this.srcDisplayedColumns.splice(3, 0, "srcAutoGen");
+      this.displayedPkColumns.splice(3, 0, "srcAutoGen");
+      this.spColspan+=1;
+      this.srcColspan+=1;
+    }
+    if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.srcDisplayedColumns.push("srcDefaultValue");;
-      this.spDisplayedColumns.splice(4, 0,"spDefaultValue");
-      this.spColspan+=2;
-      this.srcColspan+=2;
+      this.spDisplayedColumns.splice(7, 0,"spDefaultValue");
+      this.spColspan+=1;
+      this.srcColspan+=1;
     }
     if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
@@ -240,13 +268,6 @@ export class ObjectDetailComponent implements OnInit {
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
-      this.checkIsInterleave()
-      this.interleaveType = this.getInterleaveTypeFromConv()
-
-      this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
-        this.interleaveStatus = res
-      })
-
       this.setSrcTableRows()
       this.setSpTableRows()
       this.setColumnsToAdd()
@@ -300,8 +321,11 @@ export class ObjectDetailComponent implements OnInit {
             Validators.required]),
           spCassandraOption: new FormControl(row.spCassandraOption),
           spAutoGen: new FormControl(row.spAutoGen),
+          spSkipRangeMin: new FormControl(row.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
+          spSkipRangeMax: new FormControl(row.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
+          spStartCounterWith: new FormControl(row.spStartCounterWith, Validators.pattern('^[0-9]+$')),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
-        })
+        }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
         // Disable spDefaultValue if spAutoGen is set
         if (row.spAutoGen.Name !== '') {
           fb.get('spDefaultValue')?.disable();
@@ -445,6 +469,16 @@ export class ObjectDetailComponent implements OnInit {
       pgSQLToStandardTypeTypemap = typemap
     })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+      let autoGen = {
+        Name: col.spAutoGen.Name,
+        GenerationType: col.spAutoGen.GenerationType,
+        IdentityOptions: {
+          SkipRangeMin: col.spSkipRangeMin,
+          SkipRangeMax: col.spSkipRangeMax,
+          StartCounterWith: col.spStartCounterWith,
+        }
+      }
+
       for (let j = 0; j < this.tableData.length; j++) {
         let oldRow = this.tableData[j]
         let newSpDataType: String
@@ -476,7 +510,7 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen,
+            AutoGen: autoGen,
             DefaultValue: {
               IsPresent: col.spDefaultValue ? true : false,
               Value: {
@@ -495,7 +529,7 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen,
+            AutoGen: autoGen,
             DefaultValue: {
               IsPresent: col.spDefaultValue ? true : false,
               Value: {
@@ -518,7 +552,12 @@ export class ObjectDetailComponent implements OnInit {
         MaxColLength: '',
         AutoGen: {
           Name : '',
-          GenerationType : ''
+          GenerationType : '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: '',
+          }
         },
         DefaultValue: {
           IsPresent: false,
@@ -733,7 +772,12 @@ export class ObjectDetailComponent implements OnInit {
         col.spCassandraOption = ''
         col.spAutoGen = {
           Name : '',
-          GenerationType : ''
+          GenerationType : '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: '',
+          }
         },
         col.spDefaultValue = {
           Value: {
@@ -991,13 +1035,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   toggleCcEdit() {
-    if(this.interleaveParentName !== null)
-    {
-      this.currentTabIndex = 4;
-    }
-    else{
-      this.currentTabIndex = 3;
-    }
+    this.currentTabIndex = 4;
 
     if (this.isCcEditMode) {
       this.setCCRows();
@@ -1233,36 +1271,28 @@ export class ObjectDetailComponent implements OnInit {
         maxWidth: '500px',
       })
     } else {
-      let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
-      if (interleaveTableId != '' && this.isPKPrefixModified(this.currentObject?.id!, interleaveTableId)) {
+      let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+      if (interleaveTableIds.length == 0) {
+        this.updatePk()
+        return
+      }
+      let affectedTableNames: string[] = []
+      for (let i = 0; i < interleaveTableIds.length; i++) {
+        if (this.isPKPrefixModified(this.currentObject?.id!, interleaveTableIds[i])) {
+          affectedTableNames.push(this.conv.SpSchema[interleaveTableIds[i]].Name)
+        }
+      }
+      if (affectedTableNames.length > 0) {
+        let formattedTableNames = affectedTableNames.join(', ')
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
-            message:
-              'Proceeding the update will remove interleaving between ' +
-              this.currentObject?.name +
-              ' and ' +
-              this.conv.SpSchema[interleaveTableId].Name +
-              ' tables.',
-            title: 'Confirm Update',
-            type: 'warning',
+            message: `Cannot update primary key as this primary key is part of interleaving with table(s) ${formattedTableNames}. Please remove the interleaved relationship and try again.`,
+            type: 'error',
           },
           maxWidth: '500px',
         })
-        dialogRef.afterClosed().subscribe((dialogResult) => {
-          if (dialogResult) {
-            let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.id].ParentTable.Id != ''
-                ? this.currentObject!.id
-                : this.conv.SpSchema[interleaveTableId].Id
-            this.data
-              .removeInterleave(interleavedChildId)
-              .pipe(take(1))
-              .subscribe((res: string) => {
-                this.updatePk()
-              })
-          }
-        })
-      } else {
+      }
+      else {
         this.updatePk()
       }
     }
@@ -1492,33 +1522,52 @@ export class ObjectDetailComponent implements OnInit {
     this.data
       .removeInterleave(tableId)
       .pipe(take(1))
-      .subscribe((res: string) => {
-        if (res === '') {
-          this.snackbar.openSnackBar(
-            'Interleave removed and foreign key restored successfully',
-            'Close',
-            5
-          )
+      .subscribe({
+        next: (res: string) => {
+          if (res === '') {
+            this.snackbar.openSnackBar('Interleave removed successfully.', 'Close', 5)
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: res, type: 'error' },
+              maxWidth: '500px',
+            })
+          }
         }
-      })
+      });
   }
 
-  checkIsInterleave() {
-    if (this.currentObject && !this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
-      this.data.getInterleaveConversionForATable(this.currentObject!.id)
-    }
+  setInterleave(interleaveParentId: string, interleaveType: string | null, onDeleteAction: string) {
+      if (!interleaveType) {
+        console.error('Interleave type cannot be empty');
+        return;
+      }
+      
+      let tableId = this.currentObject!.id;
+
+      this.data
+        .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
+        .pipe(take(1))
+        .subscribe((error: string) => {
+          if (error) {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: error, type: 'error', title: 'Error' },
+              maxWidth: '500px',
+            });
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
+              maxWidth: '500px',
+            });
+          }
+        });
   }
 
-  setInterleave(interleaveType: string) {
-    this.data.setInterleave(this.currentObject!.id, interleaveType)
-  }
-
-  getInterleaveParentFromConv() {
+  getInterleaveParentIdFromConv() {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
-      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.Id
       : null
   }
 
@@ -1528,6 +1577,15 @@ export class ObjectDetailComponent implements OnInit {
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
       ? this.conv.SpSchema[this.currentObject.id].ParentTable.InterleaveType
+      : null
+  }
+
+  getInterleaveOnDeleteActionFromConv() {
+    return this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.currentObject.isSpannerNode &&
+      !this.currentObject.isDeleted &&
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.OnDelete
       : null
   }
 
@@ -1821,6 +1879,23 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropTable() {
+    //  check interleaving
+    let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+    if (interleaveTableIds.length > 0) {
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Cannot drop the table as it has interleaving with ${interleaveTableIds
+            .map((item) => this.conv.SpSchema[item].Name)
+            .join(
+            ', '
+          )}. Remove the interleaving first to continue.`,
+          title: 'Error',
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+      return
+    }
     let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
       width: '35vw',
       minWidth: '450px',
@@ -1854,29 +1929,34 @@ export class ObjectDetailComponent implements OnInit {
     this.sidenav.setMiddleColComponent(this.isMiddleColumnCollapse)
   }
 
-  tableInterleaveWith(table: string): string {
+  tableInterleaveWith(table: string): string[] {
+    const interleavedTables: string[] = []
     if (this.conv.SpSchema[table].ParentTable.Id != '') {
-      return this.conv.SpSchema[table].ParentTable.Id
+      const parentId = this.conv.SpSchema[table].ParentTable.Id
+      interleavedTables.push(parentId)
     }
-    let interleaveTable = ''
-    Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
+    Object.keys(this.conv.SpSchema).forEach((tableId: string) => {
       if (
-        this.conv.SpSchema[tableName].ParentTable.Id != '' &&
-        this.conv.SpSchema[tableName].ParentTable.Id == table
+        this.conv.SpSchema[tableId].ParentTable.Id != '' &&
+        this.conv.SpSchema[tableId].ParentTable.Id == table
       ) {
-        interleaveTable = tableName
+        interleavedTables.push(tableId)
       }
     })
-
-    return interleaveTable
+    return interleavedTables
   }
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
     let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    let parentTableId = '', childTableId = ''
     if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
+      parentTableId = tableId
+      childTableId = interleaveTableId
       parentPrimaryKey = this.pkObj.Columns
       childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     } else {
+      parentTableId = interleaveTableId
+      childTableId = tableId
       childPrimaryKey = this.pkObj.Columns
       parentPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     }
@@ -1884,12 +1964,28 @@ export class ObjectDetailComponent implements OnInit {
     for (let i = 0; i < parentPrimaryKey.length; i++) {
       for (let j = 0; j < childPrimaryKey.length; j++) {
         if (parentPrimaryKey[i].Order == childPrimaryKey[j].Order) {
-          if (parentPrimaryKey[i].ColId != childPrimaryKey[j].ColId) {
+          let parentPrimaryKeyName = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.Name
+          let childPrimaryKeyName = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.Name
+          let parentPrimaryKeyType = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.T
+          let childPrimaryKeyType = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.T
+          let parentPrimaryKeyNotNull = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.NotNull
+          let childPrimaryKeyNotNull = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.NotNull
+
+          if (parentPrimaryKeyName != childPrimaryKeyName || parentPrimaryKeyType.IsArray != childPrimaryKeyType.IsArray || parentPrimaryKeyType.Len != childPrimaryKeyType.Len || parentPrimaryKeyType.Name != childPrimaryKeyType.Name || parentPrimaryKeyNotNull != childPrimaryKeyNotNull) {
             return true;
           }
         }
       }
     }
     return false
+  }
+
+  customSearchFn(term: string, item: { id: string; name: string }) {
+    term = term.toLocaleLowerCase()
+    return item.name.toLocaleLowerCase().indexOf(term) > -1
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe()
   }
 }

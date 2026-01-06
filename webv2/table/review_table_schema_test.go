@@ -333,7 +333,7 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:    "Test change type success with interleave 1",
+			name:    "Test change type of parent failure with interleave",
 			tableId: "t2",
 			payload: `
         {
@@ -341,7 +341,7 @@ func TestReviewTableSchema(t *testing.T) {
             "c3": { "ToType": "STRING" }
         }
         }`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -362,6 +362,7 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3"}},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -382,6 +383,7 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
 						},
+						PrimaryKeys: []schema.Key{{ColId: "c3"}},
 					},
 				},
 				SchemaIssues: map[string]internal.TableIssues{
@@ -396,61 +398,10 @@ func TestReviewTableSchema(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						},
-					},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_CASCADE}},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]schema.Column{
-							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-						},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: map[string][]internal.SchemaIssue{
-							"c1": {internal.Widened},
-						},
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
-			name:    "Test change type success with interleave 2",
+			name:    "Test change type of child failure with interleave",
 			tableId: "t1",
 			payload: `
         {
@@ -458,7 +409,7 @@ func TestReviewTableSchema(t *testing.T) {
             "c1": { "ToType": "STRING" }
         }
         }`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -479,123 +430,7 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_NO_ACTION}},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]schema.Column{
-							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-						},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					},
-					"t2": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						},
-					},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_NO_ACTION}},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]schema.Column{
-							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-						},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: map[string][]internal.SchemaIssue{
-							"c1": {internal.Widened},
-						},
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
-		},
-		{
-			name:    "Test change type success with interleave 3",
-			tableId: "t1",
-			payload: `
-        {
-          "UpdateCols":{
-            "c1": { "ToType": "STRING" }
-        }
-        }`,
-			statusCode: http.StatusOK,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						Id:     "t1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
-						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3"}},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -630,58 +465,7 @@ func TestReviewTableSchema(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						},
-					},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_RESTRICT}},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c3"},
-						ColDefs: map[string]schema.Column{
-							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-						},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: map[string][]internal.SchemaIssue{
-							"c1": {internal.Widened},
-						},
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
 			name:    "Test Add success",
@@ -812,7 +596,7 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:    "Test remove success for interleaved table 1",
+			name:    "Test remove interleaved primary key from child failure",
 			tableId: "t1",
 			payload: `
 		{
@@ -820,7 +604,7 @@ func TestReviewTableSchema(t *testing.T) {
 			"c1": { "Removed": true }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -858,40 +642,10 @@ func TestReviewTableSchema(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						Id:     "t1",
-						ColIds: []string{"c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: "", InterleaveType: ""},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c4", "c5"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
-			name:    "Test remove success for interleaved table 2",
+			name:    "Test remove interleaved primary key from parent failure",
 			tableId: "t1",
 			payload: `
 		{
@@ -899,7 +653,7 @@ func TestReviewTableSchema(t *testing.T) {
 			"c1": { "Removed": true }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -937,37 +691,7 @@ func TestReviewTableSchema(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						Id:     "t1",
-						ColIds: []string{"c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: "", InterleaveType: ""},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c4", "c5"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
 			name:    "Test remove success for removing foreign key column 1",
@@ -1507,7 +1231,7 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:    "Test rename success for interleaved table",
+			name:    "Test rename failure for interleaved table",
 			tableId: "t1",
 			payload: `
 		{
@@ -1515,7 +1239,7 @@ func TestReviewTableSchema(t *testing.T) {
 			"c1": { "Rename": "aa" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1541,35 +1265,10 @@ func TestReviewTableSchema(t *testing.T) {
 					},
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
-					},
-					"t2": {
-						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-					},
-				},
-				SpDialect: constants.DIALECT_GOOGLESQL,
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
-			name:    "Test change length success for interleaved table",
+			name:    "Test change length failure for interleaved table",
 			tableId: "t1",
 			payload: `
 		{
@@ -1577,7 +1276,7 @@ func TestReviewTableSchema(t *testing.T) {
 			"c1": { "MaxColLength": "20" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1603,32 +1302,7 @@ func TestReviewTableSchema(t *testing.T) {
 					},
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 20}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
-					},
-					"t2": {
-						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 20}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-					},
-				},
-				SpDialect: constants.DIALECT_GOOGLESQL,
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
 			name:    "Test change type success for related foreign key columns",
@@ -1743,7 +1417,7 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:    "Test rename success for interleaved table 2",
+			name:    "Test rename failure for interleaved parent table",
 			tableId: "t1",
 			payload: `
 		{
@@ -1751,7 +1425,7 @@ func TestReviewTableSchema(t *testing.T) {
 			"c1": { "Rename": "aa" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1768,10 +1442,10 @@ func TestReviewTableSchema(t *testing.T) {
 					"t2": {
 						Name:   "table2",
 						Id:     "t2",
-						ColIds: []string{"c1", "2", "c3"},
+						ColIds: []string{"c4", "c5", "c6"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c5": {Name: "b", Id: "c5", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
@@ -1779,33 +1453,7 @@ func TestReviewTableSchema(t *testing.T) {
 					},
 				},
 			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "table1",
-						Id:     "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-					},
-					"t2": {
-						Name:   "table2",
-						Id:     "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
-					},
-				},
-			},
+			expectedConv: &internal.Conv{},
 		},
 		{
 			name:    "Test update auto-gen UUID",
@@ -2208,7 +1856,7 @@ func TestReviewTableSchema(t *testing.T) {
 						Name:   "t1",
 						ColIds: []string{"c1", "c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, Opts: map[string]string{"cassandra_type": "bigint"},},
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, Opts: map[string]string{"cassandra_type": "bigint"}},
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
@@ -2306,7 +1954,7 @@ func TestReviewTableSchema(t *testing.T) {
 		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.tableId], tc.expectedConv.SpDialect, sessionState.Driver)
 
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
+			assert.Equal(t, expectedddl, res.DDL, tc.name)
 		}
 	}
 }

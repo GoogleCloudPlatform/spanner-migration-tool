@@ -133,7 +133,7 @@ func attachEmbeddings(ctx context.Context, client PredictionClientInterface, pro
 func newAIPredictionClient(location string) (context.Context, PredictionClientInterface, string, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	model := "text-embedding-preview-0815"
+	model := "gemini-embedding-001"
 
 	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
 	if err != nil {

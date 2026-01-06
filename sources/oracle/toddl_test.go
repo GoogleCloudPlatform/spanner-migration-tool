@@ -37,83 +37,83 @@ func init() {
 
 func TestToSpannerTypeInternal(t *testing.T) {
 	conv := internal.MakeConv()
-	_, errCheck := toSpannerTypeInternal(conv, "STRING", schema.Type{"TIMESTAMP", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck := toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "TIMESTAMP", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in timestamp to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"INTERVAL", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "INTERVAL", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in interval to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{"INTERVAL", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "INTERVAL", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in interval to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{"INTERVAL", []int64{}, []int64{}})
+	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "INTERVAL", Mods: []int64{}, ArrayBounds: []int64{}})
 	if errCheck != nil {
 		t.Errorf("Error in interval to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"NUMBER", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "NUMBER", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in number to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{"NUMBER", []int64{31}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "NUMBER", Mods: []int64{31}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in number to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{"NUMBER", []int64{31, 11}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "NUMBER", Mods: []int64{31, 11}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in number to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"BLOB", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "BLOB", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in blob to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"CHAR", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CHAR", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in char to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"CHAR", []int64{}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CHAR", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in char to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"CLOB", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CLOB", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in clob to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"DATE", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "DATE", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in date to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"BINARY_FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "BINARY_FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in binary_float to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "FLOAT64", schema.Type{"BINARY_FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "FLOAT64", schema.Type{Name: "BINARY_FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in binary_float to float64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in float to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"RAW", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "RAW", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in raw to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{"RAW", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "RAW", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in raw to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"ROWID", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "ROWID", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in rowid to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"UROWID", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "UROWID", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in urowid to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"UROWID", []int64{}, []int64{1, 2, 3}})
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "UROWID", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in urowid to string conversion")
 	}

@@ -598,6 +598,10 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 				},
 			},
 		}
+		conv.DatabaseOptions = ddl.DatabaseOptions{
+			DbName: "database-id",
+			DefaultTimezone: "America/New_York",
+		}
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
 		err := spA.CreateDatabase(ctx, dbURI, conv, "", tc.migrationType)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
@@ -1009,6 +1013,10 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 			ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "col1", T: ddl.Type{Name: ddl.String, Len: 10}}},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			Id:          "t1",
+		}
+		conv.DatabaseOptions = ddl.DatabaseOptions{
+			DbName: "database-id",
+			DefaultTimezone: "America/New_York",
 		}
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
 		err := spA.CreateOrUpdateDatabase(ctx, dbURI, "", conv, tc.migrationType, tc.tablesExistingOnSpanner)

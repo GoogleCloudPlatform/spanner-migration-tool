@@ -16,36 +16,10 @@ package table
 
 import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // renameColumn renames given column to newname and update in schema.
 func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
-
-	sp := conv.SpSchema[tableId]
-
-	// update interleave table relation.
-	isParent, childTableId := utilities.IsParent(tableId)
-
-	if isParent {
-		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			renameColumnNameTableSchema(conv, childTableId, childColId, newName)
-		}
-	}
-
-	if conv.SpSchema[tableId].ParentTable.Id != "" {
-		parentTableId := conv.SpSchema[tableId].ParentTable.Id
-		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			renameColumnNameTableSchema(conv, parentTableId, parentColId, newName)
-		}
-	}
-	renameColumnNameTableSchema(conv, tableId, colId, newName)
-}
-
-// renameColumnNameInCurrentTableSchema renames given column in Table Schema.
-func renameColumnNameTableSchema(conv *internal.Conv, tableId string, colId string, newName string) {
 	spTable := conv.SpSchema[tableId]
 
 	spColumn, ok := spTable.ColDefs[colId]

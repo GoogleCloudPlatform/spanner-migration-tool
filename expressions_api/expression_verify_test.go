@@ -301,10 +301,10 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 }
 
 func TestVerifySpannerDDL(t *testing.T) {
-	conv := *internal.MakeConv()
+	conv := internal.MakeConv()
 	testCases := []struct {
 		name                 string
-		conv                 internal.Conv
+		conv                 *internal.Conv
 		expressionDetails    []internal.ExpressionDetail
 		verifyExpressionMock expressions_api.MockExpressionVerificationAccessor
 		errorExpected        bool
@@ -349,7 +349,7 @@ func TestVerifySpannerDDL(t *testing.T) {
 		ddlV := expressions_api.DDLVerifierImpl{
 			Expressions: &tc.verifyExpressionMock,
 		}
-		_, err := ddlV.VerifySpannerDDL(&tc.conv, tc.expressionDetails)
+		_, err := ddlV.VerifySpannerDDL(tc.conv, tc.expressionDetails)
 		assert.Equal(t, tc.errorExpected, err != nil)
 	}
 }

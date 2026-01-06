@@ -118,7 +118,7 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
-		res := task.TaskResult[SchemaAndName]{t, e}
+		res := task.TaskResult[SchemaAndName]{Result: t, Err: e}
 		return res
 	}
 
