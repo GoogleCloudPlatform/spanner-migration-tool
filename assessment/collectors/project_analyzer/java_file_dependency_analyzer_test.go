@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -599,7 +600,10 @@ interface AnotherInterface {
 	// Test with non-existent file
 	_, err = fetchFileParsedInfo(ctx, parser, filepath.Join(tmpDir, "NonExistent.java"), tmpDir)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
+	// On Linux: "no such file or directory"
+	// On Windows: "The system cannot find the file specified"
+	// We check for "no such file" OR "cannot find the file" to cover both.
+	assert.True(t, strings.Contains(err.Error(), "no such file") || strings.Contains(err.Error(), "cannot find the file"), "Error message should indicate file not found: %v", err)
 
 	// Test with malformed Java content (e.g., syntax error, though parser might still return something)
 	malformedContent := `package com.example; public class Malformed { int x; ` // Missing closing brace
@@ -884,14 +888,10 @@ func Test_fetchedFileClassPackageMap(t *testing.T) {
 	assert.Empty(t, nonJavaClassToFileInfosMap)
 	assert.Empty(t, nonJavaFileInfoPathMap)
 
-	// Test with an inaccessible directory
-	inaccessibleDir := filepath.Join(tmpDir, "inaccessible")
-	assert.NoError(t, os.Mkdir(inaccessibleDir, 0000)) // No permissions
-	defer os.Chmod(inaccessibleDir, 0755)              // Restore permissions for cleanup
-	defer os.RemoveAll(inaccessibleDir)
-
-	_, _, err = fetchedFileClassPackageMap(ctx, parser, inaccessibleDir)
-	assert.Error(t, err) // Expect an error from filepath.Walk
+	// Test with a non-existent directory
+	nonExistentDir := filepath.Join(tmpDir, "non_existent")
+	_, _, err = fetchedFileClassPackageMap(ctx, parser, nonExistentDir)
+	assert.Error(t, err)
 }
 
 func TestJavaDependencyAnalyzer_getDependencyGraph(t *testing.T) {
@@ -1010,18 +1010,16 @@ public class G { F f; }
 	emptyGraph := analyzer.getDependencyGraph(emptyDir)
 	assert.Empty(t, emptyGraph)
 
-	// Test with inaccessible directory (logs error and returns empty map)
-	inaccessibleDir := filepath.Join(tmpDir, "inaccessible")
-	assert.NoError(t, os.Mkdir(inaccessibleDir, 0000))
-	defer os.Chmod(inaccessibleDir, 0755)
-	defer os.RemoveAll(inaccessibleDir)
+	// Test with non-existent directory (logs error and returns empty map)
+	nonExistentDir := filepath.Join(tmpDir, "non_existent")
 
 	core, observedLogs := observer.New(zap.ErrorLevel)
 	logger.Log = zap.New(core)
 
-	errorGraph := analyzer.getDependencyGraph(inaccessibleDir)
+	errorGraph := analyzer.getDependencyGraph(nonExistentDir)
 	assert.Empty(t, errorGraph)
 	logs := observedLogs.All()
-	assert.True(t, len(logs) > 0, "Expected error logs for inaccessible directory")
-	assert.Contains(t, logs[0].Message, "Error walking the directory")
+	if assert.NotEmpty(t, logs, "Expected error logs for non-existent directory") {
+		assert.Contains(t, logs[0].Message, "Error walking the directory")
+	}
 }
