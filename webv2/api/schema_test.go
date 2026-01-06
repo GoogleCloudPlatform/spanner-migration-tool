@@ -77,8 +77,8 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bigserial": {
-			{T: ddl.Int64, Brief: reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief + ", " + reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bpchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -105,8 +105,11 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"serial": {
-			{T: ddl.Int64, Brief: reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief + ", " + reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"smallserial": {
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"text": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -2430,7 +2433,7 @@ func buildConvMySQL(conv *internal.Conv) {
 			},
 		},
 	}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{ColId: "c20", Sequence: 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }
 
@@ -2463,11 +2466,12 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t2": {
 			Name:   "t2",
 			Id:     "t2",
-			ColIds: []string{"c17", "c18", "c19"},
+			ColIds: []string{"c17", "c18", "c19", "c20"},
 			ColDefs: map[string]schema.Column{
 				"c17": {Name: "a", Id: "c17", Type: schema.Type{Name: "int8"}},
 				"c18": {Name: "b", Id: "c18", Type: schema.Type{Name: "float4"}},
 				"c19": {Name: "c", Id: "c19", Type: schema.Type{Name: "bool"}},
+				"c20": {Name: "d", Id: "c20", Type: schema.Type{Name: "smallserial"}},
 			}},
 	}
 	conv.SpSchema = map[string]ddl.CreateTable{
@@ -2499,32 +2503,34 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t2": {
 			Name:   "table2",
 			Id:     "t2",
-			ColIds: []string{"c17", "c18", "c19", "c20"},
+			ColIds: []string{"c17", "c18", "c19", "c20", "c21"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c17": {Name: "a", Id: "c17", T: ddl.Type{Name: ddl.Int64}},
 				"c18": {Name: "b", Id: "c18", T: ddl.Type{Name: ddl.Float32}},
 				"c19": {Name: "c", Id: "c19", T: ddl.Type{Name: ddl.Bool}},
-				"c20": {Name: "synth_id", Id: "c20", T: ddl.Type{Name: ddl.Int64}},
+				"c20": {Name: "d", Id: "c20", T: ddl.Type{Name: ddl.Int64}},
+				"c21": {Name: "synth_id", Id: "c21", T: ddl.Type{Name: ddl.Int64}},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "c20"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c21"}},
 		},
 	}
 
 	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c7":  {internal.Serial},     //g
 				"c12": {internal.Widened},    //l
-				"c13": {internal.Serial},     //m
+				"c13": {internal.Widened},    //m
 				"c15": {internal.Timestamp},  //o
 				"c17": {internal.NoGoodType}, //q
 			},
 		},
 		"t2": {
-			ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c20": {internal.Widened},    //l
+			},
 		},
 	}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{ColId: "c20", Sequence: 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }
 
@@ -2591,6 +2597,87 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		{
 			dialect:            constants.DIALECT_GOOGLESQL,
 			driver:             constants.MYSQLDUMP,
+			expectedAutoGenMap: expectedAutoGenMapMySql,
+		},
+	}
+	for _, tc := range tests {
+		var autoGenMap map[string][]types.AutoGen
+		sessionState.Driver = tc.driver
+		sessionState.Conv.SpDialect = tc.dialect
+		req, err := http.NewRequest("GET", "/autoGenMap", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.GetAutoGenMap)
+		handler.ServeHTTP(rr, req)
+		json.Unmarshal(rr.Body.Bytes(), &autoGenMap)
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, http.StatusOK)
+		}
+		assert.Equal(t, tc.expectedAutoGenMap, autoGenMap, tc.dialect)
+	}
+
+}
+
+func TestGetAutoGenMapPostgres(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.POSTGRES
+	sessionState.Conv = internal.MakeConv()
+	buildConvMySQL(sessionState.Conv)
+
+	sessionState.Conv.SpSequences = make(map[string]ddl.Sequence)
+
+	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
+		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT32":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT4":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
+		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}}}
+
+	expectedAutoGenMapMySql := map[string][]types.AutoGen{
+		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT32":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
+		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}},
+		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
+	tests := []struct {
+		dialect            string
+		driver             string
+		expectedAutoGenMap map[string][]types.AutoGen
+	}{
+		{
+			dialect:            constants.DIALECT_POSTGRESQL,
+			driver:             constants.POSTGRES,
+			expectedAutoGenMap: expectedAutoGenMapPostgres,
+		},
+		{
+			dialect:            constants.DIALECT_GOOGLESQL,
+			driver:             constants.POSTGRES,
+			expectedAutoGenMap: expectedAutoGenMapMySql,
+		},
+		{
+			dialect:            constants.DIALECT_POSTGRESQL,
+			driver:             constants.PGDUMP,
+			expectedAutoGenMap: expectedAutoGenMapPostgres,
+		},
+		{
+			dialect:            constants.DIALECT_GOOGLESQL,
+			driver:             constants.PGDUMP,
 			expectedAutoGenMap: expectedAutoGenMapMySql,
 		},
 	}

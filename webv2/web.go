@@ -534,7 +534,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
+		Conv:            conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -544,7 +544,7 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+		Conv:            sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -845,6 +845,9 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
+	if details.TargetDetails.DefaultTimezone != "" {
+		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
+	}
 	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION && !details.IsSharded {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
 		sessionState.Bucket, sessionState.RootPath, err = conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)

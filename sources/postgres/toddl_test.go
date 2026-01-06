@@ -31,91 +31,95 @@ import (
 )
 
 func TestToSpannerTypeInternal(t *testing.T) {
-	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck := toSpannerTypeInternal(schema.Type{Name: "bool", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in bool to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bool", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
 	if errCheck == nil {
 		t.Errorf("Error in bool to int64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bigserial", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigserial", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in bigserial to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bpchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in bpchar to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bpchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in bpchar to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, "")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bpchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
 	if errCheck != nil {
 		t.Errorf("Error in bpchar to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"bytea", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bytea", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in bytea to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "date", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in date to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"float8", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in float8 to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"float4", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in float4 to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"float4", []int64{}, []int64{1, 2, 3}}, "FLOAT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
 	if errCheck == nil {
 		t.Errorf("Error in float4 to float64 conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"int8", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int8 to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"int4", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int4 to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"int2", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int2 to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"numeric", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in numeric to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"serial", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "serial", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in serial to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "smallserial", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in smallserial to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "text", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in text to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamptz", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamptz", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in timestamptz to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamp", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in timestamp to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "json", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in json to string conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in varchar to bytes conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in varchar to bytes conversion")
 	}
@@ -316,6 +320,90 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	})
 
 	assert.Equal(t, expectedIssues, actualIssues)
+}
+
+func Test_GetColumnAutoGen(t *testing.T) {
+	conv := internal.MakeConv()
+	tc := []struct {
+		conv               *internal.Conv
+		autoGenCol         ddl.AutoGenCol
+		defaultIdentityOptions ddl.IdentityOptions
+		expectedAutoGenCol ddl.AutoGenCol
+		expectErr          bool
+		colId              string
+		tableId            string
+	}{
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           constants.SERIAL,
+				GenerationType: constants.SERIAL,
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+			},
+			expectErr: false,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           constants.SERIAL,
+				GenerationType: constants.SERIAL,
+			},
+			defaultIdentityOptions: ddl.IdentityOptions{
+				SkipRangeMin: "100",
+				SkipRangeMax: "1000",
+				StartCounterWith: "10",
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+				IdentityOptions: ddl.IdentityOptions{
+					SkipRangeMin: "100",
+					SkipRangeMax: "1000",
+					StartCounterWith: "10",
+				},
+			},
+			expectErr: false,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           "Column1",
+				GenerationType: constants.SEQUENCE,
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
+			colId:   "c1",
+			tableId: "t1",
+		},
+	}
+
+	for _, tt := range tc {
+		var toddl = ToDdlImpl{}
+		tt.conv.DefaultIdentityOptions = tt.defaultIdentityOptions
+		autoGenCol, err := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
+		assert.Equal(t, tt.expectedAutoGenCol, *autoGenCol)
+		if tt.expectErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+
 }
 
 func dropComments(t *ddl.CreateTable) {
