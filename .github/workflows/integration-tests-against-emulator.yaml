@@ -39,6 +39,7 @@ jobs:
       MYSQLDATABASE: test_interleave_table_data
       MYSQLDB_FKACTION: test_foreign_key_action_data
       MYSQLDB_CHECK_CONSTRAINT: test_mysql_checkconstraint
+      MYSQLDB_DATA_TYPES: test_mysql_data_types
       MYSQLPWD: root
 
       # set DynamoDB related environment variables
@@ -114,6 +115,7 @@ jobs:
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_checkconstraint_dump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_data_types_dump.test.out
 
       # init sql server with test_data
       # since we use ubuntu-latest container, we should ensure that the path matches the latest from  https://packages.microsoft.com/config/ubuntu/
