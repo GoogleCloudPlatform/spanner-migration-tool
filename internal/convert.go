@@ -515,6 +515,7 @@ func (conv *Conv) AddShardIdColumn() {
 			var issues []SchemaIssue
 			issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
 			conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+			// logger.Log.Debug(fmt.Sprintf("Added shardIdColumn with columnId %s to table %s", columnId, t))
 		}
 	}
 }
