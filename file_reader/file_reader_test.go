@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -29,7 +30,12 @@ func TestFileReaderFile(t *testing.T) {
 			name:          "Local file open error",
 			dumpUri:       "nonexistent_file.sql",
 			wantErr:       true,
-			expectedError: "stat nonexistent_file.sql: no such file or directory",
+			expectedError: func() string {
+				if runtime.GOOS == "windows" {
+					return "The system cannot find the file specified"
+				}
+				return "stat nonexistent_file.sql: no such file or directory"
+			}(),
 		},
 	}
 
