@@ -20,8 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
-func TestSanitizeDefaultValue(t *testing.T) {
+func TestSanitizeExpressionsValue(t *testing.T) {
 	tests := []struct {
 		inputString    string
 		ty             string
@@ -41,7 +40,7 @@ func TestSanitizeDefaultValue(t *testing.T) {
 		{"_utf8mb4\\'C:\\\\\\\\Users\\\\\\\\johndoe\\\\\\\\Documents\\\\\\\\myfile.txt\\'", "char", false, "'C:\\\\Users\\\\johndoe\\\\Documents\\\\myfile.txt'"},
 	}
 	for _, test := range tests {
-		result := SanitizeDefaultValue(test.inputString, test.ty, test.generated)
+		result := SanitizeExpressionsValue(test.inputString, test.ty, test.generated)
 		assert.Equal(t, test.expectedString, result)
 	}
 }
