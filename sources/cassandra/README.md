@@ -12,7 +12,7 @@ This repository contains components for doing live migrations from Cassandra to 
 - Handles dual writes to both Cassandra and Spanner
 - Ensures data consistency during migration
 
-### 2. Cassandra-Spanner Proxy
+### 2. [Spanner Cassandra Java Client](https://github.com/googleapis/java-spanner-cassandra)
 - Runs as a sidecar to ZDM proxy
 - Translates CQL (Cassandra Query Language) to Spanner API calls
 - Enables Cassandra-compatible applications to interact with Spanner
@@ -26,7 +26,7 @@ The migration setup consists of:
 - **Origin**: Source Cassandra database
 - **Target**: Destination Cloud Spanner database
 - **ZDM Proxy**: Manages dual writes and read routing
-- **Cassandra-Spanner Proxy**: Translates CQL to Spanner API calls
+- **Spanner Cassandra Java Client**: Translates CQL to Spanner API calls
 - **Client Application**: Your application that interacts with the databases
 
 ## Migration Process
@@ -181,7 +181,7 @@ When planning your production deployment, consider these guidelines:
 
 1. **Prepare Terraform Configuration**
 
-   Update your `terraform.tfvars` file with your variables. Take a look at available variables in `variables.tf`. If you need more customization for zdm proxy or cassandra to spanner proxy, update the `variables.tf` and `main.tf` to include the other params.
+   Update your `terraform.tfvars` file with your variables. Take a look at available variables in `variables.tf`. If you need more customization for zdm proxy or java spanner proxy, update the `variables.tf` and `main.tf` to include the other params.
 
 2. **Initialize and Apply Terraform**
 
