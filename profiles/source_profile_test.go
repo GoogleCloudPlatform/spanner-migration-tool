@@ -71,6 +71,10 @@ func (m *MockSourceProfileDialect) NewSourceProfileConnectionCassandra(params ma
 	args := m.Called(params, g)
 	return args.Get(0).(SourceProfileConnectionCassandra), args.Error(1)
 }
+func (m *MockSourceProfileDialect) NewSourceProfileConnectionNeo4j(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionNeo4j, error) {
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionNeo4j), args.Error(1)
+}
 
 func setEnvVariables() {
 	// My Sql variables
@@ -287,6 +291,51 @@ func TestNewSourceProfileConfigFile(t *testing.T) {
 		sourceProfileConfig, err := n.NewSourceProfileConfig(tc.source, tc.path)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 		tc.validationFn(sourceProfileConfig)
+	}
+}
+
+// code for testing neo4j source connection profile
+func TestNewSourceProfileConnectionNeo4j(t *testing.T) {
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "mandatory params provided",
+			params:        map[string]string{"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"},
+			errorExpected: false,
+		},
+		{
+			name:          "uri is blank",
+			params:        map[string]string{"uri": "", "user": "neo4j", "password": "password"},
+			errorExpected: true,
+		},
+		{
+			name:          "user is blank",
+			params:        map[string]string{"uri": "bolt://localhost:7687", "user": "", "password": "password"},
+			errorExpected: true,
+		},
+		{
+			name:   "password is blank",
+			params: map[string]string{"uri": "bolt://localhost:7687", "user": "neo4j", "password": ""},
+			// Assuming strict validation similar to other sources. If source_profile.go allows empty, this expectation might need adjustment.
+			// But typically empty password is not standard for valid connection config unless explicitly allowed.
+			errorExpected: false,
+		},
+		{
+			name:          "all params missing",
+			params:        map[string]string{},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
+		setGetInfoMockValues(&g)
+		_, err := sourceProfileDialect.NewSourceProfileConnectionNeo4j(tc.params, &g)
+		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }
 
@@ -632,7 +681,7 @@ func TestNewSourceProfileConnectionCassandra(t *testing.T) {
 		},
 		{
 			name:          "datacenter is not specified",
-			params:		   map[string]string{"host": "a", "user": "b", "keyspace": "c", "port": "e", "password": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "port": "e", "password": "f"},
 			errorExpected: true,
 		},
 		{
@@ -802,6 +851,14 @@ func TestNewSourceProfileConnection(t *testing.T) {
 			errorExpected:     false,
 		},
 		{
+			name:              "source neo4j",
+			source:            "neo4j",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionNeo4j",
+			returnConnProfile: SourceProfileConnectionNeo4j{},
+			errorExpected:     false,
+		},
+		{
 			name:              "source dynamodb",
 			source:            "dynamodb",
 			params:            map[string]string{},
@@ -835,7 +892,7 @@ func TestNewSourceProfileConnection(t *testing.T) {
 		},
 		{
 			name:              "source cassandra returns error",
-			source:			   "cassandra",
+			source:            "cassandra",
 			params:            map[string]string{},
 			function:          "NewSourceProfileConnectionCassandra",
 			returnConnProfile: SourceProfileConnectionCassandra{},

@@ -52,6 +52,7 @@ type SourceProfileDialectInterface interface {
 	NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error)
 	NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error)
 	NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error)
+	NewSourceProfileConnectionNeo4j(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionNeo4j, error)
 }
 
 type SourceProfileDialectImpl struct{}
@@ -91,6 +92,7 @@ const (
 	SourceProfileConnectionTypeSqlServer
 	SourceProfileConnectionTypeOracle
 	SourceProfileConnectionTypeCassandra
+	SourceProfileConnectionTypeNeo4j
 )
 
 type SourceProfileConnectionTypeCloudSQL int
@@ -459,12 +461,12 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map
 }
 
 type SourceProfileConnectionCassandra struct {
-	Host            string 
-	Port            string 
-	User            string 
-	Pwd             string
-	Keyspace        string 
-	DataCenter      string  // Cassandra 4.x requires data center information for connection
+	Host       string
+	Port       string
+	User       string
+	Pwd        string
+	Keyspace   string
+	DataCenter string // Cassandra 4.x requires data center information for connection
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error) {
@@ -499,6 +501,35 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params 
 	return cs, nil
 }
 
+type SourceProfileConnectionNeo4j struct {
+	URI  string
+	User string
+	Pwd  string
+}
+
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionNeo4j(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionNeo4j, error) {
+	neo := SourceProfileConnectionNeo4j{}
+	uri, uriOk := params["uri"]
+	user, userOk := params["user"]
+	// Password handled separately
+
+	if uriOk && userOk {
+		neo.URI = uri
+		neo.User = user
+		if neo.URI == "" || neo.User == "" {
+			return neo, fmt.Errorf("found empty string for uri/user. Please specify uri and user in the source-profile")
+		}
+	} else {
+		return neo, fmt.Errorf("please specify uri and user in the source-profile")
+	}
+
+	neo.Pwd = params["password"]
+	if neo.Pwd == "" {
+		neo.Pwd = g.GetPassword()
+	}
+	return neo, nil
+}
+
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
 	Streaming bool
@@ -508,6 +539,7 @@ type SourceProfileConnection struct {
 	SqlServer SourceProfileConnectionSqlServer
 	Oracle    SourceProfileConnectionOracle
 	Cassandra SourceProfileConnectionCassandra
+	Neo4j     SourceProfileConnectionNeo4j
 }
 
 type SourceProfileConnectionCloudSQL struct {
@@ -577,6 +609,14 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 		{
 			conn.Ty = SourceProfileConnectionTypeCassandra
 			conn.Cassandra, err = s.NewSourceProfileConnectionCassandra(params, &utils.GetUtilInfoImpl{})
+			if err != nil {
+				return conn, err
+			}
+		}
+	case "neo4j":
+		{
+			conn.Ty = SourceProfileConnectionTypeNeo4j
+			conn.Neo4j, err = s.NewSourceProfileConnectionNeo4j(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -775,7 +815,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 			case "dynamodb":
 				return "", fmt.Errorf("dump files are not supported with DynamoDB")
 			case "cassandra":
-				return "", fmt.Errorf("dump files are not supported with Cassandra")	
+				return "", fmt.Errorf("dump files are not supported with Cassandra")
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
@@ -796,6 +836,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.ORACLE, nil
 			case "cassandra":
 				return constants.CASSANDRA, nil
+			case "neo4j":
+				return constants.NEO4J, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
