@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/neo4j"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
@@ -62,8 +63,8 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
 	conv.DefaultIdentityOptions = ddl.IdentityOptions{
-		SkipRangeMin: targetProfile.DefaultIdentityOptions.SkipRangeMin,
-		SkipRangeMax: targetProfile.DefaultIdentityOptions.SkipRangeMax,
+		SkipRangeMin:     targetProfile.DefaultIdentityOptions.SkipRangeMin,
+		SkipRangeMax:     targetProfile.DefaultIdentityOptions.SkipRangeMax,
 		StartCounterWith: targetProfile.DefaultIdentityOptions.StartCounterWith,
 	}
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
@@ -95,6 +96,23 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 		}
 	case profiles.SourceProfileTypeCloudSQL:
 		infoSchema, err = getInfo.GetInfoSchemaFromCloudSQL(migrationProjectId, sourceProfile, targetProfile)
+		if err != nil {
+			return conv, err
+		}
+	case profiles.SourceProfileTypeConnection:
+		if sourceProfile.Driver == constants.NEO4J {
+			neoSource, err := neo4j.NewInfoSchemaImpl(context.Background(), sourceProfile)
+			if err != nil {
+				return nil, err
+			}
+			defer neoSource.Close(context.Background())
+			fmt.Println("Successfully connected to Neo4j!")
+
+			// Use standard ProcessSchema flow
+			schemaToSpanner := common.SchemaToSpannerImpl{}
+			return conv, processSchema.ProcessSchema(conv, neoSource, common.DefaultWorkers, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		}
+		infoSchema, err = getInfo.GetInfoSchema(migrationProjectId, sourceProfile, targetProfile)
 		if err != nil {
 			return conv, err
 		}
@@ -132,8 +150,8 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	conv.SpProjectId = SpProjectId
 	conv.SpInstanceId = SpInstanceId
 	conv.DefaultIdentityOptions = ddl.IdentityOptions{
-		SkipRangeMin: defaultIdentityOptions.SkipRangeMin,
-		SkipRangeMax: defaultIdentityOptions.SkipRangeMax,
+		SkipRangeMin:     defaultIdentityOptions.SkipRangeMin,
+		SkipRangeMax:     defaultIdentityOptions.SkipRangeMax,
 		StartCounterWith: defaultIdentityOptions.StartCounterWith,
 	}
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))

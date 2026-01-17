@@ -80,7 +80,7 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 	var conv *internal.Conv
 	var err error
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA, constants.NEO4J:
 		conv, err = schemaFromSource.schemaFromDatabase(migrationProjectId, sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
