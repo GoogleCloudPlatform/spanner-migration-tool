@@ -184,6 +184,8 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 }
 
 func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+	// conv.IsSharded = true
+
 	var t schema.Table
 	logger.Log.Info(fmt.Sprintf("processing schema for table %s", table))
 	tblId := internal.GenerateTableId()
@@ -201,6 +203,9 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 	if err != nil {
 		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+
+	// shardColId := internal.GenerateColumnId()
+	// logger.Log.Debug(fmt.Sprintf("Added shardIdColumn with columnId %s to table %s", shardColId, table.Name))
 	colNameIdMap := make(map[string]string)
 	for k, v := range colDefs {
 		colNameIdMap[v.Name] = k
@@ -211,8 +216,16 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 
+	// colIds = append([]string{shardColId}, colIds...)
+	// colDefs[shardColId] = schema.Column{
+	// 	Name: "migration_shard_id",
+	// 	Type: schema.Type{Name: "varchar", Mods: []int64{50}},
+	// 	Id:   shardColId,
+	// }
+
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
+	// schemaPKeys = []schema.Key{{ColId: shardColId}}
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
