@@ -1257,6 +1257,22 @@ func TestGetDDL(t *testing.T) {
 	}
 	dbOptionsOnly := GetDDL(Config{}, Schema{}, make(map[string]Sequence), databaseOptions)
 	assert.ElementsMatch(t, e5, dbOptionsOnly)
+
+	tablesWithTableIds := GetDDL(Config{Tables: true, ForeignKeys: false, TableIds: []string{"t1", "t3"}}, s, make(map[string]Sequence), DatabaseOptions{})
+	e6 := []string{
+		"CREATE TABLE table1 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			") PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table3 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			"	c INT64,\n" +
+			") PRIMARY KEY (a, b),\n" +
+			"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+	}
+	assert.ElementsMatch(t, e6, tablesWithTableIds)
 }
 
 func TestGetPGDDL(t *testing.T) {
@@ -1404,6 +1420,23 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	dbOptionsOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, make(map[string]Sequence), databaseOptions)
 	assert.ElementsMatch(t, e5, dbOptionsOnly)
+
+	tablesWithTableIds := GetDDL(Config{Tables: true, ForeignKeys: false, TableIds: []string{"t1", "t3"}, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence), DatabaseOptions{})
+	e6 := []string{
+		"CREATE TABLE table1 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	PRIMARY KEY (a)\n" +
+			")",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table3 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	c INT8,\n" +
+			"	PRIMARY KEY (a, b)\n" +
+			") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+	}
+	assert.ElementsMatch(t, e6, tablesWithTableIds)
 }
 
 func TestGetSortedTableIdsBySpName(t *testing.T) {

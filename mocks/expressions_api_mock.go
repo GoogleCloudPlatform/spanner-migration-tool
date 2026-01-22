@@ -25,3 +25,8 @@ func (m *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.Co
 	}
 	return args.Get(0).(error)
 }
+
+func (m *MockExpressionVerificationAccessor) VerifyPrimaryKeysExpressionsUsingCreateTable(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+	args := m.Called(ctx, verifyExpressionsInput)
+	return args.Get(0).(internal.VerifyExpressionsOutput)
+}

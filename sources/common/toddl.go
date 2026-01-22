@@ -32,6 +32,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -106,6 +107,12 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 			return err
 		}
 		spannerSchemaApplyExpressions(conv, expressions)
+		expressionDetails = createPrimaryKeyExpressionVerifyInput(expressions)
+		expressions, err = ss.DdlV.VerifyPrimaryKeysExpressionsUsingCreateTable(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		applyExpressionGeneratedColumnPKErrors(conv, expressions)
 	}
 
 	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
@@ -120,6 +127,23 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 
 	internal.ResolveRefs(conv)
 	return nil
+}
+
+// Returns list of valid primary key expressions. If multiple primary key within a table has valid expressions,
+// then only single instance is added.
+func createPrimaryKeyExpressionVerifyInput(expressions internal.VerifyExpressionsOutput) []internal.ExpressionDetail {
+	// tableId to expressionDetail map
+	expressionDetailMap := make(map[string]internal.ExpressionDetail)
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		if expression.Result {
+			if isPrimaryKey, _ := strconv.ParseBool(expression.ExpressionDetail.Metadata["IsPrimaryKey"]); isPrimaryKey {
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				expressionDetailMap[tableId] = expression.ExpressionDetail
+			}
+		}
+
+	}
+	return maps.Values(expressionDetailMap)
 }
 
 // GenerateExpressionDetailList it will generate the expression detail list which is used in verify expression method as a input
@@ -679,6 +703,34 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		Id:              srcIndex.Id,
 	}
 	return spIndex
+}
+
+// For primary key with Generated expression, we remove the expression and add column error.
+// This happens when the expression itself is correct but the expression is not allowed by Spanner.
+// For eg, multi-column dependencies.
+func removeGeneratedColumnExpressionFromPrimaryKey(conv *internal.Conv, tableId string) {
+	table := conv.SpSchema[tableId]
+	for _, primaryKey := range table.PrimaryKeys {
+		col := table.ColDefs[primaryKey.ColId]
+		if col.GeneratedColumn.IsPresent {
+			col.GeneratedColumn = ddl.GeneratedColumn{
+				IsPresent: false,
+			}
+			colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[primaryKey.ColId]
+			colIssues = append(colIssues, internal.GeneratedColumnValueError)
+			conv.SchemaIssues[tableId].ColumnLevelIssues[primaryKey.ColId] = colIssues
+			conv.SpSchema[tableId].ColDefs[primaryKey.ColId] = col
+		}
+	}
+}
+
+func applyExpressionGeneratedColumnPKErrors(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		if !expression.Result {
+			tableId := expression.ExpressionDetail.Metadata["TableId"]
+			removeGeneratedColumnExpressionFromPrimaryKey(conv, tableId)
+		}
+	}
 }
 
 // Applies all valid expressions which can be migrated to spanner conv object
