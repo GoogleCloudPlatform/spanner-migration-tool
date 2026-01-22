@@ -1,4 +1,4 @@
-import { IDefaultValue } from "./conv"
+import {IDefaultValue, IGeneratedColumn} from "./conv"
 
 export default interface IColumnTabData {
   spOrder: number | string
@@ -16,6 +16,8 @@ export default interface IColumnTabData {
   spIsNotNull: boolean
   srcIsNotNull: boolean
   srcDefaultValue: string
+  srcGeneratedColExp: string
+  srcGeneratedColExpType: string
   srcId: string
   spId: string
   srcColMaxLength: Number | string | undefined
@@ -23,6 +25,8 @@ export default interface IColumnTabData {
   spCassandraOption: string
   srcAutoGen: AutoGen
   spDefaultValue: IDefaultValue
+  spGeneratedColumn: IGeneratedColumn
+  spGeneratedColumnType: string
 }
 
 export interface AutoGen {

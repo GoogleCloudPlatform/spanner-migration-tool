@@ -696,6 +696,28 @@ func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.Ver
 					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
 				}
 			}
+		case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.GeneratedColumn = ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    fmt.Sprintf("(%s)", expression.ExpressionDetail.Expression),
+						},
+						Type: ddl.GeneratedColType(expression.ExpressionDetail.Type),
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.GeneratedColumnValueError)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
 		}
 	}
 }
