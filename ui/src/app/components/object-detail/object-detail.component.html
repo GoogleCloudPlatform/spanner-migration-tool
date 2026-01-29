@@ -150,6 +150,25 @@
               </td>
             </ng-container>
 
+            <ng-container matColumnDef="srcGeneratedColExp" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Generated-Col (GC)</th>
+              <td mat-cell *matCellDef="let element">
+                <div
+                  class="trimmed-text"
+                  matTooltip="{{ element.get('srcGeneratedColExp').value }}"
+                  matTooltipPosition="above">
+                  {{ element.get('srcGeneratedColExp').value }}
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcGeneratedColExpType" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>GC Type</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcGeneratedColExpType').value }}
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="srcIsPk">
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">
@@ -375,18 +394,49 @@
               </ng-container>
             </ng-container>
 
+            <ng-container matColumnDef="spGeneratedColumn" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Generated-Col</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="!isEditMode" class="trimmed-text"
+                     matTooltip="{{ element.get('spGeneratedColumn').value }}" matTooltipPosition="above">
+                  {{ element.get('spGeneratedColumn').value }}
+                </div>
+
+                <div *ngIf="isEditMode">
+                  <input matInput class="name_input" type="text"
+                         [formControl]="element.get('spGeneratedColumn')"
+                         matTooltip="Specify the generated column"/>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spGeneratedColumnType" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>GC Type</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode">
+                  <mat-form-field appearance="outline" class="w-100">
+                    <mat-select [formControl]="element.get('spGeneratedColumnType')">
+                      <mat-option value="STORED">STORED</mat-option>
+                      <mat-option value="VIRTUAL">VIRTUAL</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spGeneratedColumnType').value }}</p>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="!isEditMode" class="trimmed-text"
                      matTooltip="{{ element.get('spDefaultValue').value }}" matTooltipPosition="above">
-                  {{ element.get('spDefaultValue').value }} 
+                  {{ element.get('spDefaultValue').value }}
                 </div>
-            
+
                 <div *ngIf="isEditMode">
-                  <input matInput class="name_input" type="text" 
-                         [formControl]="element.get('spDefaultValue')" 
-                         matTooltip="Specify the default value"/> 
+                  <input matInput class="name_input" type="text"
+                         [formControl]="element.get('spDefaultValue')"
+                         matTooltip="Specify the default value"/>
                 </div>
               </td>
             </ng-container>
