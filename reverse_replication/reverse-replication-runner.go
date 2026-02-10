@@ -16,8 +16,8 @@ import (
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"google.golang.org/api/iterator"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 var (
@@ -490,7 +490,8 @@ func createChangeStream(ctx context.Context, adminClient *database.DatabaseAdmin
 	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database: dbUri,
 		// TODO: create change stream for only the tables present in Spanner.
-		Statements: []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW')", changeStreamName)},
+		Statements:     []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW')", changeStreamName)},
+		ThroughputMode: true,
 	})
 	if err != nil {
 		return fmt.Errorf("Cannot submit request create change stream request: %v\n", err)

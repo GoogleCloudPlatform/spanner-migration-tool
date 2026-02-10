@@ -274,7 +274,8 @@ func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, changeStr
 	op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 		Database: dbURI,
 		// TODO: create change stream for only the tables present in Spanner.
-		Statements: []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW', retention_period = '7d')", changeStreamName)},
+		Statements:     []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW', retention_period = '7d')", changeStreamName)},
+		ThroughputMode: true,
 	})
 	if err != nil {
 		return fmt.Errorf("cannot submit request create change stream request: %v", err)
@@ -354,13 +355,14 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	if len(schema) == 0 {
 		return nil
 	}
-	req := &adminpb.UpdateDatabaseDdlRequest{
-		Database:   dbURI,
-		Statements: schema,
+	req := &databasepb.UpdateDatabaseDdlRequest{
+		Database:       dbURI,
+		Statements:     schema,
+		ThroughputMode: true,
 	}
 	// Update queries for postgres as target db return response after more
 	// than 1 min for large schemas, therefore, timeout is specified as 5 minutes
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, req)
 	if err != nil {
@@ -524,9 +526,10 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI s
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
 			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
 
-			op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-				Database:   dbURI,
-				Statements: []string{fkStmt},
+			op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
+				Database:       dbURI,
+				Statements:     []string{fkStmt},
+				ThroughputMode: true,
 			})
 			if err != nil {
 				logger.Log.Debug("Can't add foreign key with statement:" + fkStmt + "\n due to error:" + err.Error() + " Skipping this foreign key...\n")
