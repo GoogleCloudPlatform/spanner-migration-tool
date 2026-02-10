@@ -32,6 +32,9 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
@@ -162,6 +165,28 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			return subcommands.ExitFailure
 		}
 	}
+
+	sessionState := session.GetSessionState()
+	sessionState.Conv = conv
+	conv.IsSharded = true
+	conv.AddShardIdColumn()
+	api.SetShardIdColumnAsPrimaryKey(true)
+	api.AddShardIdColumnToForeignKeys(true)
+	ruleId := internal.GenerateRuleId()
+	rule := internal.Rule{
+		Id:                ruleId,
+		Name:              ruleId,
+		Type:              constants.AddShardIdPrimaryKey,
+		AssociatedObjects: "All Tables",
+		Data: types.ShardIdPrimaryKey{
+			AddedAtTheStart: true,
+		},
+		Enabled: true,
+	}
+	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+	session.UpdateSessionFile()
+	logger.Log.Info("Added Shard column")
+
 	if conv == nil {
 		logger.Log.Error("Could not initialize conversion context from")
 		return subcommands.ExitFailure
