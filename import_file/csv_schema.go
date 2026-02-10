@@ -10,11 +10,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
+	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 var NewCsvSchema = newCsvSchema
@@ -89,8 +89,9 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 
 	stmts := []string{ddl}
 	req := &adminpb.UpdateDatabaseDdlRequest{
-		Database:   dbURI,
-		Statements: stmts,
+		Database:       dbURI,
+		Statements:     stmts,
+		ThroughputMode: true,
 	}
 	op, err := sp.GetSpannerAdminClient().UpdateDatabaseDdl(ctx, req)
 	if err != nil {

@@ -17,15 +17,16 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"regexp"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 const (
@@ -119,8 +120,9 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 	logger.Log.Info("Creating/Updating database to store session metadata...")
 	if dbExists {
 		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-			Database:   uri,
-			Statements: TABLE_STATEMENTS,
+			Database:       uri,
+			Statements:     TABLE_STATEMENTS,
+			ThroughputMode: true,
 		})
 		if err != nil {
 			return err
