@@ -28,6 +28,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.9.0
+	github.com/neo4j/neo4j-go-driver/v6 v6.0.0
 	github.com/pganalyze/pg_query_go/v6 v6.1.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20241016062529-7972ff1b35c6
 	github.com/pingcap/tidb/parser v0.0.0-20241016062529-7972ff1b35c6
