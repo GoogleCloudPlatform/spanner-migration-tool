@@ -34,6 +34,7 @@ describe('FetchService', () => {
         port: '9042',
         userName: 'user',
         password: 'password',
+        sslMode: false,
         dbName: 'testdb',
         dataCenter: 'dc1',
       }
@@ -51,6 +52,7 @@ describe('FetchService', () => {
         Database: 'testdb',
         User: 'user',
         Password: 'password',
+        Sslmode: false,
         Dialect: 'google_standard_sql',
         DataCenter: 'dc1',
       })
@@ -67,6 +69,7 @@ describe('FetchService', () => {
         port: '9042',
         userName: 'user',
         password: 'password',
+        sslMode: false,
         dbName: 'testdb',
         dataCenter: 'dc1',
       }
@@ -82,6 +85,7 @@ describe('FetchService', () => {
         Database: 'testdb',
         User: 'user',
         Password: 'password',
+        Sslmode: false,
         DataCenter: 'dc1',
       })
       req.flush({})

@@ -62,7 +62,14 @@
         <mat-label *ngIf="connectForm.value.dbEngine !== 'cassandra'">Database Name</mat-label>
         <input matInput name="dbname" type="text" formControlName="dbName" id="dbname-input" />
       </mat-form-field>
-
+      <mat-form-field class="full-width" appearance="outline" *ngIf="connectForm.value.dbEngine === 'postgres'">
+        <mat-label>SSL Mode</mat-label>
+        <mat-select formControlName="sslMode">
+          <mat-option *ngFor="let mode of sslModeList" [value]="mode.value">
+            {{ mode.displayName }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
       <mat-form-field class="full-width" appearance="outline" *ngIf="connectForm.value.dbEngine === 'cassandra'">
         <mat-label>Datacenter</mat-label>
         <input matInput placeholder="dc" name="dataCenter" type="text" formControlName="dataCenter" id="datacenter-input"/>

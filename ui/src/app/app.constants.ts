@@ -15,7 +15,7 @@ export enum StorageKeys {
 
 export enum SourceDbNames {
   MySQL = 'MySQL',
-  Postgres = 'Postgres',
+  Postgres = 'postgres',
   SQLServer = 'SQL Server',
   Oracle = 'Oracle',
   Cassandra = 'cassandra',

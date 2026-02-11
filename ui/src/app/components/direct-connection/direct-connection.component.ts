@@ -25,6 +25,7 @@ export class DirectConnectionComponent implements OnInit {
     port: new FormControl('', [Validators.required, Validators.pattern('^[0-9]+$')]),
     userName: new FormControl('', [Validators.required]),
     password: new FormControl(''),
+    sslMode: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
     dialect: new FormControl('', [Validators.required]),
     dataCenter: new FormControl(''),
@@ -46,6 +47,10 @@ export class DirectConnectionComponent implements OnInit {
   shardedResponseList = [
     { value: false, displayName: 'No'},
     { value: true, displayName: 'Yes'},
+  ]
+  sslModeList = [
+    { value: 'disable', displayName: 'Disable'},
+    { value: 'require', displayName: 'Require'},
   ]
 
   dialect: { value: string, displayName: string }[] = []
@@ -80,8 +85,18 @@ export class DirectConnectionComponent implements OnInit {
     })
     this.connectForm.get('dbEngine')?.valueChanges.subscribe((dbEngine) => {
       this.updateDialectAndDataCenterOptions(dbEngine || '')
+      this.updateSslModeValue(dbEngine || '')
     })
     this.updateDialectAndDataCenterOptions(this.connectForm.value.dbEngine || '')
+    this.updateSslModeValue(this.connectForm.value.dbEngine || '')
+  }
+
+  updateSslModeValue(dbEngine: string) {
+    if (dbEngine !== SourceDbNames.Postgres) {
+      this.connectForm.get('sslMode')?.setValue('')
+    } else if (!this.connectForm.get('sslMode')?.value) {
+      this.connectForm.get('sslMode')?.setValue('disable')
+    }
   }
 
   updateDialectAndDataCenterOptions(dbEngine: string) {
@@ -100,7 +115,7 @@ export class DirectConnectionComponent implements OnInit {
 
   testConn() {
     this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
-    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value
+    const { dbEngine, isSharded, hostName, port, userName, password, sslMode, dbName, dialect, dataCenter } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     let config: IDbConfig = {
       dbEngine: dbEngine!,
@@ -109,6 +124,7 @@ export class DirectConnectionComponent implements OnInit {
       port: port!,
       userName: userName!,
       password: password!,
+      sslMode: sslMode!,
       dbName: dbName!,
       dataCenter: dataCenter!,
     }
@@ -149,7 +165,7 @@ export class DirectConnectionComponent implements OnInit {
         window.scroll(0, 0);
         this.data.resetStore();
         localStorage.clear();
-        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value;
+        const { dbEngine, isSharded, hostName, port, userName, password, dbName, sslMode, dialect, dataCenter } = this.connectForm.value;
         localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
         let config: IDbConfig = {
           dbEngine: dbEngine!,
@@ -159,6 +175,7 @@ export class DirectConnectionComponent implements OnInit {
           userName: userName!,
           password: password!,
           dbName: dbName!,
+          sslMode: sslMode!,
           dataCenter: dataCenter!,
         };
         this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
@@ -167,7 +184,7 @@ export class DirectConnectionComponent implements OnInit {
             this.data.conv.subscribe((res) => {
               localStorage.setItem(
                 StorageKeys.Config,
-                JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
+                JSON.stringify({ dbEngine, hostName, port, userName, password, dbName, sslMode })
               );
               localStorage.setItem(StorageKeys.Type, InputType.DirectConnect);
               localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!));

@@ -25,11 +25,11 @@ import ICreateSequence from 'src/app/model/auto-gen'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = window.location.origin
+  private url: string = 'http://localhost:8080' // Update with your backend URL
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
-    const { dbEngine, isSharded, hostName, port, dbName, userName, password, dataCenter} = payload
+    const { dbEngine, isSharded, hostName, port, dbName, userName, password, sslMode, dataCenter} = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
       {
@@ -40,6 +40,7 @@ export class FetchService {
         Database: dbName,
         User: userName,
         Password: password,
+        Sslmode: sslMode,
         Dialect: dialect,
         DataCenter: dataCenter,
       },
