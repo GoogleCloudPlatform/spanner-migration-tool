@@ -176,7 +176,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names// ProcessColumns
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
+	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.generation_expression, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
@@ -187,14 +187,19 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	colDefs := make(map[string]schema.Column)
 	var colIds []string
 	var colName, dataType, isNullable, columnType string
-	var colDefault, colExtra sql.NullString
+	var colDefault, colExtra, colGeneratedExpression sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	var colAutoGen ddl.AutoGenCol
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
+		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colGeneratedExpression, &colExtra)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
+		}
+
+		// It's required as empty string is considered as valid within Database SQL.
+		if colGeneratedExpression.String == "" {
+			colGeneratedExpression.Valid = false
 		}
 		ignored := schema.Ignored{}
 		ignored.Default = colDefault.Valid
@@ -219,18 +224,35 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 			defaultVal.Value = ddl.Expression{
 				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeDefaultValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
+				Statement:    common.SanitizeExpressionsValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
+			}
+		}
+
+		generatedColumn := ddl.GeneratedColumn{
+			IsPresent: colGeneratedExpression.Valid,
+			Value:     ddl.Expression{},
+		}
+		if colGeneratedExpression.Valid {
+			// Defaults to STORED type
+			generatedColumn.Type = ddl.GeneratedColStored
+			if strings.ReplaceAll(colExtra.String, " GENERATED", "") == constants.VIRTUAL_GENERATED {
+				generatedColumn.Type = ddl.GeneratedColVirtual
+			}
+			generatedColumn.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:    common.SanitizeExpressionsValue(colGeneratedExpression.String, "", false),
 			}
 		}
 
 		c := schema.Column{
-			Id:           colId,
-			Name:         colName,
-			Type:         toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull:      common.ToNotNull(conv, isNullable),
-			Ignored:      ignored,
-			AutoGen:      colAutoGen,
-			DefaultValue: defaultVal,
+			Id:              colId,
+			Name:            colName,
+			Type:            toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:         common.ToNotNull(conv, isNullable),
+			Ignored:         ignored,
+			AutoGen:         colAutoGen,
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedColumn,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)

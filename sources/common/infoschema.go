@@ -256,8 +256,8 @@ func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (sch
 	return schemaToTablesMap, nil
 }
 
-// SanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
-func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
+// SanitizeExpressionsValue removes extra characters added to Default Value in information schema in MySQL.
+func SanitizeExpressionsValue(expressionValue string, ty string, generated bool) string {
 	types := []string{"char", "varchar", "text", "varbinary", "tinyblob", "tinytext", "text",
 		"blob", "mediumtext", "mediumblob", "longtext", "longblob", "STRING"}
 	// Check if ty exists in the types array
@@ -268,11 +268,11 @@ func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string
 			break
 		}
 	}
-	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
-	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
-	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
-	if !generated && stringType && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
-		defaultValue = "'" + defaultValue + "'"
+	expressionValue = strings.ReplaceAll(expressionValue, "_utf8mb4", "")
+	expressionValue = strings.ReplaceAll(expressionValue, "\\\\", "\\")
+	expressionValue = strings.ReplaceAll(expressionValue, "\\'", "'")
+	if !generated && stringType && !strings.HasPrefix(expressionValue, "'") && !strings.HasSuffix(expressionValue, "'") {
+		expressionValue = "'" + expressionValue + "'"
 	}
-	return defaultValue
+	return expressionValue
 }
