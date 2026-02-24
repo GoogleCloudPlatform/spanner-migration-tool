@@ -39,7 +39,11 @@ func TestVerifyExpressions(t *testing.T) {
 		ExpressionDetailList: []internal.ExpressionDetail{
 			{
 				Expression: "id > 10",
-				Type:       "CHECK", ReferenceElement: internal.ReferenceElement{Name: "Books"}, ExpressionId: "1"}},
+				Type:       "CHECK", ReferenceElement: internal.ReferenceElement{Name: "Books"}, ExpressionId: "1", SpTableName: "Books"},
+			{
+				Expression: "id + 1",
+				Type:       "STORED", ReferenceElement: internal.ReferenceElement{Name: "INT64"}, ExpressionId: "2", SpTableName: "Books"},
+		},
 	}
 
 	t.Run("Happy case 1: stagingdb does not exist and expression is successfully verified", func(t *testing.T) {
@@ -80,8 +84,9 @@ func TestVerifyExpressions(t *testing.T) {
 		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.Nil(t, output.Err)
-		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
+		assert.Equal(t, len(output.ExpressionVerificationOutputList), 2)
 		assert.True(t, output.ExpressionVerificationOutputList[0].Result)
+		assert.True(t, output.ExpressionVerificationOutputList[1].Result)
 	})
 
 	t.Run("Happy case 2: Successfully dropped existing stagingDb and verified expressions", func(t *testing.T) {
@@ -122,8 +127,9 @@ func TestVerifyExpressions(t *testing.T) {
 		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.Nil(t, output.Err)
-		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
+		assert.Equal(t, len(output.ExpressionVerificationOutputList), 2)
 		assert.True(t, output.ExpressionVerificationOutputList[0].Result)
+		assert.True(t, output.ExpressionVerificationOutputList[1].Result)
 	})
 
 	t.Run("Error in creating staging database", func(t *testing.T) {
@@ -226,8 +232,9 @@ func TestVerifyExpressions(t *testing.T) {
 		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
-		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
+		assert.Equal(t, len(output.ExpressionVerificationOutputList), 2)
 		assert.False(t, output.ExpressionVerificationOutputList[0].Result)
+		assert.False(t, output.ExpressionVerificationOutputList[1].Result)
 	})
 
 	t.Run("Nil conv", func(t *testing.T) {
@@ -358,7 +365,8 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SrcSchema = map[string]schema.Table{
 		"table1": {
-			ColIds: []string{"col1", "col2"},
+			Name: "table1",
+			ColIds: []string{"col1", "col2", "col3", "col4"},
 			ColDefs: map[string]schema.Column{
 				"col1": {
 					DefaultValue: ddl.DefaultValue{
@@ -372,19 +380,58 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 				"col2": {
 					DefaultValue: ddl.DefaultValue{},
 				},
+				"col3": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr3",
+							Statement:    "id + 1",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+				"col4": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr4",
+							Statement:    "id + 2",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+				},
 			},
 		},
 	}
 	conv.SpSchema = ddl.Schema{
 		"table1": {
+			Name: "t1",
 			ColDefs: map[string]ddl.ColumnDef{
 				"col1": {
 					T: ddl.Type{
 						Name: "INT64",
 					},
 				},
+				"col2": {
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
+				"col3": {
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
+				"col4": {
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
 			},
 		},
+	}
+	conv.ToSpanner = map[string]internal.NameAndCols{
+		"table1": {Name: "t1"},
 	}
 
 	testCases := []struct {
@@ -394,7 +441,7 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 		expectedDetails []internal.ExpressionDetail
 	}{
 		{
-			name:     "single table with default value",
+			name:     "single table with default value and generated columns",
 			conv:     conv,
 			tableIds: []string{"table1"},
 			expectedDetails: []internal.ExpressionDetail{
@@ -406,6 +453,27 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 					Expression:   "SELECT 1",
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+					SpTableName:  conv.ToSpanner["table1"].Name,
+				},
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: "INT64",
+					},
+					ExpressionId: "expr3",
+					Expression:   "id + 1",
+					Type:         "STORED",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3"},
+					SpTableName:  conv.ToSpanner["table1"].Name,
+				},
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: "INT64",
+					},
+					ExpressionId: "expr4",
+					Expression:   "id + 2",
+					Type:         "VIRTUAL",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4"},
+					SpTableName:  conv.ToSpanner["table1"].Name,
 				},
 			},
 		},
@@ -430,7 +498,8 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SpSchema = ddl.Schema{
 		"table1": {
-			ColIds: []string{"col1", "col2"},
+			Name: "t1",
+			ColIds: []string{"col1", "col2", "col3", "col4"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"col1": {
 					DefaultValue: ddl.DefaultValue{
@@ -440,9 +509,41 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 							Statement:    "SELECT 1",
 						},
 					},
+					T: ddl.Type{
+						Name: "INT64",
+					},
 				},
 				"col2": {
 					DefaultValue: ddl.DefaultValue{},
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
+				"col3": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr3",
+							Statement:    "id + 1",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
+				"col4": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr4",
+							Statement:    "id + 2",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+					T: ddl.Type{
+						Name: "INT64",
+					},
 				},
 			},
 		},
@@ -455,7 +556,7 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 		expectedDetails []internal.ExpressionDetail
 	}{
 		{
-			name:     "single table with default value",
+			name:     "single table with default value and generated columns",
 			conv:     conv,
 			tableIds: []string{"table1"},
 			expectedDetails: []internal.ExpressionDetail{
@@ -467,6 +568,27 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 					Expression:   "SELECT 1",
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+					SpTableName:  conv.SpSchema["table1"].Name,
+				},
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema["table1"].ColDefs["col3"].T.Name,
+					},
+					ExpressionId: "expr3",
+					Expression:   "id + 1",
+					Type:         "STORED",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3"},
+					SpTableName:  conv.SpSchema["table1"].Name,
+				},
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema["table1"].ColDefs["col4"].T.Name,
+					},
+					ExpressionId: "expr4",
+					Expression:   "id + 2",
+					Type:         "VIRTUAL",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4"},
+					SpTableName:  conv.SpSchema["table1"].Name,
 				},
 			},
 		},

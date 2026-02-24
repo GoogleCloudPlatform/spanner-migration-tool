@@ -126,14 +126,7 @@ describe('ObjectDetailComponent', () => {
           },
           IsPresent: false
         },
-        spGeneratedColumn: {
-          Value: {
-            ExpressionId: '',
-            Statement: ''
-          },
-          IsPresent: false,
-          Type: "",
-        },
+        spGeneratedColumn: '',
         spGeneratedColumnType: ''
       },
       {
@@ -183,14 +176,7 @@ describe('ObjectDetailComponent', () => {
           },
           IsPresent: false
         },
-        spGeneratedColumn: {
-          Value: {
-            ExpressionId: '',
-            Statement: ''
-          },
-          IsPresent: false,
-          Type: "",
-        },
+        spGeneratedColumn: '',
         spGeneratedColumnType: ''
       },
     ]

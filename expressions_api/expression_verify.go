@@ -132,7 +132,7 @@ func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressio
 	case constants.STORED_GENERATED, constants.VIRTUAL_GENERATED:
 		sqlStatement = fmt.Sprintf("SELECT %s as %s FROM %s", expressionDetail.Expression, expressionDetail.ReferenceElement.Name, expressionDetail.SpTableName)
 	default:
-		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
+		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested"), ExpressionDetail: expressionDetail}, Err: nil}
 	}
 	result, err := ev.SpannerAccessor.ValidateDML(context.Background(), sqlStatement)
 	return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: result, Err: err, ExpressionDetail: expressionDetail}, Err: nil}

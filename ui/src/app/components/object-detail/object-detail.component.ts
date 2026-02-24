@@ -335,8 +335,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spSkipRangeMax: new FormControl(row.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
           spStartCounterWith: new FormControl(row.spStartCounterWith, Validators.pattern('^[0-9]+$')),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
-          spGeneratedColumn: new FormControl(row.spGeneratedColumn ? row.spGeneratedColumn.Value.Statement : ''),
-          spGeneratedColumnType: new FormControl(row.spGeneratedColumn ? row.spGeneratedColumn.Type : 'STORED'),
+          spGeneratedColumn: new FormControl(row.spGeneratedColumnType && row.spGeneratedColumnType != 'N/A' ? row.spGeneratedColumn : ''),
+          spGeneratedColumnType: new FormControl(row.spGeneratedColumnType && row.spGeneratedColumnType != 'N/A' ? row.spGeneratedColumnType : ''),
         }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
         // Disable spDefaultValue and spGeneratedColumn if spAutoGen is set
         if (row.spAutoGen.Name !== '') {
@@ -405,8 +405,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
-            spGeneratedColumn: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''),
-            spGeneratedColumnType: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Type : 'STORED'),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumn : ''),
+            spGeneratedColumnType: new FormControl(col.spGeneratedColumn && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumnType : ''),
           })
         )
       } else {
@@ -448,8 +448,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
-            spGeneratedColumn: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''),
-            spGeneratedColumnType: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Type : 'STORED'),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumn : ''),
+            spGeneratedColumnType: new FormControl(col.spGeneratedColumn && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumnType : ''),
           })
         )
       }
@@ -522,6 +522,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         if (col.spDataType != 'STRING' && col.spDataType != 'BYTES' && col.spDataType != 'VARCHAR') {
           col.spColMaxLength = ""
         }
+
         if (col.srcId == this.tableData[j].srcId && this.tableData[j].srcId != '') {
           updateData.UpdateCols[this.tableData[j].srcId] = {
             Add: this.tableData[j].spId == '',
@@ -539,12 +540,12 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
               }
             },
             GeneratedColumn: {
-              IsPresent: col.spGeneratedColumn ? col.spGeneratedColumn.IsPresent : false,
+              IsPresent: !!(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A'),
               Value: {
                 ExpressionId: '',
-                Statement: col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''
+                Statement: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumn : ''
               },
-              Type: col.spGeneratedColumn && col.spGeneratedColumn.IsPresent ? col.spGeneratedColumnType : ''
+              Type: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumnType : ''
             }
           }
           break
@@ -566,12 +567,12 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
               }
             },
             GeneratedColumn: {
-              IsPresent: col.spGeneratedColumn ? col.spGeneratedColumn.IsPresent : false,
+              IsPresent: !!(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A'),
               Value: {
                 ExpressionId: '',
-                Statement: col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''
+                Statement: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumn : ''
               },
-              Type: col.spGeneratedColumn && col.spGeneratedColumn.IsPresent ? col.spGeneratedColumnType : ''
+              Type: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumnType : ''
             }
           }
         }
@@ -608,7 +609,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             ExpressionId: '',
             Statement: ''
           },
-          Type: 'STORED'
+          Type: ''
         }
       }
     })
@@ -672,7 +673,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
     this.localTableData[index].spGeneratedColumn = this.droppedColumns[addedRowIndex].spGeneratedColumn
-    this.localTableData[index].spGeneratedColumn.Type = this.droppedColumns[addedRowIndex].spGeneratedColumn.Type
+    this.localTableData[index].spGeneratedColumnType = this.droppedColumns[addedRowIndex].spGeneratedColumnType
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -832,14 +833,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           },
           IsPresent: false
         },
-        col.spGeneratedColumn = {
-          Value: {
-            ExpressionId: '',
-            Statement: ''
-          },
-          IsPresent: false,
-          Type: '',
-        }
+        col.spGeneratedColumn = ""
+        col.spGeneratedColumnType = ""
       }
     })
     this.setSpTableRows()

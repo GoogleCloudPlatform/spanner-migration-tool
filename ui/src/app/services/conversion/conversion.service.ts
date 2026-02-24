@@ -396,14 +396,7 @@ export class ConversionService {
             Statement: ''
           }
         },
-        spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn : {
-          IsPresent: false,
-          Value: {
-            ExpressionId: '',
-            Statement: ''
-          },
-          Type: '',
-        },
+        spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn.Value.Statement : '',
         spGeneratedColumnType: spannerColDef?.GeneratedColumn?.Type || '',
         spCassandraOption: spannerColDef?.Opts?.["cassandra_type"] || '',
         }
@@ -453,14 +446,7 @@ export class ConversionService {
                 Statement: ''
               }
             },
-            spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn : {
-              IsPresent: false,
-              Value: {
-                ExpressionId: '',
-                Statement: ''
-              },
-              Type: '',
-            },
+            spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn.Value.Statement : '',
             spGeneratedColumnType: spannerColDef?.GeneratedColumn?.Type || '',
           })
         }

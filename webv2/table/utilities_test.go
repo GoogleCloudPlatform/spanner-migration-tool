@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
@@ -217,4 +218,68 @@ func TestIsInterleavingImpacted(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateGeneratedCol(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SpSchema = ddl.Schema{
+		"table1": {
+			ColDefs: map[string]ddl.ColumnDef{
+				"col1": {T: ddl.Type{Name: "INT64"}},
+				"col2": {
+					T: ddl.Type{Name: "INT64"},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "123",
+							Statement:    "old + 1",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+			},
+		},
+	}
+	conv.SrcSchema = map[string]schema.Table{
+		"table1": {
+			ColDefs: map[string]schema.Column{
+				"col1": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						Value: ddl.Expression{ExpressionId: "src_123"},
+					},
+				},
+			},
+		},
+	}
+
+	// Test case 1: Update existing column to remove generated column
+	UpdateGeneratedCol(ddl.GeneratedColumn{IsPresent: false}, "table1", "col2", conv)
+	assert.False(t, conv.SpSchema["table1"].ColDefs["col2"].GeneratedColumn.IsPresent)
+
+	// Test case 2: Add generated column with expression id from src schema
+	gcAdd := ddl.GeneratedColumn{
+		IsPresent: true,
+		Value: ddl.Expression{
+			Statement: "col3 + 1",
+		},
+		Type: ddl.GeneratedColStored,
+	}
+	UpdateGeneratedCol(gcAdd, "table1", "col1", conv)
+	assert.True(t, conv.SpSchema["table1"].ColDefs["col1"].GeneratedColumn.IsPresent)
+	assert.Equal(t, "src_123", conv.SpSchema["table1"].ColDefs["col1"].GeneratedColumn.Value.ExpressionId)
+	assert.Equal(t, ddl.GeneratedColStored, conv.SpSchema["table1"].ColDefs["col1"].GeneratedColumn.Type)
+
+	// Test case 3: Add generated column with provided expression id
+	gcAddWithId := ddl.GeneratedColumn{
+		IsPresent: true,
+		Value: ddl.Expression{
+			Statement:    "(col4 + 1)",
+			ExpressionId: "custom_id",
+		},
+		Type: ddl.GeneratedColVirtual,
+	}
+	UpdateGeneratedCol(gcAddWithId, "table1", "col2", conv)
+	assert.True(t, conv.SpSchema["table1"].ColDefs["col2"].GeneratedColumn.IsPresent)
+	assert.Equal(t, "custom_id", conv.SpSchema["table1"].ColDefs["col2"].GeneratedColumn.Value.ExpressionId)
+	assert.Equal(t, ddl.GeneratedColVirtual, conv.SpSchema["table1"].ColDefs["col2"].GeneratedColumn.Type)
 }

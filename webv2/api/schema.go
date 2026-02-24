@@ -394,15 +394,17 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 }
 
 func (tableHandler *TableAPIHandler) handleExpressionColError(
-	exp *internal.ExpressionVerificationOutput, conv *internal.Conv, errorType internal.SchemaIssue) {
+	exp *internal.ExpressionVerificationOutput, conv *internal.Conv, errorType internal.SchemaIssue) string {
 
-	if !exp.Result {
-		tableId := exp.ExpressionDetail.Metadata["TableId"]
-		columnId := exp.ExpressionDetail.Metadata["ColId"]
+	tableId := exp.ExpressionDetail.Metadata["TableId"]
+	columnId := exp.ExpressionDetail.Metadata["ColId"]
+	if !exp.Result || exp.Err != nil {
 		issues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
 		issues = append(issues, errorType)
 		conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+		return tableId
 	}
+	return ""
 }
 
 // GetTableWithErrors checks the errors in the spanner schema
@@ -416,13 +418,18 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 
 	expressionDetails := tableHandler.DDLVerifier.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
 	expressions, err := tableHandler.DDLVerifier.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	generatedExpressionErrorTables := []string{}
 	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
 		for _, exp := range expressions.ExpressionVerificationOutputList {
 			switch exp.ExpressionDetail.Type {
 			case "DEFAULT":
 				tableHandler.handleExpressionColError(&exp, sessionState.Conv, internal.DefaultValueError)
 			case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
-				tableHandler.handleExpressionColError(&exp, sessionState.Conv, internal.GeneratedColumnValueError)
+				tableId := tableHandler.handleExpressionColError(&exp, sessionState.Conv, internal.GeneratedColumnValueError)
+				if len(tableId) != 0 {
+					generatedExpressionErrorTables = append(generatedExpressionErrorTables, tableId)
+				}
+
 			}
 		}
 	} else if err != nil {
@@ -465,6 +472,13 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 				}
 			}
 		}
+	}
+	for _, tableId := range generatedExpressionErrorTables {
+		t := types.TableIdAndName{
+			Id:   tableId,
+			Name: sessionState.Conv.SpSchema[tableId].Name,
+		}
+		tableIdName = append(tableIdName, t)
 	}
 	tableIdName = uniqueAndSortTableIdName(tableIdName)
 	w.WriteHeader(http.StatusOK)

@@ -71,11 +71,12 @@ type SchemaToSpannerImpl struct {
 }
 
 var ErrorTypeMapping = map[string]internal.SchemaIssue{
-	"No matching signature for operator": internal.TypeMismatchError,
-	"Syntax error":                       internal.InvalidConditionError,
-	"Unrecognized name":                  internal.ColumnNotFoundError,
-	"Function not found":                 internal.CheckConstraintFunctionNotFoundError,
-	"unhandled error":                    internal.GenericError,
+	"No matching signature for operator":  internal.TypeMismatchError,
+	"Syntax error":                        internal.InvalidConditionError,
+	"Unrecognized name":                   internal.ColumnNotFoundError,
+	"Function not found":                  internal.CheckConstraintFunctionNotFoundError,
+	"unhandled error":                     internal.GenericError,
+	"Generated Column function not found": internal.GeneratedColumnValueError,
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to

@@ -46,6 +46,16 @@ func TestPrintScalarType(t *testing.T) {
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType(false))
 	}
+	testsVirtual := []struct {
+		in       Type
+		expected string
+	}{
+		{Type{Name: String, Len: int64(42)}, "STRING(MAX)"},
+		{Type{Name: Bytes, Len: int64(42)}, "BYTES(MAX)"},
+	}
+	for _, tc := range testsVirtual {
+		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType(true))
+	}
 }
 
 func TestPrintScalarTypePG(t *testing.T) {
@@ -65,6 +75,16 @@ func TestPrintScalarTypePG(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType(false))
+	}
+	testsVirtual := []struct {
+		in       Type
+		expected string
+	}{
+		{Type{Name: String, Len: int64(42)}, "VARCHAR(2621440)"},
+		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
+	}
+	for _, tc := range testsVirtual {
+		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType(true))
 	}
 }
 
@@ -98,6 +118,30 @@ func TestPrintColumnDef(t *testing.T) {
 			},
 			expected: "col1 INT64 OPTIONS (cassandra_type = 'bigint')",
 		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColStored,
+				},
+			},
+			expected: "col1 INT64 AS (col2 + 1) STORED",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Float32},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColVirtual,
+				},
+			},
+			expected: "col1 FLOAT32 AS (CAST(col2 + 1 AS FLOAT32))",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
@@ -126,6 +170,30 @@ func TestPrintColumnDefPG(t *testing.T) {
 				},
 			},
 			expected: "col1 INT8 DEFAULT ((`col2` + 1))",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColStored,
+				},
+			},
+			expected: "col1 INT8 GENERATED ALWAYS AS (col2 + 1) STORED",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Float32},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColVirtual,
+				},
+			},
+			expected: "col1 FLOAT4 GENERATED ALWAYS AS (CAST(col2 + 1 AS FLOAT4)) VIRTUAL",
 		},
 	}
 	for _, tc := range tests {
@@ -1579,5 +1647,93 @@ func TestPGPrintDatabaseOptions(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.dbOptions.PGPrintDatabaseOptions())
+	}
+}
+
+func TestIsVirtual(t *testing.T) {
+	tests := []struct {
+		gc       GeneratedColumn
+		expected bool
+	}{
+		{GeneratedColumn{}, false},
+		{GeneratedColumn{IsPresent: true, Type: GeneratedColStored}, false},
+		{GeneratedColumn{IsPresent: true, Type: GeneratedColVirtual}, true},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.IsVirtual())
+	}
+}
+
+func TestPrintGeneratedColumn(t *testing.T) {
+	tests := []struct {
+		desc     string
+		gc       GeneratedColumn
+		ty       Type
+		expected string
+	}{
+		{
+			"stored generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColStored},
+			Type{Name: Int64},
+			" AS (col2 + 1) STORED",
+		},
+		{
+			"virtual generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Int64},
+			" AS (col2 + 1)",
+		},
+		{
+			"virtual float32",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Float32},
+			" AS (CAST(col2 + 1 AS FLOAT32))",
+		},
+		{
+			"not present",
+			GeneratedColumn{IsPresent: false},
+			Type{Name: Float32},
+			"",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.PrintGeneratedColumn(tc.ty), tc.desc)
+	}
+}
+
+func TestPGPrintGeneratedColumn(t *testing.T) {
+	tests := []struct {
+		desc     string
+		gc       GeneratedColumn
+		ty       Type
+		expected string
+	}{
+		{
+			"stored generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColStored},
+			Type{Name: Int64},
+			" GENERATED ALWAYS AS (col2 + 1) STORED",
+		},
+		{
+			"virtual generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Int64},
+			" GENERATED ALWAYS AS (col2 + 1) VIRTUAL",
+		},
+		{
+			"virtual float4",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Float32},
+			" GENERATED ALWAYS AS (CAST(col2 + 1 AS FLOAT4)) VIRTUAL",
+		},
+		{
+			"not present",
+			GeneratedColumn{IsPresent: false},
+			Type{Name: Float32},
+			"",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.PGPrintGeneratedColumn(tc.ty), tc.desc)
 	}
 }

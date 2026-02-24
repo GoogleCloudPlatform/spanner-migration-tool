@@ -23,12 +23,10 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -283,6 +281,13 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]schema.Table{
 		"cart": {
 			Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -399,6 +404,13 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]schema.Table{
 		"pk_order": {
 			Name: "pk_order", Schema: "test", ColIds: []string{"pk_1", "pk_2"}, ColDefs: map[string]schema.Column{
@@ -513,8 +525,8 @@ func TestProcessData_MultiCol(t *testing.T) {
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
 				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, nil, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), "STORED GENERATED"}, // Maps to STORED
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), "VIRTUAL GENERATED"},    // Maps to VIRTUAL
 			},
 		},
 		{
@@ -533,46 +545,87 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
+	conv.Source = constants.MYSQL
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+	mockAccessor := &expressions_api.MockExpressionVerificationAccessor{
+		RefreshSpannerClientMock: func(ctx context.Context, project, instance string) error {
+			return nil
 		},
-	})
-
+		VerifyExpressionsMock: func(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			var outputs []internal.ExpressionVerificationOutput
+			for _, ed := range input.ExpressionDetailList {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result: true,
+					Err:    nil,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: outputs,
+			}
+		},
+	}
 	schemaToSpanner := common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
+		DdlV: &expressions_api.DDLVerifierImpl{
+			Expressions: mockAccessor,
+		},
 	}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
 			Name:   "test",
 			ColIds: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":        {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b": {
+					Name: "b", T: ddl.Type{Name: ddl.Float64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+2.0)",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+				"c": {
+					Name: "c", T: ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+1)",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+				},
 				"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
 		},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
+	assert.Nil(t, err)
+	synthId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "synth_id")
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c56": []internal.SchemaIssue{
+		synthId: []internal.SchemaIssue{
 			2,
 		},
 	}
 	expectedIssues := internal.TableIssues{
 		ColumnLevelIssues: columnLevelIssues,
 	}
-	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
-	assert.Equal(t, nil, err)
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
@@ -629,8 +682,8 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
 				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, nil, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), nil},                     // Maps to STORED
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), []byte("VIRTUAL GENERATED")}, // Maps to VIRTUAL
 			},
 		},
 		{
@@ -649,29 +702,70 @@ func TestProcessSchema_Sharded(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
+	conv.Source = constants.MYSQL
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+	mockAccessor := &expressions_api.MockExpressionVerificationAccessor{
+		RefreshSpannerClientMock: func(ctx context.Context, project, instance string) error {
+			return nil
 		},
-	})
-	processSchema := common.ProcessSchemaImpl{}
+		VerifyExpressionsMock: func(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			var outputs []internal.ExpressionVerificationOutput
+			for _, ed := range input.ExpressionDetailList {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result: true,
+					Err:    nil,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: outputs,
+			}
+		},
+	}
+		processSchema := common.ProcessSchemaImpl{}
 	schemaToSpanner := common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
+		DdlV: &expressions_api.DDLVerifierImpl{
+			Expressions: mockAccessor,
+		},
 	}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
 			Name:   "test",
-			ColIds: []string{"a", "b", "c", "synth_id"},
+			ColIds: []string{"a", "b", "c", "synth_id", "migration_shard_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b": {
+					Name: "b", T: ddl.Type{Name: ddl.Float64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+2.0)",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+				"c": {
+					Name: "c", T: ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+1)",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+				},
 				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},

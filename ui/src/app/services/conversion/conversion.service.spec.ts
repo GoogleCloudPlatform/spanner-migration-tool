@@ -396,14 +396,7 @@ describe('ConversionService', () => {
             Statement: '',
           },
         },
-        spGeneratedColumn: {
-          IsPresent: false,
-          Value: {
-            ExpressionId: '',
-            Statement: '',
-          },
-          Type: '',
-        },
+        spGeneratedColumn: '',
         spCassandraOption: '',
         srcGeneratedColExp: '',
         srcGeneratedColExpType: '',
@@ -511,7 +504,7 @@ describe('ConversionService', () => {
           GenerationType: '',
           IdentityOptions: {SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: ''}
         },
-        spGeneratedColumn: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}, Type: ''},
+        spGeneratedColumn: '',
         spDefaultValue: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}},
         spCassandraOption: '',
         srcGeneratedColExp: '',
@@ -551,7 +544,7 @@ describe('ConversionService', () => {
         spCassandraOption: '',
         srcGeneratedColExp: '',
         srcGeneratedColExpType: '',
-        spGeneratedColumn: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}, Type: ''},
+        spGeneratedColumn: '',
         spGeneratedColumnType: ''
       },
     ]
