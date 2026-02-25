@@ -699,6 +699,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -710,8 +715,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
@@ -758,6 +766,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -769,8 +782,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
