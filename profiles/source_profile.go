@@ -15,6 +15,7 @@
 package profiles
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,6 +25,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+
+	secretmanagerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/secretmanager"
+	secretmanageraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/secretmanager"
 )
 
 type SourceProfileType int
@@ -108,6 +112,7 @@ type SourceProfileConnectionCloudSQLMySQL struct {
 	Project      string
 	Region       string
 	Pwd          string
+	SecretResourceId string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
@@ -133,6 +138,24 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	mysql.Project = project
 	mysql.Region = region
 	mysql.Pwd = params["password"]
+	if secretResourceId, ok := params["passwordSecretId"]; ok {
+		if !strings.Contains(secretResourceId, "/versions/") {
+			secretResourceId += "/versions/latest"
+		}
+		mysql.SecretResourceId = secretResourceId
+		ctx := context.Background()
+		smc, err := secretmanagerclient.NewSecretManagerClient(ctx)
+		if err != nil {
+			return mysql, fmt.Errorf("failed to create secret manager client: %v", err)
+		}
+		defer smc.Close()
+		sma := &secretmanageraccessor.SecretManagerAccessorImpl{}
+		pwd, err := sma.GetSecret(ctx, smc, secretResourceId)
+		if err != nil {
+			return mysql, fmt.Errorf("failed to fetch password from secret manager: %v", err)
+		}
+		mysql.Pwd = pwd
+	}
 	return mysql, nil
 }
 
@@ -211,6 +234,7 @@ type SourceProfileConnectionCloudSQLPostgreSQL struct {
 	Project      string
 	Region       string
 	Pwd          string
+	SecretResourceId string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
@@ -240,6 +264,24 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	postgres.Project = project
 	postgres.Region = region
 	postgres.Pwd = password
+	if secretResourceId, ok := params["passwordSecretId"]; ok {
+		if !strings.Contains(secretResourceId, "/versions/") {
+			secretResourceId += "/versions/latest"
+		}
+		postgres.SecretResourceId = secretResourceId
+		ctx := context.Background()
+		smc, err := secretmanagerclient.NewSecretManagerClient(ctx)
+		if err != nil {
+			return postgres, fmt.Errorf("failed to create secret manager client: %v", err)
+		}
+		defer smc.Close()
+		sma := &secretmanageraccessor.SecretManagerAccessorImpl{}
+		pwd, err := sma.GetSecret(ctx, smc, secretResourceId)
+		if err != nil {
+			return postgres, fmt.Errorf("failed to fetch password from secret manager: %v", err)
+		}
+		postgres.Pwd = pwd
+	}
 	return postgres, nil
 }
 
