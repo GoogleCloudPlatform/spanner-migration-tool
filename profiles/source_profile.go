@@ -116,12 +116,16 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	db, dbOk := params["dbName"]
 	instance, instanceOk := params["instance"]
 	project, projectOk := params["project"]
+	password, passwordOk := params["password"]
 	var err error
 	if !projectOk {
 		project, err = g.GetProject()
 		if err != nil {
 			return mysql, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
+	}
+	if !passwordOk {
+		password = ""
 	}
 	region, regionOk := params["region"]
 	if !userOk || !dbOk || !instanceOk || !regionOk {
@@ -132,7 +136,7 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	mysql.InstanceName = instance
 	mysql.Project = project
 	mysql.Region = region
-	mysql.Pwd = params["password"]
+	mysql.Pwd = password
 	return mysql, nil
 }
 
