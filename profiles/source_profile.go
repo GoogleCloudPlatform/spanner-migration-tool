@@ -111,8 +111,8 @@ type SourceProfileConnectionCloudSQLMySQL struct {
 	InstanceName string
 	Project      string
 	Region       string
-	Pwd          string
-	SecretResourceId string
+	Pwd              string
+	PasswordSecretId string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
@@ -142,11 +142,11 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	mysql.Project = project
 	mysql.Region = region
 	mysql.Pwd = password
-	if secretResourceId, ok := params["passwordSecretId"]; ok {
-		if !strings.Contains(secretResourceId, "/versions/") {
-			secretResourceId += "/versions/latest"
+	if passwordSecretId, ok := params["passwordSecretId"]; ok {
+		if !strings.Contains(passwordSecretId, "/versions/") {
+			passwordSecretId += "/versions/latest"
 		}
-		mysql.SecretResourceId = secretResourceId
+		mysql.PasswordSecretId = passwordSecretId
 		ctx := context.Background()
 		smc, err := secretmanagerclient.NewSecretManagerClient(ctx)
 		if err != nil {
@@ -154,7 +154,7 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 		}
 		defer smc.Close()
 		sma := &secretmanageraccessor.SecretManagerAccessorImpl{}
-		pwd, err := sma.GetSecret(ctx, smc, secretResourceId)
+		pwd, err := sma.GetSecret(ctx, smc, passwordSecretId)
 		if err != nil {
 			return mysql, fmt.Errorf("failed to fetch password from secret manager: %v", err)
 		}
@@ -237,8 +237,8 @@ type SourceProfileConnectionCloudSQLPostgreSQL struct {
 	InstanceName string
 	Project      string
 	Region       string
-	Pwd          string
-	SecretResourceId string
+	Pwd              string
+	PasswordSecretId string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
@@ -268,11 +268,11 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	postgres.Project = project
 	postgres.Region = region
 	postgres.Pwd = password
-	if secretResourceId, ok := params["passwordSecretId"]; ok {
-		if !strings.Contains(secretResourceId, "/versions/") {
-			secretResourceId += "/versions/latest"
+	if passwordSecretId, ok := params["passwordSecretId"]; ok {
+		if !strings.Contains(passwordSecretId, "/versions/") {
+			passwordSecretId += "/versions/latest"
 		}
-		postgres.SecretResourceId = secretResourceId
+		postgres.PasswordSecretId = passwordSecretId
 		ctx := context.Background()
 		smc, err := secretmanagerclient.NewSecretManagerClient(ctx)
 		if err != nil {
@@ -280,7 +280,7 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 		}
 		defer smc.Close()
 		sma := &secretmanageraccessor.SecretManagerAccessorImpl{}
-		pwd, err := sma.GetSecret(ctx, smc, secretResourceId)
+		pwd, err := sma.GetSecret(ctx, smc, passwordSecretId)
 		if err != nil {
 			return postgres, fmt.Errorf("failed to fetch password from secret manager: %v", err)
 		}

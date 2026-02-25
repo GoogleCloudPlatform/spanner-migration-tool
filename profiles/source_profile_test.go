@@ -1312,7 +1312,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, mysql.Pwd)
-	assert.Equal(t, secretId, mysql.SecretResourceId)
+	assert.Equal(t, secretId, mysql.PasswordSecretId)
 	mockClient.AssertExpectations(t)
 }
 
@@ -1356,7 +1356,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t 
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, mysql.Pwd)
-	assert.Equal(t, expectedSecretId, mysql.SecretResourceId)
+	assert.Equal(t, expectedSecretId, mysql.PasswordSecretId)
 	mockClient.AssertExpectations(t)
 }
 
@@ -1397,7 +1397,7 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, pg.Pwd)
-	assert.Equal(t, secretId, pg.SecretResourceId)
+	assert.Equal(t, secretId, pg.PasswordSecretId)
 	mockClient.AssertExpectations(t)
 }
 
@@ -1439,6 +1439,6 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLate
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, pg.Pwd)
-	assert.Equal(t, expectedSecretId, pg.SecretResourceId)
+	assert.Equal(t, expectedSecretId, pg.PasswordSecretId)
 	mockClient.AssertExpectations(t)
 }
