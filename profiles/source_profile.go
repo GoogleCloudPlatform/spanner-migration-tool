@@ -132,9 +132,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	if !passwordOk {
 		password = ""
 	}
-	if !passwordOk {
-		password = ""
-	}
 	region, regionOk := params["region"]
 	if !userOk || !dbOk || !instanceOk || !regionOk {
 		return mysql, fmt.Errorf("please specify user, dbName, instance and region in the source-profile")
@@ -251,16 +248,12 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	instance, instanceOk := params["instance"]
 	project, projectOk := params["project"]
 	password, passwordOk := params["password"]
-	password, passwordOk := params["password"]
 	var err error
 	if !projectOk {
 		project, err = g.GetProject()
 		if err != nil {
 			return postgres, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
-	}
-	if !passwordOk {
-		password = ""
 	}
 	if !passwordOk {
 		password = ""
