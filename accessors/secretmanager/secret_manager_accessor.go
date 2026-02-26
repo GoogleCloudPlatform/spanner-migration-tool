@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,17 +22,19 @@ import (
 )
 
 type SecretManagerAccessor interface {
-	GetSecret(ctx context.Context, smc secretmanagerclient.SecretManagerClient, secretId string) (string, error)
+	GetSecret(ctx context.Context, secretId string) (string, error)
 }
 
-type SecretManagerAccessorImpl struct{}
+type SecretManagerAccessorImpl struct {
+	Client secretmanagerclient.SecretManagerClient
+}
 
-func (sma *SecretManagerAccessorImpl) GetSecret(ctx context.Context, smc secretmanagerclient.SecretManagerClient, secretId string) (string, error) {
+func (sma *SecretManagerAccessorImpl) GetSecret(ctx context.Context, secretId string) (string, error) {
 	req := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secretId,
 	}
 
-	result, err := smc.AccessSecretVersion(ctx, req)
+	result, err := sma.Client.AccessSecretVersion(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to access secret version: %v", err)
 	}

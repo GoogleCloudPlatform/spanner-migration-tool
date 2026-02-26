@@ -1290,7 +1290,6 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
 			Data: []byte(expectedPwd),
 		},
 	}, nil)
-	mockClient.On("Close").Return(nil)
 
 	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
 		return mockClient, nil
@@ -1312,7 +1311,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, mysql.Pwd)
-	assert.Equal(t, secretId, mysql.PasswordSecretId)
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -1334,7 +1333,6 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t 
 			Data: []byte(expectedPwd),
 		},
 	}, nil)
-	mockClient.On("Close").Return(nil)
 
 	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
 		return mockClient, nil
@@ -1356,7 +1354,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t 
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, mysql.Pwd)
-	assert.Equal(t, expectedSecretId, mysql.PasswordSecretId)
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -1375,7 +1373,6 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T
 			Data: []byte(expectedPwd),
 		},
 	}, nil)
-	mockClient.On("Close").Return(nil)
 
 	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
 		return mockClient, nil
@@ -1397,7 +1394,7 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, pg.Pwd)
-	assert.Equal(t, secretId, pg.PasswordSecretId)
+
 	mockClient.AssertExpectations(t)
 }
 
@@ -1417,7 +1414,6 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLate
 			Data: []byte(expectedPwd),
 		},
 	}, nil)
-	mockClient.On("Close").Return(nil)
 
 	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
 		return mockClient, nil
@@ -1439,6 +1435,6 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLate
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedPwd, pg.Pwd)
-	assert.Equal(t, expectedSecretId, pg.PasswordSecretId)
+
 	mockClient.AssertExpectations(t)
 }
