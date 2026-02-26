@@ -43,11 +43,6 @@ func (f *SecretManagerClientFactory) GetOrCreateClient(ctx context.Context) (*se
 }
 
 
-func GetOrCreateClient(ctx context.Context) (*secretmanager.Client, error) {
-    return defaultFactory.GetOrCreateClient(ctx)
-}
-
-
 var NewSecretManagerClient = func(ctx context.Context) (SecretManagerClient, error) {
-    return GetOrCreateClient(ctx)
+	return defaultFactory.GetOrCreateClient(ctx)
 }

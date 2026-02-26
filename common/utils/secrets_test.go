@@ -75,6 +75,18 @@ func TestFetchPasswordFromSecretManager(t *testing.T) {
 			mockError:   fmt.Errorf("client error"),
 			expectError: true,
 		},
+		{
+			name:     "Success with trailing slash (appends latest)",
+			secretId: "projects/my-project/secrets/my-secret/",
+			mockResponse: &secretmanagerpb.AccessSecretVersionResponse{
+				Payload: &secretmanagerpb.SecretPayload{
+					Data: []byte("password789"),
+				},
+			},
+			expectedSecret: "projects/my-project/secrets/my-secret/versions/latest",
+			expectedPwd:    "password789",
+			expectError:    false,
+		},
 	}
 
 	for _, tc := range testCases {

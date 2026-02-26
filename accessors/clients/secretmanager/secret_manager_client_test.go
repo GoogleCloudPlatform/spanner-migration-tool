@@ -29,21 +29,15 @@ func (m *MockSecretManagerClient) Close() error {
 }
 
 func TestGetOrCreateClient(t *testing.T) {
-    t.Parallel() // Safe now because we use isolated factories
+	callCount := 0
+	creator := func(ctx context.Context, opts ...option.ClientOption) (*secretmanager.Client, error) {
+			callCount++
+			return &secretmanager.Client{}, nil
+	}
 
-    // We can't return *secretmanager.Client from mock easily as it is a struct.
-    // So we just verify the factory logic with a real-like creator that returns a dummy pointer (safely).
-    // Or we just test that the creator is called once.
-    
-    callCount := 0
-    creator := func(ctx context.Context, opts ...option.ClientOption) (*secretmanager.Client, error) {
-        callCount++
-        return &secretmanager.Client{}, nil
-    }
-
-    factory := &SecretManagerClientFactory{
-        creator: creator,
-    }
+	factory := &SecretManagerClientFactory{
+			creator: creator,
+	}
 
 	ctx := context.Background()
 	client1, err := factory.GetOrCreateClient(ctx)
@@ -58,27 +52,19 @@ func TestGetOrCreateClient(t *testing.T) {
 }
 
 func TestGetOrCreateClient_Error(t *testing.T) {
-    t.Parallel()
 
 	expectedErr := fmt.Errorf("client creation failed")
 	creator := func(ctx context.Context, opts ...option.ClientOption) (*secretmanager.Client, error) {
 		return nil, expectedErr
 	}
 
-    factory := &SecretManagerClientFactory{
-        creator: creator,
-    }
+	factory := &SecretManagerClientFactory{
+			creator: creator,
+	}
 
 	ctx := context.Background()
 	client, err := factory.GetOrCreateClient(ctx)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 	assert.Contains(t, err.Error(), expectedErr.Error())
-}
-
-func TestDefaultFactory(t *testing.T) {
-    // This tests the global singleton roughly, but without mocking internals to avoid side effects on other tests.
-    // Since we can't easily mock the global safely in parallel, we just check it exists.
-    assert.NotNil(t, defaultFactory)
-    // We don't call GetOrCreateClient on defaultFactory to avoid making a real network call if credentials aren't set.
 }

@@ -12,6 +12,7 @@ import (
 // FetchPasswordFromSecretManager fetches the password from Secret Manager.
 // It returns the resolved secret ID (with version if added), the password, and any error.
 func FetchPasswordFromSecretManager(secretId string) (string, string, error) {
+	secretId = strings.TrimSuffix(secretId, "/")
 	if !strings.Contains(secretId, "/versions/") {
 		secretId += "/versions/latest"
 	}
