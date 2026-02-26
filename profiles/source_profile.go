@@ -137,8 +137,8 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	mysql.Project = project
 	mysql.Region = region
 	mysql.Pwd = password
-	if passwordSecretId, ok := params["passwordSecretId"]; ok {
-		_, pwd, err := utils.FetchPasswordFromSecretManager(passwordSecretId)
+	if secretManagerUri, ok := params["secretManagerUri"]; ok {
+		_, pwd, err := utils.FetchPasswordFromSecretManager(secretManagerUri)
 		if err != nil {
 			return mysql, err
 		}
@@ -253,8 +253,8 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	postgres.Project = project
 	postgres.Region = region
 	postgres.Pwd = password
-	if passwordSecretId, ok := params["passwordSecretId"]; ok {
-		_, pwd, err := utils.FetchPasswordFromSecretManager(passwordSecretId)
+	if secretManagerUri, ok := params["secretManagerUri"]; ok {
+		_, pwd, err := utils.FetchPasswordFromSecretManager(secretManagerUri)
 		if err != nil {
 			return postgres, err
 		}

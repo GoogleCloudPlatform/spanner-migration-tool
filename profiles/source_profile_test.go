@@ -1305,7 +1305,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
 		"instance":           "c",
 		"region":             "d",
 		"project":            "e",
-		"passwordSecretId": secretId,
+		"secretManagerUri": secretId,
 	}
 
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
@@ -1348,7 +1348,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t 
 		"instance":           "c",
 		"region":             "d",
 		"project":            "e",
-		"passwordSecretId":   userInputSecretId,
+		"secretManagerUri":   userInputSecretId,
 	}
 
 	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
@@ -1388,7 +1388,7 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T
 		"instance":           "c",
 		"region":             "d",
 		"project":            "e",
-		"passwordSecretId": secretId,
+		"secretManagerUri": secretId,
 	}
 
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
@@ -1429,7 +1429,7 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLate
 		"instance":           "c",
 		"region":             "d",
 		"project":            "e",
-		"passwordSecretId":   userInputSecretId,
+		"secretManagerUri":   userInputSecretId,
 	}
 
 	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
