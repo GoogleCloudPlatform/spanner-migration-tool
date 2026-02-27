@@ -98,7 +98,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		conv.AddShardIdColumn()
 	}
 
-	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+	if ss.DdlV != nil && (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
 		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
@@ -256,6 +256,12 @@ func RemoveCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
 func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
+	if ss.ExpressionVerificationAccessor == nil {
+		// If accessor is nil, we can't verify expressions, but we should not block the conversion.
+		// This case should ideally be caught earlier by the outer nil check in SchemaToSpannerDDL.
+		// However, adding this for robustness within the function itself.
+		return nil
+	}
 	ctx := context.Background()
 
 	spschema := conv.SpSchema
@@ -265,7 +271,10 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		Source:               conv.Source,
 		ExpressionDetailList: GenerateExpressionDetailList(spschema),
 	}
-	ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	err := ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return err
+	}
 	if len(verifyExpressionsInput.ExpressionDetailList) != 0 {
 		result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 		if result.ExpressionVerificationOutputList == nil {

@@ -181,6 +181,9 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 }
 
 func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+	if ddlv.Expressions == nil {
+		return internal.VerifyExpressionsOutput{}, fmt.Errorf("expression verifier not initialized")
+	}
 	ctx := context.Background()
 	verifyExpressionsInput := internal.VerifyExpressionsInput{
 		Conv:                 conv,

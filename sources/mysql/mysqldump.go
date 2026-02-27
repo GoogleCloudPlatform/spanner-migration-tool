@@ -592,6 +592,16 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 				OnDelete:         elem.Refer.OnDelete.ReferOpt.String(),
 				OnUpdate:         elem.Refer.OnUpdate.ReferOpt.String()}
 			cc.fk = fkey
+		case ast.ColumnOptionGenerated:
+			column.GeneratedColumn.IsPresent = true
+			column.GeneratedColumn.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:    common.SanitizeExpressionsValue(expressionToString(elem.Expr), "", false),
+			}
+			column.GeneratedColumn.Type = ddl.GeneratedColVirtual
+			if elem.Stored {
+				column.GeneratedColumn.Type = ddl.GeneratedColStored
+			}
 		}
 	}
 	return cc

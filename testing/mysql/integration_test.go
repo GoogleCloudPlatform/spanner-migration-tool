@@ -569,6 +569,33 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	_, err = iter.Next()
 	assert.Equal(t, iterator.Done, err, "Expected rows in table 'cart' with productid 'zxi-631' to be deleted")
 }
+func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := fmt.Sprintf("test_gc_%d", time.Now().Unix())
+	dumpFilePath := "../../test_data/mysql_generated_column.sql"
+	filePrefix := filepath.Join(tmpdir, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
+
+	defer dropDatabase(t, dbURI)
+
+	// Verify the generated DDL
+	ddlFile := fmt.Sprintf("%s.schema.ddl.txt", filePrefix)
+	content, err := ioutil.ReadFile(ddlFile)
+	if err != nil {
+		t.Fatalf("Failed to read DDL file: %v", err)
+	}
+	ddlContent := string(content)
+
+	// Case 1: A generated column where the expression is valid for spanner
+	assert.True(t, strings.Contains(ddlContent, "`valid_gc` INT64 AS (((col1+col2))) STORED"), "Generated column valid_gc not found in DDL")
+
+	// Case 2: A generated column where the expression is invalid for spanner and is removed
+	assert.True(t, strings.Contains(ddlContent, "`invalid_gc` STRING(50),"), "Generated column invalid_gc should have been removed from DDL")
+}
 
 func onlyRunForEmulatorTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
