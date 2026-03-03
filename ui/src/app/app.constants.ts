@@ -165,6 +165,7 @@ export enum PersistedFormValues {
 }
 
 export const defaultAndSequenceSupportedDbs: string[] = ['MySQL']
+export const generatedColSupportedDbs: string[] = ['MySQL']
 export const identitySupportedDbs: string[] = ['MySQL', 'Postgres']
 
 export const dialogConfigAddSequence: MatDialogConfig<any> = {

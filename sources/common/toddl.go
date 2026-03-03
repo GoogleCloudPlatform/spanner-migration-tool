@@ -71,11 +71,12 @@ type SchemaToSpannerImpl struct {
 }
 
 var ErrorTypeMapping = map[string]internal.SchemaIssue{
-	"No matching signature for operator": internal.TypeMismatchError,
-	"Syntax error":                       internal.InvalidConditionError,
-	"Unrecognized name":                  internal.ColumnNotFoundError,
-	"Function not found":                 internal.CheckConstraintFunctionNotFoundError,
-	"unhandled error":                    internal.GenericError,
+	"No matching signature for operator":  internal.TypeMismatchError,
+	"Syntax error":                        internal.InvalidConditionError,
+	"Unrecognized name":                   internal.ColumnNotFoundError,
+	"Function not found":                  internal.CheckConstraintFunctionNotFoundError,
+	"unhandled error":                     internal.GenericError,
+	"Generated Column function not found": internal.GeneratedColumnValueError,
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -97,7 +98,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		conv.AddShardIdColumn()
 	}
 
-	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+	if ss.DdlV != nil && (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
 		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
@@ -255,6 +256,12 @@ func RemoveCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
 func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
+	if ss.ExpressionVerificationAccessor == nil {
+		// If accessor is nil, we can't verify expressions, but we should not block the conversion.
+		// This case should ideally be caught earlier by the outer nil check in SchemaToSpannerDDL.
+		// However, adding this for robustness within the function itself.
+		return nil
+	}
 	ctx := context.Background()
 
 	spschema := conv.SpSchema
@@ -264,7 +271,10 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		Source:               conv.Source,
 		ExpressionDetailList: GenerateExpressionDetailList(spschema),
 	}
-	ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	err := ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return err
+	}
 	if len(verifyExpressionsInput.ExpressionDetailList) != 0 {
 		result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 		if result.ExpressionVerificationOutputList == nil {
@@ -693,6 +703,28 @@ func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.Ver
 				} else {
 					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
 					colIssues = append(colIssues, internal.DefaultValue)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
+		case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.GeneratedColumn = ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    fmt.Sprintf("(%s)", expression.ExpressionDetail.Expression),
+						},
+						Type: ddl.GeneratedColType(expression.ExpressionDetail.Type),
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.GeneratedColumnValueError)
 					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
 				}
 			}

@@ -23,12 +23,10 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -84,11 +82,11 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "user"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"user_id", "text", "text", "NO", "uuid()", nil, nil, nil, constants.DEFAULT_GENERATED},
-				{"name", "text", "text", "NO", "default_name", nil, nil, nil, nil},
-				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
+				{"user_id", "text", "text", "NO", "uuid()", nil, nil, nil, nil, constants.DEFAULT_GENERATED},
+				{"name", "text", "text", "NO", "default_name", nil, nil, nil, nil, nil},
+				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -125,11 +123,11 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -169,10 +167,10 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "product"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -207,29 +205,29 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
-				{"s", "set", "set", "YES", nil, nil, nil, nil, nil},
-				{"txt", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil},
-				{"bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil},
-				{"bl", "blob", "blob", "YES", nil, nil, nil, nil, nil},
-				{"c", "char", "char(1)", "YES", nil, 1, nil, nil, nil},
-				{"c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil},
-				{"d", "date", "date", "YES", nil, nil, nil, nil, nil},
-				{"dec", "decimal", "decimal(20,5)", "YES", nil, nil, 20, 5, nil},
-				{"f8", "double", "double", "YES", nil, nil, 53, nil, nil},
-				{"f4", "float", "float", "YES", nil, nil, 24, nil, nil},
-				{"i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
-				{"i4", "integer", "integer", "YES", nil, nil, 32, 0, "auto_increment"},
-				{"i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil},
-				{"si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil},
-				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil},
-				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
-				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
-				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil},
-				{"bu", "bigint", "bigint(20) unsigned", "YES", nil, nil, 20, 0, nil},
+				{"id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
+				{"s", "set", "set", "YES", nil, nil, nil, nil, nil, nil},
+				{"txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil, nil},
+				{"bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"bl", "blob", "blob", "YES", nil, nil, nil, nil, nil, nil},
+				{"c", "char", "char(1)", "YES", nil, 1, nil, nil, nil, nil},
+				{"c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil, nil},
+				{"d", "date", "date", "YES", nil, nil, nil, nil, nil, nil},
+				{"dec", "decimal", "decimal(20,5)", "YES", nil, nil, 20, 5, nil, nil},
+				{"f8", "double", "double", "YES", nil, nil, 53, nil, nil, nil},
+				{"f4", "float", "float", "YES", nil, nil, 24, nil, nil, nil},
+				{"i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
+				{"i4", "integer", "integer", "YES", nil, nil, 32, 0, nil, "auto_increment"},
+				{"i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil, nil},
+				{"si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
+				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil, nil},
+				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil, nil},
+				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil, nil},
+				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil, nil},
+				{"bu", "bigint", "bigint(20) unsigned", "YES", nil, nil, 20, 0, nil, nil},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -263,11 +261,11 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
-				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
+				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -283,6 +281,13 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]schema.Table{
 		"cart": {
 			Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -381,10 +386,10 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "pk_order"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"pk_1", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"pk_2", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"pk_1", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"pk_2", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 			},
 		},
 		{
@@ -399,10 +404,17 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]schema.Table{
 		"pk_order": {
 			Name: "pk_order", Schema: "test", ColIds: []string{"pk_1", "pk_2"}, ColDefs: map[string]schema.Column{
-				"pk_1":   {Name: "pk_1", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+				"pk_1": {Name: "pk_1", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 				"pk_2": {Name: "pk_2", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			},
 			PrimaryKeys: []schema.Key{{ColId: "pk_2", Desc: false, Order: 0}, {ColId: "pk_1", Desc: false, Order: 0}},
@@ -510,11 +522,11 @@ func TestProcessData_MultiCol(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), "STORED GENERATED"}, // Maps to STORED
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), "VIRTUAL GENERATED"},    // Maps to VIRTUAL
 			},
 		},
 		{
@@ -533,46 +545,87 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
+	conv.Source = constants.MYSQL
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+	mockAccessor := &expressions_api.MockExpressionVerificationAccessor{
+		RefreshSpannerClientMock: func(ctx context.Context, project, instance string) error {
+			return nil
 		},
-	})
-
+		VerifyExpressionsMock: func(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			var outputs []internal.ExpressionVerificationOutput
+			for _, ed := range input.ExpressionDetailList {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result: true,
+					Err:    nil,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: outputs,
+			}
+		},
+	}
 	schemaToSpanner := common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
+		DdlV: &expressions_api.DDLVerifierImpl{
+			Expressions: mockAccessor,
+		},
 	}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
 			Name:   "test",
 			ColIds: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":        {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b": {
+					Name: "b", T: ddl.Type{Name: ddl.Float64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+2.0)",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+				"c": {
+					Name: "c", T: ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+1)",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+				},
 				"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
 		},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
+	assert.Nil(t, err)
+	synthId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "synth_id")
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c56": []internal.SchemaIssue{
+		synthId: []internal.SchemaIssue{
 			2,
 		},
 	}
 	expectedIssues := internal.TableIssues{
 		ColumnLevelIssues: columnLevelIssues,
 	}
-	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
-	assert.Equal(t, nil, err)
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
@@ -626,11 +679,11 @@ func TestProcessSchema_Sharded(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), nil},                     // Maps to STORED
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), []byte("VIRTUAL GENERATED")}, // Maps to VIRTUAL
 			},
 		},
 		{
@@ -649,29 +702,70 @@ func TestProcessSchema_Sharded(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
+	conv.Source = constants.MYSQL
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+	mockAccessor := &expressions_api.MockExpressionVerificationAccessor{
+		RefreshSpannerClientMock: func(ctx context.Context, project, instance string) error {
+			return nil
 		},
-	})
-	processSchema := common.ProcessSchemaImpl{}
+		VerifyExpressionsMock: func(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			var outputs []internal.ExpressionVerificationOutput
+			for _, ed := range input.ExpressionDetailList {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result: true,
+					Err:    nil,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: outputs,
+			}
+		},
+	}
+		processSchema := common.ProcessSchemaImpl{}
 	schemaToSpanner := common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
+		DdlV: &expressions_api.DDLVerifierImpl{
+			Expressions: mockAccessor,
+		},
 	}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
+	for tName, table := range conv.SpSchema {
+		for cName, col := range table.ColDefs {
+			col.GeneratedColumn.Value.ExpressionId = ""
+			table.ColDefs[cName] = col
+		}
+		conv.SpSchema[tName] = table
+	}
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
 			Name:   "test",
-			ColIds: []string{"a", "b", "c", "synth_id"},
+			ColIds: []string{"a", "b", "c", "synth_id", "migration_shard_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b": {
+					Name: "b", T: ddl.Type{Name: ddl.Float64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+2.0)",
+						},
+						Type: ddl.GeneratedColStored,
+					},
+				},
+				"c": {
+					Name: "c", T: ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							Statement: "(a+1)",
+						},
+						Type: ddl.GeneratedColVirtual,
+					},
+				},
 				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},

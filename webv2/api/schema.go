@@ -393,6 +393,20 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(autoGenMap)
 }
 
+func (tableHandler *TableAPIHandler) handleExpressionColError(
+	exp *internal.ExpressionVerificationOutput, conv *internal.Conv, errorType internal.SchemaIssue) string {
+
+	tableId := exp.ExpressionDetail.Metadata["TableId"]
+	columnId := exp.ExpressionDetail.Metadata["ColId"]
+	if !exp.Result || exp.Err != nil {
+		issues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+		issues = append(issues, errorType)
+		conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+		return tableId
+	}
+	return ""
+}
+
 // GetTableWithErrors checks the errors in the spanner schema
 // and returns a list of tables with errors
 func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
@@ -404,19 +418,18 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 
 	expressionDetails := tableHandler.DDLVerifier.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
 	expressions, err := tableHandler.DDLVerifier.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	generatedExpressionErrorTables := []string{}
 	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
 		for _, exp := range expressions.ExpressionVerificationOutputList {
 			switch exp.ExpressionDetail.Type {
 			case "DEFAULT":
-				{
-					if !exp.Result {
-						tableId := exp.ExpressionDetail.Metadata["TableId"]
-						columnId := exp.ExpressionDetail.Metadata["ColId"]
-						issues := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
-						issues = append(issues, internal.DefaultValueError)
-						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
-					}
+				tableHandler.handleExpressionColError(&exp, sessionState.Conv, internal.DefaultValueError)
+			case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
+				tableId := tableHandler.handleExpressionColError(&exp, sessionState.Conv, internal.GeneratedColumnValueError)
+				if len(tableId) != 0 {
+					generatedExpressionErrorTables = append(generatedExpressionErrorTables, tableId)
 				}
+
 			}
 		}
 	} else if err != nil {
@@ -424,7 +437,7 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 			srcTable := sessionState.Conv.SrcSchema[tableId]
 			for _, srcColId := range srcTable.ColIds {
 				srcCol := srcTable.ColDefs[srcColId]
-				if srcCol.DefaultValue.IsPresent {
+				if srcCol.DefaultValue.IsPresent || srcCol.GeneratedColumn.IsPresent {
 					issues := sessionState.Conv.SchemaIssues[tableId]
 					sessionState.Conv.SchemaIssues[tableId] = issues
 				}
@@ -459,6 +472,13 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 				}
 			}
 		}
+	}
+	for _, tableId := range generatedExpressionErrorTables {
+		t := types.TableIdAndName{
+			Id:   tableId,
+			Name: sessionState.Conv.SpSchema[tableId].Name,
+		}
+		tableIdName = append(tableIdName, t)
 	}
 	tableIdName = uniqueAndSortTableIdName(tableIdName)
 	w.WriteHeader(http.StatusOK)
@@ -914,7 +934,6 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Parent Table Id is empty with update=true"), http.StatusBadRequest)
 		return
 	}
-
 
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()

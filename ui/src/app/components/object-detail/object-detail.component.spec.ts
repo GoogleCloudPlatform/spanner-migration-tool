@@ -117,6 +117,8 @@ describe('ObjectDetailComponent', () => {
           }
         },
         srcDefaultValue: '',
+        srcGeneratedColExp: '',
+        srcGeneratedColExpType: '',
         spDefaultValue: {
           Value: {
             ExpressionId: '',
@@ -124,6 +126,8 @@ describe('ObjectDetailComponent', () => {
           },
           IsPresent: false
         },
+        spGeneratedColumn: '',
+        spGeneratedColumnType: ''
       },
       {
         spOrder: 2,
@@ -162,6 +166,8 @@ describe('ObjectDetailComponent', () => {
             StartCounterWith: ''
           }
         },
+        srcGeneratedColExp: '',
+        srcGeneratedColExpType: '',
         srcDefaultValue: '',
         spDefaultValue: {
           Value: {
@@ -170,6 +176,8 @@ describe('ObjectDetailComponent', () => {
           },
           IsPresent: false
         },
+        spGeneratedColumn: '',
+        spGeneratedColumnType: ''
       },
     ]
     component.fkData = [
@@ -503,6 +511,7 @@ describe('ObjectDetailComponent', () => {
         spSkipRangeMin: '',
         spSkipRangeMax: '',
         spStartCounterWith: '',
+        spGeneratedColumn: '',
         spDefaultValue: '',
       }),
     ])
@@ -526,6 +535,7 @@ describe('ObjectDetailComponent', () => {
           MaxColLength: '',
           AutoGen: { Name: '', GenerationType: '', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
           DefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } },
+          GeneratedColumn: { IsPresent: false, Type: '', Value: { ExpressionId: '', Statement: '' } },
         },
       },
     }
