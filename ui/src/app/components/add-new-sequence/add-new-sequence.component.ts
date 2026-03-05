@@ -6,9 +6,10 @@ import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 @Component({
-  selector: 'app-add-new-sequence',
-  templateUrl: './add-new-sequence.component.html',
-  styleUrls: ['./add-new-sequence.component.scss']
+    selector: 'app-add-new-sequence',
+    templateUrl: './add-new-sequence.component.html',
+    styleUrls: ['./add-new-sequence.component.scss'],
+    standalone: false
 })
 
 export class AddNewSequenceComponent implements OnInit {
