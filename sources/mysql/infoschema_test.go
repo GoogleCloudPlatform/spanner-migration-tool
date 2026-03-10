@@ -558,14 +558,17 @@ func TestProcessData_MultiCol(t *testing.T) {
 			var outputs []internal.ExpressionVerificationOutput
 			for _, ed := range input.ExpressionDetailList {
 				outputs = append(outputs, internal.ExpressionVerificationOutput{
-					Result: true,
-					Err:    nil,
+					Result:           true,
+					Err:              nil,
 					ExpressionDetail: ed,
 				})
 			}
 			return internal.VerifyExpressionsOutput{
 				ExpressionVerificationOutputList: outputs,
 			}
+		},
+		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}
 		},
 	}
 	schemaToSpanner := common.SchemaToSpannerImpl{
@@ -714,8 +717,8 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			var outputs []internal.ExpressionVerificationOutput
 			for _, ed := range input.ExpressionDetailList {
 				outputs = append(outputs, internal.ExpressionVerificationOutput{
-					Result: true,
-					Err:    nil,
+					Result:           true,
+					Err:              nil,
 					ExpressionDetail: ed,
 				})
 			}
@@ -723,8 +726,11 @@ func TestProcessSchema_Sharded(t *testing.T) {
 				ExpressionVerificationOutputList: outputs,
 			}
 		},
+		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}
+		},
 	}
-		processSchema := common.ProcessSchemaImpl{}
+	processSchema := common.ProcessSchemaImpl{}
 	schemaToSpanner := common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: mockAccessor,
 		DdlV: &expressions_api.DDLVerifierImpl{

@@ -591,10 +591,19 @@ func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
 	ddlContent := string(content)
 
 	// Case 1: A generated column where the expression is valid for spanner
-	assert.True(t, strings.Contains(ddlContent, "`valid_gc` INT64 AS (((col1+col2))) STORED"), "Generated column valid_gc not found in DDL")
+	assert.True(t, strings.Contains(ddlContent, "`valid_gc` INT64 AS (((col1+col2))) STORED"), fmt.Sprintf("Generated column valid_gc found in DDL: %s", ddlContent))
 
 	// Case 2: A generated column where the expression is invalid for spanner and is removed
-	assert.True(t, strings.Contains(ddlContent, "`invalid_gc` STRING(50),"), "Generated column invalid_gc should have been removed from DDL")
+	assert.True(t, strings.Contains(ddlContent, "`invalid_gc` STRING(50),"), fmt.Sprintf("Generated column invalid_gc should have been removed from DDL: %s", ddlContent))
+
+	// Case 3: A generated column where the expression is valid but invalid for primary key
+	// TODO: Integration tests executes in emulator where this scenario is valid.
+	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_a` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_a not found in DDL: %s", ddlContent))
+	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_b` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_b not found in DDL: %s", ddlContent))
+
+	// Case 4: A generated column where the expression is valid for primary key
+	assert.True(t, strings.Contains(ddlContent, "`valid_pk_gc` INT64 NOT NULL  AS (((col1+1))) STORED,"), fmt.Sprintf("Generated column valid_pk_gc found in DDL: %s", ddlContent))
+	assert.True(t, strings.Contains(ddlContent, "`valid_pk` INT64 NOT NULL ,"), fmt.Sprintf("Generated column valid_pk not found in DDL: %s", ddlContent))
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

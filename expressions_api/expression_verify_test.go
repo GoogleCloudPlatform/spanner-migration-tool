@@ -293,6 +293,100 @@ func TestVerifyExpressions(t *testing.T) {
 
 }
 
+func TestVerifyPrimaryKeysExpressionsUsingCreateTable(t *testing.T) {
+	ctx := context.Background()
+	conv := internal.MakeConv()
+	ReadSessionFile(conv, "../../test_data/session_expression_verify.json")
+
+	conv.SpSchema = ddl.Schema{
+		"t1": ddl.CreateTable{
+			Name: "table1",
+			ColIds: []string{"c1"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+		},
+	}
+
+	input := internal.VerifyExpressionsInput{
+		Conv:   conv,
+		Source: "mysql",
+		ExpressionDetailList: []internal.ExpressionDetail{
+			{
+				Expression: "id + 1",
+				Type:       "STORED", ReferenceElement: internal.ReferenceElement{Name: "INT64"}, ExpressionId: "2", SpTableName: "table1",
+				Metadata: map[string]string{"TableId": "t1"},
+			},
+		},
+	}
+
+	t.Run("Happy case: successfully verified expressions", func(t *testing.T) {
+		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
+			DatabaseNameMock: func() string {
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
+			},
+		}
+		spannerAdminMockClient := &spanneradmin.AdminClientMock{
+			GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
+				return nil, fmt.Errorf("database not found")
+			},
+			CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
+				return &spanneradmin.CreateDatabaseOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
+				}, nil
+			},
+			DropDatabaseMock: func(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) error {
+				return nil
+			},
+			UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+				return &spanneradmin.UpdateDatabaseDdlOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+				}, nil
+			},
+		}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
+		output := ev.VerifyPrimaryKeysExpressionsUsingCreateTable(ctx, input)
+		assert.Nil(t, output.Err)
+		assert.Equal(t, 0, len(output.ExpressionVerificationOutputList))
+	})
+
+	t.Run("Error case: failed to update DDL", func(t *testing.T) {
+		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
+			DatabaseNameMock: func() string {
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
+			},
+		}
+		spannerAdminMockClient := &spanneradmin.AdminClientMock{
+			GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
+				return nil, fmt.Errorf("database not found")
+			},
+			CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
+				return &spanneradmin.CreateDatabaseOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
+				}, nil
+			},
+			DropDatabaseMock: func(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) error {
+				return nil
+			},
+			UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+				return nil, fmt.Errorf("UpdateDatabaseDdl failed")
+			},
+		}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
+		output := ev.VerifyPrimaryKeysExpressionsUsingCreateTable(ctx, input)
+		assert.Nil(t, output.Err)
+		assert.Equal(t, 1, len(output.ExpressionVerificationOutputList))
+		assert.NotNil(t, output.ExpressionVerificationOutputList[0].Err)
+	})
+}
+
 // ReadSessionFile reads a session JSON file and
 // unmarshal it's content into *internal.Conv.
 func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
@@ -361,12 +455,69 @@ func TestVerifySpannerDDL(t *testing.T) {
 	}
 }
 
+func TestVerifyPrimaryKeysExpressionsUsingCreateTableForDDLVerifier(t *testing.T) {
+	conv := internal.MakeConv()
+	testCases := []struct {
+		name                 string
+		conv                 *internal.Conv
+		expressionDetails    []internal.ExpressionDetail
+		verifyExpressionMock expressions_api.MockExpressionVerificationAccessor
+		errorExpected        bool
+	}{
+		{
+			name:              "no error flow",
+			conv:              conv,
+			expressionDetails: []internal.ExpressionDetail{},
+			verifyExpressionMock: expressions_api.MockExpressionVerificationAccessor{
+				VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{},
+						Err:                              nil,
+					}
+				},
+				RefreshSpannerClientMock: func(ctx context.Context, project string, instance string) error {
+					return nil
+				},
+			},
+			errorExpected: false,
+		},
+		{
+			name:              "error flow",
+			conv:              conv,
+			expressionDetails: []internal.ExpressionDetail{},
+			verifyExpressionMock: expressions_api.MockExpressionVerificationAccessor{
+				VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{},
+						Err:                              fmt.Errorf("error"),
+					}
+				},
+				RefreshSpannerClientMock: func(ctx context.Context, project string, instance string) error {
+					return nil
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		ddlV := expressions_api.DDLVerifierImpl{
+			Expressions: &tc.verifyExpressionMock,
+		}
+		_, err := ddlV.VerifyPrimaryKeysExpressionsUsingCreateTable(tc.conv, tc.expressionDetails)
+		assert.Equal(t, tc.errorExpected, err != nil)
+	}
+}
+
 func TestGetSourceExpressionDetails(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SrcSchema = map[string]schema.Table{
 		"table1": {
-			Name: "table1",
+			Name:   "table1",
 			ColIds: []string{"col1", "col2", "col3", "col4"},
+			PrimaryKeys: []schema.Key{
+				{ColId: "col1", Desc: false, Order: 1},
+			},
 			ColDefs: map[string]schema.Column{
 				"col1": {
 					DefaultValue: ddl.DefaultValue{
@@ -406,6 +557,7 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 	conv.SpSchema = ddl.Schema{
 		"table1": {
 			Name: "t1",
+			PrimaryKeys: []ddl.IndexKey{{ColId: "col1", Desc: false, Order: 1}},
 			ColDefs: map[string]ddl.ColumnDef{
 				"col1": {
 					T: ddl.Type{
@@ -452,7 +604,7 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 					ExpressionId: "expr1",
 					Expression:   "SELECT 1",
 					Type:         "DEFAULT",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1", "IsPrimaryKey": "true"},
 					SpTableName:  conv.ToSpanner["table1"].Name,
 				},
 				{
@@ -462,7 +614,7 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 					ExpressionId: "expr3",
 					Expression:   "id + 1",
 					Type:         "STORED",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3", "IsPrimaryKey": "false"},
 					SpTableName:  conv.ToSpanner["table1"].Name,
 				},
 				{
@@ -472,7 +624,7 @@ func TestGetSourceExpressionDetails(t *testing.T) {
 					ExpressionId: "expr4",
 					Expression:   "id + 2",
 					Type:         "VIRTUAL",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4", "IsPrimaryKey": "false"},
 					SpTableName:  conv.ToSpanner["table1"].Name,
 				},
 			},
@@ -498,8 +650,9 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SpSchema = ddl.Schema{
 		"table1": {
-			Name: "t1",
+			Name:   "t1",
 			ColIds: []string{"col1", "col2", "col3", "col4"},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "col1", Desc: false, Order: 1}},
 			ColDefs: map[string]ddl.ColumnDef{
 				"col1": {
 					DefaultValue: ddl.DefaultValue{
@@ -567,7 +720,7 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 					ExpressionId: "expr1",
 					Expression:   "SELECT 1",
 					Type:         "DEFAULT",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1", "IsPrimaryKey": "true"},
 					SpTableName:  conv.SpSchema["table1"].Name,
 				},
 				{
@@ -577,7 +730,7 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 					ExpressionId: "expr3",
 					Expression:   "id + 1",
 					Type:         "STORED",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col3", "IsPrimaryKey": "false"},
 					SpTableName:  conv.SpSchema["table1"].Name,
 				},
 				{
@@ -587,7 +740,7 @@ func TestGetSpannerExpressionDetails(t *testing.T) {
 					ExpressionId: "expr4",
 					Expression:   "id + 2",
 					Type:         "VIRTUAL",
-					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4"},
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col4", "IsPrimaryKey": "false"},
 					SpTableName:  conv.SpSchema["table1"].Name,
 				},
 			},

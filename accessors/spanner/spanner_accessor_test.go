@@ -1286,3 +1286,60 @@ func TestFetchCreateDatabaseStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
+	testCases := []struct {
+		name        string
+		acm         spanneradmin.AdminClientMock
+		expectError bool
+		wantReturn  error
+	}{
+		{
+			name: "Update Database successful",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return &spanneradmin.UpdateDatabaseDdlOperationMock{
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+					}, nil
+				},
+			},
+			expectError: false,
+			wantReturn:  nil,
+		},
+		{
+			name: "Update Database request error",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return nil, fmt.Errorf("Error")
+				},
+			},
+			expectError: true,
+			wantReturn:  fmt.Errorf("can't build UpdateDatabaseDdlRequest: Error"),
+		},
+		{
+			name: "Update Database operation error",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return &spanneradmin.UpdateDatabaseDdlOperationMock{
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return fmt.Errorf("error waiting") },
+					}, nil
+				},
+			},
+			expectError: true,
+			wantReturn:  fmt.Errorf("UpdateDatabaseDdl call failed: error waiting"),
+		},
+	}
+	ctx := context.Background()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbURI := "projects/project-id/instances/instance-id/databases/database-id"
+			spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+            conv := internal.MakeConv()
+			err := spA.VerifyCreateTableDDL(ctx, dbURI, conv, "CREATE TABLE T1 (A INT64) PRIMARY KEY (A)", "dataflow")
+			assert.Equal(t, tc.expectError, err != nil, tc.name)
+			if tc.expectError {
+				assert.Equal(t, tc.wantReturn.Error(), err.Error())
+			}
+		})
+	}
+}

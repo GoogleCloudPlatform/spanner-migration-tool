@@ -72,6 +72,8 @@ type SpannerAccessor interface {
 	CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error
 	// Check whether the db exists and if it does, verify if the schema is what we currently support.
 	VerifyDb(ctx context.Context, dbURI string, conv *internal.Conv, tablesExistingOnSpanner []string) (dbExists bool, err error)
+	// Verify Single Create Table DDL
+	VerifyCreateTableDDL(ctx context.Context, dbURI string, conv *internal.Conv, tableId string, driver string) error
 	// Verify if an existing DB's ddl follows what is supported by Spanner migration tool. Currently, we only support empty schema when db already exists.
 	ValidateDDL(ctx context.Context, conv *internal.Conv, tablesExistingOnSpanner []string) error
 	// UpdateDDLForeignKeys updates the Spanner database with foreign key constraints using ALTER TABLE statements.
@@ -342,6 +344,29 @@ func (sp *SpannerAccessorImpl) TableExists(ctx context.Context, tableName string
 	}
 
 	return true, nil // Table exists
+}
+
+func (sp *SpannerAccessorImpl) VerifyCreateTableDDL(ctx context.Context, dbURI string, conv *internal.Conv, tableId string, driver string) error {
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver, TableIds: []string{tableId}}, conv.SpSchema, make(map[string]ddl.Sequence), conv.DatabaseOptions)
+	if len(schema) == 0 {
+		return nil
+	}
+	req := &adminpb.UpdateDatabaseDdlRequest{
+		Database:   dbURI,
+		Statements: schema,
+	}
+	// Update queries for postgres as target db return response after more
+	// than 1 min for large schemas, therefore, timeout is specified as 5 minutes
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, req)
+	if err != nil {
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", parse.AnalyzeError(err, dbURI))
+	}
+	if err := op.Wait(ctx); err != nil {
+		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", parse.AnalyzeError(err, dbURI))
+	}
+	return nil
 }
 
 // UpdateDatabase updates an existing spanner database.

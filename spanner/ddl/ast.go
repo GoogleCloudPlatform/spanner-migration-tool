@@ -204,6 +204,7 @@ type Config struct {
 	ForeignKeys bool // If true, print foreign key constraints.
 	SpDialect   string
 	Source      string // SourceDB information for determining case-sensitivity handling for PGSQL
+	TableIds    []string // If not empty, only print tables with ids in this list
 }
 
 func isIdentifierReservedInPG(identifier string) bool {
@@ -761,7 +762,10 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence, db
 		}
 	}
 
-	tableIds := GetSortedTableIdsBySpName(tableSchema)
+	tableIds := c.TableIds
+	if len(tableIds) == 0 {
+		tableIds = GetSortedTableIdsBySpName(tableSchema)
+	}
 
 	if c.Tables {
 		for _, tableId := range tableIds {
