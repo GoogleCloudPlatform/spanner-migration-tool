@@ -269,6 +269,7 @@ type SourceProfileConnectionPostgreSQL struct {
 	User            string // Same as PGUSER environment variable
 	Db              string // Same as PGDATABASE environment variable
 	Pwd             string // Same as PGPASSWORD environment variable
+	Sslmode         string // Same as PGSSLMODE environment variable
 	StreamingConfig string
 }
 
@@ -487,12 +488,12 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map
 }
 
 type SourceProfileConnectionCassandra struct {
-	Host            string 
-	Port            string 
-	User            string 
-	Pwd             string
-	Keyspace        string 
-	DataCenter      string  // Cassandra 4.x requires data center information for connection
+	Host       string
+	Port       string
+	User       string
+	Pwd        string
+	Keyspace   string
+	DataCenter string // Cassandra 4.x requires data center information for connection
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error) {
@@ -803,7 +804,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 			case "dynamodb":
 				return "", fmt.Errorf("dump files are not supported with DynamoDB")
 			case "cassandra":
-				return "", fmt.Errorf("dump files are not supported with Cassandra")	
+				return "", fmt.Errorf("dump files are not supported with Cassandra")
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
