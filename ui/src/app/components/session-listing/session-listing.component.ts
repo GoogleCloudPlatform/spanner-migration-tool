@@ -8,9 +8,10 @@ import IConv from 'src/app/model/conv'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 
 @Component({
-  selector: 'app-session-listing',
-  templateUrl: './session-listing.component.html',
-  styleUrls: ['./session-listing.component.scss'],
+    selector: 'app-session-listing',
+    templateUrl: './session-listing.component.html',
+    styleUrls: ['./session-listing.component.scss'],
+    standalone: false
 })
 export class SessionListingComponent implements OnInit {
   displayedColumns = [

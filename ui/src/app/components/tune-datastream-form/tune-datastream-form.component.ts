@@ -7,9 +7,10 @@ const MIN_DATASTREAM_TASK_LIMIT = 1
 const MAX_DATASTREAM_TASK_LIMIT = 50
 
 @Component({
-  selector: 'app-tune-datastream-form',
-  templateUrl: './tune-datastream-form.component.html',
-  styleUrls: ['./tune-datastream-form.component.scss']
+    selector: 'app-tune-datastream-form',
+    templateUrl: './tune-datastream-form.component.html',
+    styleUrls: ['./tune-datastream-form.component.scss'],
+    standalone: false
 })
 export class TuneDatastreamFormComponent implements OnInit {
   datastreamForm: FormGroup

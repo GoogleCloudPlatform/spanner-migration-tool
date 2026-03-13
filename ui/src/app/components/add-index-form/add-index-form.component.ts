@@ -7,9 +7,10 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 
 @Component({
-  selector: 'app-add-index-form',
-  templateUrl: './add-index-form.component.html',
-  styleUrls: ['./add-index-form.component.scss'],
+    selector: 'app-add-index-form',
+    templateUrl: './add-index-form.component.html',
+    styleUrls: ['./add-index-form.component.scss'],
+    standalone: false
 })
 export class AddIndexFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
