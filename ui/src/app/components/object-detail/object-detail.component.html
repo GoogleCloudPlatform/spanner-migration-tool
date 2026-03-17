@@ -102,7 +102,7 @@
     </button>
   </div>
 
-  <mat-tab-group [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
+  <mat-tab-group [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode || isCcEditMode }"
     *ngIf="currentObject!.type === 'tableName'" (selectedTabChange)="tabChanged($event)">
     <mat-tab>
       <ng-template mat-tab-label>
@@ -1225,7 +1225,7 @@
   </div>
 
   <div class="save-edits">
-    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
+    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode || isCcEditMode"></mat-divider>
 
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="saveColumnTable()" [disabled]="!spRowArray.valid">
@@ -1245,7 +1245,7 @@
         CANCEL
       </button>
     </div>
-    <div class="save-button" *ngIf="isCcEditMode && (interleaveParentId !== null ? currentTabIndex === 4:currentTabIndex === 3)">
+    <div class="save-button" *ngIf="isCcEditMode && currentTabIndex === getTabIndex('checkConstraints')">
       <button mat-raised-button color="primary" (click)="saveCc()" [disabled]="!ccArray.valid" >
         SAVE & CONVERT
       </button>
