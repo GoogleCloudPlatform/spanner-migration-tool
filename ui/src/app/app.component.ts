@@ -2,9 +2,10 @@ import { Component, HostListener } from '@angular/core'
 import { SidenavService } from './services/sidenav/sidenav.service'
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss'],
+    standalone: false
 })
 export class AppComponent {
   title = 'ui'
