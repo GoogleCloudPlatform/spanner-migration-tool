@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -39,7 +38,7 @@ func getConfigFilePath() (string, error) {
 		if _, err := os.Stat(dirPath); err != nil {
 			err := os.MkdirAll(dirPath, os.ModePerm)
 			if err != nil {
-				log.Printf("Can't create directory %s: %v\n", dirPath, err)
+				logger.Log.Error(fmt.Sprintf("Can't create directory %s: %v", dirPath, err))
 				return "", err
 			}
 		}
@@ -51,19 +50,21 @@ func GetSpannerConfig() (Config, error) {
 	var c Config
 	configFilePath, err := getConfigFilePath()
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug(fmt.Sprint(err))
 		return c, err
 	}
 
 	content, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
-		log.Println(err)
+		if !os.IsNotExist(err) {
+			logger.Log.Error(fmt.Sprintf("could not read config file: %v", err))
+		}
 		return c, err
 	}
 
 	err = json.Unmarshal(content, &c)
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error(fmt.Sprintf("could not decode config file: %v", err))
 		return c, err
 	}
 	return c, nil
@@ -72,23 +73,23 @@ func GetSpannerConfig() (Config, error) {
 func SaveSpannerConfig(config Config) {
 	configFilePath, err := getConfigFilePath()
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error(fmt.Sprint(err))
 		return
 	}
 	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error(fmt.Sprint(err))
 	}
 	defer f.Close()
 
 	file, err := json.MarshalIndent(config, "", " ")
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error(fmt.Sprint(err))
 	}
 	_, err = f.Write(file)
 
 	if err != nil {
-		log.Println(err)
+		logger.Log.Error(fmt.Sprint(err))
 	}
 }
 

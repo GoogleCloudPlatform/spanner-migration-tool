@@ -25,7 +25,6 @@ import (
 	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -110,7 +109,6 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
@@ -151,7 +149,6 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		temp := false
@@ -181,7 +178,6 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
@@ -197,7 +193,6 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		temp := false
@@ -228,7 +223,6 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
@@ -239,7 +233,6 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			logger.Log.Error(fmt.Sprintf("failed to connect to source database: %v", err))
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
