@@ -560,7 +560,7 @@ func toAutoGen(isSerial bool) ddl.AutoGenCol {
 		autoGen.Name = constants.SERIAL
 		autoGen.GenerationType = constants.SERIAL
 	}
-	return autoGen;
+	return autoGen
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {

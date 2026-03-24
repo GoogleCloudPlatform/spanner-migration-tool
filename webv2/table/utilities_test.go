@@ -206,7 +206,6 @@ func TestIsInterleavingImpacted(t *testing.T) {
 				currentConv = tc.customConv
 			}
 
-
 			sessionState := session.GetSessionState()
 			sessionState.Conv = currentConv
 			sessionState.Driver = constants.MYSQL

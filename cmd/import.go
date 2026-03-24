@@ -71,7 +71,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	err := logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
 	logger.Log.Debug(fmt.Sprintf("instance %s, dbName %s, schemaUri %s\n", cmd.instance, cmd.database, cmd.schemaUri))

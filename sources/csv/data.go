@@ -50,12 +50,12 @@ func (c *CsvImpl) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.Source
 	// If manifest file not provided, we assume the csvs exist in the same directory
 	// in table_name.csv format.
 	if sourceProfile.Csv.Manifest == "" {
-		fmt.Println("Manifest file not provided, checking for files named `[table_name].csv` in current working directory...")
+		logger.Log.Info(fmt.Sprint("Manifest file not provided, checking for files named `[table_name].csv` in current working directory..."))
 		for _, schema := range conv.SpSchema {
 			tables = append(tables, utils.ManifestTable{Table_name: schema.Name, File_patterns: []string{fmt.Sprintf("%s.csv", schema.Name)}})
 		}
 	} else {
-		fmt.Println("Manifest file provided, reading csv file paths...")
+		logger.Log.Info(fmt.Sprint("Manifest file provided, reading csv file paths..."))
 		// Read paths provided in manifest.
 		tables, err = loadManifest(conv, sourceProfile.Csv.Manifest)
 		if err != nil {
@@ -110,7 +110,7 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 		}
 	}
 	if len(missing) > 0 {
-		fmt.Printf("WARNING: did not find manifest entries for tables [ %s ], ignoring and proceeding...\n", strings.Join(missing, ", "))
+		logger.Log.Info(fmt.Sprintf("WARNING: did not find manifest entries for tables [ %s ], ignoring and proceeding...\n", strings.Join(missing, ", ")))
 		conv.Unexpected(fmt.Sprintf("did not find manifest entries for tables [ %s ]", strings.Join(missing, ", ")))
 	}
 	for i, table := range tables {

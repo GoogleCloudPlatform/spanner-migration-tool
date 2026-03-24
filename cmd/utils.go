@@ -41,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var (
@@ -90,8 +91,8 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	if err != nil {
 		return nil, nil, "", err
 	}
-	fmt.Println("Using Google Cloud project:", project)
-	fmt.Println("Using Cloud Spanner instance:", instance)
+	logger.Log.Info(fmt.Sprint("Using Google Cloud project:", project))
+	logger.Log.Info(fmt.Sprint("Using Cloud Spanner instance:", instance))
 	utils.PrintPermissionsWarning(driver, ioHelper.Out)
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
@@ -215,7 +216,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err
 		}
-		fmt.Printf("Schema validated successfully for data migration for db %s\n", dbURI)
+		logger.Log.Info(fmt.Sprintf("Schema validated successfully for data migration for db %s\n", dbURI))
 	}
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated

@@ -77,7 +77,7 @@ func (cmd *CleanupCmd) SetFlags(f *flag.FlagSet) {
 func (cmd *CleanupCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	err := logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
 	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)

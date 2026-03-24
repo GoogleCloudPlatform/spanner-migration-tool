@@ -34,6 +34,7 @@ import (
 	"google.golang.org/api/iterator"
 
 	"cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type TableLimitTestCase struct {
@@ -562,8 +563,7 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			dialect: constants.DIALECT_GOOGLESQL,
 			ddls: []string{
-				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
-				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
 				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
 			},
 
@@ -575,8 +575,7 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			dialect: constants.DIALECT_POSTGRESQL,
 			ddls: []string{
-				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
-				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
 				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
 			},
 
@@ -588,8 +587,7 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			dialect: constants.DIALECT_GOOGLESQL,
 			ddls: []string{
-				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
-				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
 				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
 			},
 
@@ -600,8 +598,7 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			dialect: constants.DIALECT_POSTGRESQL,
 			ddls: []string{
-				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
-				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
 				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
 			},
 
@@ -780,7 +777,7 @@ func checkDatabaseNotCreatedOrEmpty(t *testing.T, dbURI, dialect string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(ctx)
+	logger.Log.Info(fmt.Sprint(ctx))
 	dbExists, err := sp.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
@@ -1199,8 +1196,8 @@ func RunCommandReturningStdOut(args string, projectID string) (string, error) {
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+		logger.Log.Info(fmt.Sprintf("stdout: %q\n", out.String()))
+		logger.Log.Info(fmt.Sprintf("stderr: %q\n", stderr.String()))
 		return out.String(), err
 	}
 	return out.String(), nil

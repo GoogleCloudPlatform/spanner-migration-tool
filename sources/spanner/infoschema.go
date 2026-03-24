@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var NewInfoSchemaImplWithSpannerClient = newInfoSchemaImplWithSpannerClient
@@ -427,14 +428,14 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 			err = row.Columns(&name, &column, &sequence, &ordering, &isPgUnique)
 			if err != nil {
-				fmt.Println(err)
+				logger.Log.Info(fmt.Sprint(err))
 				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 				continue
 			}
 		} else {
 			err = row.Columns(&name, &column, &sequence, &ordering, &isUnique)
 			if err != nil {
-				fmt.Println(err)
+				logger.Log.Info(fmt.Sprint(err))
 				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 				continue
 			}

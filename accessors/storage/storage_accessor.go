@@ -80,7 +80,7 @@ func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storagecl
 			if e.Code != 409 {
 				return fmt.Errorf("failed to create bucket: %v", err)
 			} else {
-				fmt.Printf("Using the existing bucket: %v \n", req.BucketName)
+				logger.Log.Info(fmt.Sprintf("Using the existing bucket: %v \n", req.BucketName))
 			}
 		} else {
 			return fmt.Errorf("failed to create bucket: %v", err)
@@ -91,7 +91,6 @@ func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storagecl
 	}
 	return nil
 }
-
 
 func (sa *StorageAccessorImpl) DeleteGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
 	bucket := sc.Bucket(req.BucketName)
@@ -154,13 +153,13 @@ func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storagecli
 	logger.Log.Info(fmt.Sprintf("Writing data to %s", filePath))
 	n, err := fmt.Fprint(w, data)
 	if err != nil {
-		fmt.Printf("Failed to write to Cloud Storage: %s\n", filePath)
+		logger.Log.Info(fmt.Sprintf("Failed to write to Cloud Storage: %s\n", filePath))
 		return err
 	}
 	logger.Log.Info(fmt.Sprintf("Wrote %d bytes to GCS", n))
 
 	if err := w.Close(); err != nil {
-		fmt.Printf("Failed to close GCS file: %s\n", filePath)
+		logger.Log.Info(fmt.Sprintf("Failed to close GCS file: %s\n", filePath))
 		return err
 	}
 	return nil

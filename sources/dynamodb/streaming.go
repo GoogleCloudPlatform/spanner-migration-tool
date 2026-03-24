@@ -39,6 +39,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 const (
@@ -102,10 +103,10 @@ var clear = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
 // and if the current moment is an optimum condition for cutover or not.
 func updateProgress(optimumCondition, firstCall bool, totalRecordsProcessed int64) {
 	if !firstCall {
-		fmt.Print(strings.Repeat(clear, 2))
+		logger.Log.Info(fmt.Sprint(strings.Repeat(clear, 2)))
 	}
-	fmt.Printf("Optimum time for switching to Cloud Spanner: %s\n", strconv.FormatBool(optimumCondition))
-	fmt.Printf("Count of records processed: %s\n", strconv.FormatInt(totalRecordsProcessed, 10))
+	logger.Log.Info(fmt.Sprintf("Optimum time for switching to Cloud Spanner: %s\n", strconv.FormatBool(optimumCondition)))
+	logger.Log.Info(fmt.Sprintf("Count of records processed: %s\n", strconv.FormatInt(totalRecordsProcessed, 10)))
 }
 
 // cutoverHelper analyzes the records processed and makes a decision if current moment is

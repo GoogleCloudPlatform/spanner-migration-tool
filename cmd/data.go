@@ -105,7 +105,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}()
 	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
@@ -224,7 +224,7 @@ func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClien
 		return err
 	}
 	if nonEmptyTableName != "" {
-		fmt.Printf("WARNING: Some tables in the database are non-empty e.g %s, overwriting these tables can lead to unintended behaviour. If this is unintended, please reconsider your migration attempt.\n\n", nonEmptyTableName)
+		logger.Log.Info(fmt.Sprintf("WARNING: Some tables in the database are non-empty e.g %s, overwriting these tables can lead to unintended behaviour. If this is unintended, please reconsider your migration attempt.\n\n", nonEmptyTableName))
 	}
 	spannerConv := internal.MakeConv()
 	spannerConv.SpDialect = spDialect

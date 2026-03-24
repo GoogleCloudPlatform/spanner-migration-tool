@@ -139,10 +139,10 @@ func TestAccuracy(t *testing.T) {
 			predictedLines = append(predictedLines, line)
 		}
 
-		fmt.Println("GroundTruth: ", tc.GroundTruth, "Predicted Lines: ", uniquePredicted)
+		logger.Log.Info(fmt.Sprint("GroundTruth: ", tc.GroundTruth, "Predicted Lines: ", uniquePredicted))
 
 		precision, recall, f1Score := calculateMetrics(predictedLines, tc.GroundTruth)
-		fmt.Printf("Test Case %d - Precision: %.2f, Recall: %.2f, F1 Score: %.2f\n", i+1, precision, recall, f1Score)
+		logger.Log.Info(fmt.Sprintf("Test Case %d - Precision: %.2f, Recall: %.2f, F1 Score: %.2f\n", i+1, precision, recall, f1Score))
 
 		// Track cumulative metrics
 		for _, p := range predictedLines {
@@ -165,7 +165,7 @@ func TestAccuracy(t *testing.T) {
 	totalRecall := float64(totalTruePositives) / float64(totalTruePositives+totalFalseNegatives)
 	totalF1Score := 2 * (totalPrecision * totalRecall) / (totalPrecision + totalRecall)
 
-	fmt.Printf("\nOverall Accuracy - Precision: %.2f, Recall: %.2f, F1 Score: %.2f\n", totalPrecision, totalRecall, totalF1Score)
+	logger.Log.Info(fmt.Sprintf("\nOverall Accuracy - Precision: %.2f, Recall: %.2f, F1 Score: %.2f\n", totalPrecision, totalRecall, totalF1Score))
 }
 
 func contains(slice []string, item string) bool {
