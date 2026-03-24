@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/google/subcommands"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var FrontendDir embed.FS
@@ -71,7 +72,7 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 	var err error
 	defer func() {
 		if err != nil {
-			fmt.Printf("FATAL error, unable to start webapp: %s", err)
+			logger.Log.Info(fmt.Sprintf("FATAL error, unable to start webapp: %s", err))
 		}
 	}()
 	err = App(cmd.logLevel, cmd.open, cmd.port)

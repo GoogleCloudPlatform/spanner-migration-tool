@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-
 func TestVerifyJsonConfiguration(t *testing.T) {
 	payload, err := json.Marshal(struct {
 		configType string

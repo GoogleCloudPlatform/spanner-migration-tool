@@ -327,7 +327,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg Da
 		includeDbList = append(includeDbList, includeDb)
 	}
 	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
-	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
+	logger.Log.Info(fmt.Sprintf("Include DB List for datastream: %+v\n", includeDbList))
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
 		IncludeObjects:             &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
 		MaxConcurrentBackfillTasks: maxBackfillTasks,
@@ -550,7 +550,7 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, migrationProjectId string, datastreamCfg DatastreamCfg) error {
 	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", migrationProjectId))
-	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
+	logger.Log.Info(fmt.Sprint("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation)))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
@@ -558,7 +558,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	defer dsClient.Close()
 	// Rate limit this function to match DataStream API Quota.
 	DATA_STREAM_RL.Take()
-	fmt.Println("Created client...")
+	logger.Log.Info(fmt.Sprint("Created client..."))
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
 
@@ -593,20 +593,20 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		RequestId: uuid.New().String(),
 	}
 
-	fmt.Println("Created stream request..")
+	logger.Log.Info(fmt.Sprint("Created stream request.."))
 
 	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
-		fmt.Printf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest)
+		logger.Log.Info(fmt.Sprintf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest))
 		return fmt.Errorf("cannot create stream: %v ", err)
 	}
 
 	_, err = dsOp.Wait(ctx)
 	if err != nil {
-		fmt.Printf("datastream create operation failed: createStreamRequest: %+v\n", createStreamRequest)
+		logger.Log.Info(fmt.Sprintf("datastream create operation failed: createStreamRequest: %+v\n", createStreamRequest))
 		return fmt.Errorf("datastream create operation failed: %v", err)
 	}
-	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
+	logger.Log.Info(fmt.Sprint("Successfully created stream ", datastreamCfg.StreamId))
 
 	/* Note: Retrying across an LRO poll is a workaround and not a fix, use it only after checking with the API server team.
 	 * In most cases, if a long running operation leads into a retriable failure, the server would retry internally before marking the operation as failed.
@@ -616,12 +616,12 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	if updateErr != nil {
 		return updateErr
 	}
-	fmt.Println("Done")
+	logger.Log.Info(fmt.Sprint("Done"))
 	return nil
 }
 
 func updateStream(ctx context.Context, streamInfo *datastreampb.Stream, projectNumberResource string, datastreamCfg DatastreamCfg, dsClient *datastream.Client) error {
-	fmt.Print("Setting stream state to RUNNING...")
+	logger.Log.Info(fmt.Sprint("Setting stream state to RUNNING..."))
 	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	// Setting a RequestId makes idempotent retries possible.
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
@@ -632,12 +632,12 @@ func updateStream(ctx context.Context, streamInfo *datastreampb.Stream, projectN
 	}
 	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
-		fmt.Printf("Encountered Error in updating datastream. Error before LRO poll: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Encountered Error in updating datastream. Error before LRO poll: %v\n", err))
 		return fmt.Errorf("could not create update request: %v", err)
 	}
 	_, err = upOp.Wait(ctx)
 	if err != nil {
-		fmt.Printf("Encountered Error in updating datastream. Error after LRO poll: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Encountered Error in updating datastream. Error after LRO poll: %v\n", err))
 		return fmt.Errorf("update stream operation failed: %v", err)
 	}
 	return nil
@@ -652,14 +652,14 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 	// Rate limit this function to match DataFlow createJob Quota.
 	DATA_FLOW_RL.Take()
 
-	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", migrationProjectId, "-", dataflowCfg.Location)
+	logger.Log.Info(fmt.Sprint("Launching dataflow job ", dataflowCfg.JobName, " in ", migrationProjectId, "-", dataflowCfg.Location))
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("could not create flex template client: %v", err)
 	}
 	defer c.Close()
-	fmt.Println("Created flex template client...")
+	logger.Log.Info(fmt.Sprint("Created flex template client..."))
 
 	//Creating datastream client to fetch the gcs bucket using target profile.
 	dsClient, err := datastream.NewClient(ctx)
@@ -679,7 +679,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 	if inputFilePattern[len(inputFilePattern)-1] != '/' {
 		inputFilePattern = inputFilePattern + "/"
 	}
-	fmt.Println("Reading files from datastream destination ", inputFilePattern)
+	logger.Log.Info(fmt.Sprint("Reading files from datastream destination ", inputFilePattern))
 
 	// Initiate runtime environment flags and overrides.
 	var (
@@ -786,7 +786,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 		LaunchParameter: launchParameters,
 		Location:        dataflowCfg.Location,
 	}
-	fmt.Println("Created flex template request body...")
+	logger.Log.Info(fmt.Sprint("Created flex template request body..."))
 
 	// LaunchFlexTemplate does not have out of box retries or any direct documentation on how
 	// to make the call idempotent.
@@ -794,7 +794,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 	// TODO explore retries.
 	respDf, err := c.LaunchFlexTemplate(ctx, req)
 	if err != nil {
-		fmt.Printf("flexTemplateRequest: %+v\n", req)
+		logger.Log.Info(fmt.Sprintf("flexTemplateRequest: %+v\n", req))
 		return internal.DataflowOutput{}, fmt.Errorf("unable to launch template: %v", err)
 	}
 	// Refactor to use accessor return value.

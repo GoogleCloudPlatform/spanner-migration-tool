@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var configFilePath string
@@ -104,7 +105,7 @@ func TryInitializeSpannerConfig() Config {
 		}
 
 		if projectId == "" || spInstanceId == "" {
-			fmt.Println("Note: To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID'. You would set these as part of the migration workflow if you are using the Spanner migration tool Web UI.")
+			logger.Log.Info(fmt.Sprint("Note: To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID'. You would set these as part of the migration workflow if you are using the Spanner migration tool Web UI."))
 		} else {
 			c.GCPProjectID = projectId
 			c.SpannerProjectID = spProjectId

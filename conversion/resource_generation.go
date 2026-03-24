@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/google/uuid"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var (
@@ -149,11 +150,11 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 	}
 
 	if !createResourceData.ConnectionProfile.ValidateOnly {
-		fmt.Printf("Connection Profile for Datashard %v has been created: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
+		logger.Log.Info(fmt.Sprintf("Connection Profile for Datashard %v has been created: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id))
 		// In case of failure, add resources to be cleaned up
 		resourcesForCleanup = append(resourcesForCleanup, createResourceData)
 	} else {
-		fmt.Printf("Connection Profile for Datashard %v has been validated: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
+		logger.Log.Info(fmt.Sprintf("Connection Profile for Datashard %v has been validated: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id))
 	}
 
 	return task.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: nil}

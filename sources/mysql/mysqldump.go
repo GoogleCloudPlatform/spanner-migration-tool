@@ -126,7 +126,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			chunk := string(s)
 			matchStatus := regexExp.Match([]byte(chunk))
 			if matchStatus {
-				fmt.Printf("\nParsing skipped for: %s\n", chunk)
+				logger.Log.Info(fmt.Sprintf("\nParsing skipped for: %s\n", chunk))
 				return s, nil, nil
 			}
 			tree, _, err := parser.New().Parse(chunk, "", "")

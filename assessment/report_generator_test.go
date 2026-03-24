@@ -2653,4 +2653,3 @@ func TestCodeChangeEffort(t *testing.T) {
 	assert.Equal(t, "High", codeChangeEffort("complex"))
 	assert.Equal(t, "", codeChangeEffort("unknown"))
 }
-

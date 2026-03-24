@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestSanitizeDefaultValue(t *testing.T) {
 	tests := []struct {
 		inputString    string

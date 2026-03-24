@@ -12,6 +12,7 @@ import (
 
 	"github.com/gocql/gocql"
 	spanner "github.com/googleapis/go-spanner-cassandra/cassandra/gocql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var (
@@ -283,7 +284,7 @@ func validateViaSampling(sourceSession *gocql.Session, targetSession *gocql.Sess
 		}
 
 		if len(rows) == 0 {
-			fmt.Println("No rows found...")
+			logger.Log.Info(fmt.Sprint("No rows found..."))
 			continue
 		}
 
@@ -381,10 +382,10 @@ func validateRows(sourceRows []map[string]interface{}, targetQuery string, targe
 					if err == gocql.ErrNotFound {
 						mu.Lock()
 						missing++
-						fmt.Printf("MISSING: row in target for source row: %+v\n", sourceRow)
+						logger.Log.Info(fmt.Sprintf("MISSING: row in target for source row: %+v\n", sourceRow))
 						mu.Unlock()
 					} else {
-						fmt.Printf("ERROR: got error %v while reading target row for source: %+v\n", err, sourceRow)
+						logger.Log.Info(fmt.Sprintf("ERROR: got error %v while reading target row for source: %+v\n", err, sourceRow))
 						mu.Lock()
 						errors++
 						mu.Unlock()
@@ -400,12 +401,12 @@ func validateRows(sourceRows []map[string]interface{}, targetQuery string, targe
 				if mismatchDetails.MissingInTarget {
 					mu.Lock()
 					missing++
-					fmt.Printf("MISSING: row in target for source row: %+v\n", sourceRow)
+					logger.Log.Info(fmt.Sprintf("MISSING: row in target for source row: %+v\n", sourceRow))
 					mu.Unlock()
 				} else {
 					mu.Lock()
 					mismatches++
-					fmt.Printf("MISMATCH: found for row: %+v\n", mismatchDetails)
+					logger.Log.Info(fmt.Sprintf("MISMATCH: found for row: %+v\n", mismatchDetails))
 					mu.Unlock()
 
 				}

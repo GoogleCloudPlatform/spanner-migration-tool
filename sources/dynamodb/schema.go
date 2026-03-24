@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 const (
@@ -197,7 +198,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 // StartChangeDataCapture initializes the DynamoDB Streams for the source database. It
 // returns the latestStreamArn for all tables in the source database.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	fmt.Println("Starting DynamoDB Streams initialization...")
+	logger.Log.Info(fmt.Sprint("Starting DynamoDB Streams initialization..."))
 
 	latestStreamArn := make(map[string]interface{})
 	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
@@ -212,7 +213,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		latestStreamArn[srcTable] = streamArn
 	}
 
-	fmt.Println("DynamoDB Streams initialized successfully.")
+	logger.Log.Info(fmt.Sprint("DynamoDB Streams initialized successfully."))
 	return latestStreamArn, nil
 }
 
@@ -220,8 +221,8 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 // worker thread/goroutine for each table's DynamoDB Stream. It catches Ctrl+C signal if
 // customer wants to stop the process.
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) (internal.DataflowOutput, error) {
-	fmt.Println("Processing of DynamoDB Streams started...")
-	fmt.Println("Use Ctrl+C to stop the process.")
+	logger.Log.Info(fmt.Sprint("Processing of DynamoDB Streams started..."))
+	logger.Log.Info(fmt.Sprint("Use Ctrl+C to stop the process."))
 
 	streamInfo := MakeStreamingInfo()
 	setWriter(streamInfo, client, conv)
@@ -242,7 +243,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migration
 
 	fillConvWithStreamingStats(streamInfo, conv)
 
-	fmt.Println("DynamoDB Streams processed successfully.")
+	logger.Log.Info(fmt.Sprint("DynamoDB Streams processed successfully."))
 	return internal.DataflowOutput{}, nil
 }
 

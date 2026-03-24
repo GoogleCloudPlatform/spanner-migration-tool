@@ -18,6 +18,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var (
@@ -145,11 +146,11 @@ func prechecks() error {
 	}
 	if metadataInstance == "" {
 		metadataInstance = instanceId
-		fmt.Println("metadataInstance not provided, defaulting to target spanner instance id: ", metadataInstance)
+		logger.Log.Info(fmt.Sprint("metadataInstance not provided, defaulting to target spanner instance id: ", metadataInstance))
 	}
 	if metadataDatabase == "" {
 		metadataDatabase = "rev_repl_metadata"
-		fmt.Println("metadataDatabase not provided, defaulting to: ", metadataDatabase)
+		logger.Log.Info(fmt.Sprint("metadataDatabase not provided, defaulting to: ", metadataDatabase))
 	}
 
 	if sourceShardsFilePath == "" {
@@ -166,7 +167,7 @@ func prechecks() error {
 
 	if machineType == "" {
 		machineType = "n2-standard-4"
-		fmt.Println("machineType not provided, defaulting to: ", machineType)
+		logger.Log.Info(fmt.Sprint("machineType not provided, defaulting to: ", machineType))
 	}
 
 	if vpcHostProjectId == "" {
@@ -186,7 +187,7 @@ func prechecks() error {
 	}
 
 	if spannerProjectId == "" {
-		fmt.Println("Setting the Spanner Project Id to Dataflow project id: ", projectId)
+		logger.Log.Info(fmt.Sprint("Setting the Spanner Project Id to Dataflow project id: ", projectId))
 		spannerProjectId = projectId
 	}
 
@@ -194,14 +195,14 @@ func prechecks() error {
 }
 
 func main() {
-	fmt.Println("Setting up reverse replication pipeline...")
+	logger.Log.Info(fmt.Sprint("Setting up reverse replication pipeline..."))
 
 	setupGlobalFlags()
 	flag.Parse()
 
 	err := prechecks()
 	if err != nil {
-		fmt.Println("incorrect arguments passed:", err)
+		logger.Log.Info(fmt.Sprint("incorrect arguments passed:", err))
 		return
 	}
 
@@ -213,7 +214,7 @@ func main() {
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		fmt.Println("failed to create GCS client")
+		logger.Log.Info(fmt.Sprint("failed to create GCS client"))
 		return
 	}
 	defer client.Close()
@@ -223,7 +224,7 @@ func main() {
 	bucket := client.Bucket(gcsBucketName)
 	_, err = bucket.Attrs(ctx)
 	if err != nil {
-		fmt.Println("GCS Path does not exist, please create before running reverse replication:", gcsBucketName)
+		logger.Log.Info(fmt.Sprint("GCS Path does not exist, please create before running reverse replication:", gcsBucketName))
 		return
 	}
 
@@ -231,7 +232,7 @@ func main() {
 
 		err = validateOrCreateChangeStream(ctx, adminClient, spClient, dbUri)
 		if err != nil {
-			fmt.Println("Error in validating/creating changestream:", err)
+			logger.Log.Info(fmt.Sprint("Error in validating/creating changestream:", err))
 			return
 		}
 	}
@@ -245,28 +246,28 @@ func main() {
 		createDbOp, err := adminClient.CreateDatabase(ctx, createDbReq)
 		if err != nil {
 			if !strings.Contains(err.Error(), ALREADY_EXISTS_ERROR) {
-				fmt.Printf("Cannot submit create database request for metadata db: %v\n", err)
+				logger.Log.Info(fmt.Sprintf("Cannot submit create database request for metadata db: %v\n", err))
 				return
 			} else {
-				fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
+				logger.Log.Info(fmt.Sprintf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase)))
 			}
 		} else {
 			if _, err := createDbOp.Wait(ctx); err != nil {
 				if !strings.Contains(err.Error(), ALREADY_EXISTS_ERROR) {
-					fmt.Printf("create database request failed for metadata db: %v\n", err)
+					logger.Log.Info(fmt.Sprintf("create database request failed for metadata db: %v\n", err))
 					return
 				} else {
-					fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
+					logger.Log.Info(fmt.Sprintf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase)))
 				}
 			} else {
-				fmt.Println("Created metadata db", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
+				logger.Log.Info(fmt.Sprint("Created metadata db", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase)))
 			}
 		}
 	}
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
-		fmt.Printf("could not create flex template client: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("could not create flex template client: %v\n", err))
 		return
 	}
 	defer c.Close()
@@ -343,14 +344,14 @@ func main() {
 			LaunchParameter: launchParameters,
 			Location:        dataflowRegion,
 		}
-		fmt.Printf("\nGCLOUD CMD FOR READER JOB:\n%s\n\n", getGcloudCommand(req))
+		logger.Log.Info(fmt.Sprintf("\nGCLOUD CMD FOR READER JOB:\n%s\n\n", getGcloudCommand(req)))
 
 		readerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
-			fmt.Printf("unable to launch reader job: %v \n REQUEST BODY: %+v\n", err, req)
+			logger.Log.Info(fmt.Sprintf("unable to launch reader job: %v \n REQUEST BODY: %+v\n", err, req))
 			return
 		}
-		fmt.Println("Launched reader job: ", readerJobResponse.Job)
+		logger.Log.Info(fmt.Sprint("Launched reader job: ", readerJobResponse.Job))
 	}
 
 	if jobsToLaunch == "both" || jobsToLaunch == "writer" {
@@ -401,15 +402,15 @@ func main() {
 			LaunchParameter: launchParameters,
 			Location:        dataflowRegion,
 		}
-		fmt.Printf("\nGCLOUD CMD FOR WRITER JOB:\n%s\n\n", getGcloudCommand(req))
+		logger.Log.Info(fmt.Sprintf("\nGCLOUD CMD FOR WRITER JOB:\n%s\n\n", getGcloudCommand(req)))
 
 		writerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
-			fmt.Printf("unable to launch writer job: %v \n REQUEST BODY: %+v\n", err, req)
+			logger.Log.Info(fmt.Sprintf("unable to launch writer job: %v \n REQUEST BODY: %+v\n", err, req))
 			return
 		}
 
-		fmt.Println("Launched writer job: ", writerJobResponse.Job)
+		logger.Log.Info(fmt.Sprint("Launched writer job: ", writerJobResponse.Job))
 	}
 
 }
@@ -438,12 +439,12 @@ func validateOrCreateChangeStream(ctx context.Context, adminClient *database.Dat
 		}
 		if cs_name == changeStreamName {
 			csExists = true
-			fmt.Printf("Found changestream %s\n", changeStreamName)
+			logger.Log.Info(fmt.Sprintf("Found changestream %s\n", changeStreamName))
 			break
 		}
 	}
 	if !csExists {
-		fmt.Printf("changestream %s not found\n", changeStreamName)
+		logger.Log.Info(fmt.Sprintf("changestream %s not found\n", changeStreamName))
 		err := createChangeStream(ctx, adminClient, dbUri)
 		if err != nil {
 			return fmt.Errorf("could not create changestream: %v", err)
@@ -477,16 +478,16 @@ func validateOrCreateChangeStream(ctx context.Context, adminClient *database.Dat
 		}
 	}
 	if !coversAll {
-		fmt.Printf("\nWARNING: watching definition for the existing changestream %s is not 'ALL'."+
+		logger.Log.Info(fmt.Sprintf("\nWARNING: watching definition for the existing changestream %s is not 'ALL'."+
 			" This means only specific tables and columns are tracked."+
-			" Only the tables and columns watched by this changestream will get reverse replicated.\n\n", changeStreamName)
+			" Only the tables and columns watched by this changestream will get reverse replicated.\n\n", changeStreamName))
 	}
-	fmt.Println("Skipping changestream creation ...")
+	logger.Log.Info(fmt.Sprint("Skipping changestream creation ..."))
 	return nil
 }
 
 func createChangeStream(ctx context.Context, adminClient *database.DatabaseAdminClient, dbUri string) error {
-	fmt.Println("Creating changestream")
+	logger.Log.Info(fmt.Sprint("Creating changestream"))
 	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database: dbUri,
 		// TODO: create change stream for only the tables present in Spanner.
@@ -498,7 +499,7 @@ func createChangeStream(ctx context.Context, adminClient *database.DatabaseAdmin
 	if err := op.Wait(ctx); err != nil {
 		return fmt.Errorf("Could not update database ddl: %v\n", err)
 	} else {
-		fmt.Println("Successfully created changestream", changeStreamName)
+		logger.Log.Info(fmt.Sprint("Successfully created changestream", changeStreamName))
 	}
 	return nil
 }

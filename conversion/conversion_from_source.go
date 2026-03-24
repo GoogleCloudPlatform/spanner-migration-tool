@@ -155,7 +155,7 @@ func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchW
 	if !dataOnly {
 		_, err := ioHelper.SeekableIn.Seek(0, 0)
 		if err != nil {
-			fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
+			logger.Log.Info(fmt.Sprintf("\nCan't seek to start of file (preparation for second pass): %v\n", err))
 			return nil, fmt.Errorf("can't seek to start of file")
 		}
 	} else {
@@ -336,7 +336,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, migrationP
 				logger.Log.Debug("Error", zap.Error(dashboardErr))
 			} else {
 				dashboardName = strings.Split(respDash.Name, "/")[3]
-				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
+				logger.Log.Info(fmt.Sprintf("Monitoring Dashboard: %+v\n", dashboardName))
 			}
 			// store the generated resources locally in conv, this is used as source of truth for persistence and the UI (should change to persisted values)
 			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, migrationProjectId, "", internal.GcsResources{BucketName: gcsBucket}, dashboardName)

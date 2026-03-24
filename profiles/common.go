@@ -23,6 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	go_ora "github.com/sijms/go-ora/v2"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -118,7 +119,7 @@ func GeneratePGSQLConnectionStr() (string, error) {
 	user := os.Getenv("PGUSER")
 	dbName := os.Getenv("PGDATABASE")
 	if server == "" || port == "" || user == "" || dbName == "" {
-		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
+		logger.Log.Info(fmt.Sprintf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n"))
 		return "", fmt.Errorf("could not connect to source database")
 	}
 	password := os.Getenv("PGPASSWORD")
@@ -139,7 +140,7 @@ func GenerateMYSQLConnectionStr() (string, error) {
 	user := os.Getenv("MYSQLUSER")
 	dbName := os.Getenv("MYSQLDATABASE")
 	if server == "" || port == "" || user == "" || dbName == "" {
-		fmt.Printf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n")
+		logger.Log.Info(fmt.Sprintf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n"))
 		return "", fmt.Errorf("could not connect to source database")
 	}
 	password := os.Getenv("MYSQLPWD")

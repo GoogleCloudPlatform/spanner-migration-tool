@@ -18,6 +18,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type testStruct struct {
@@ -278,7 +279,7 @@ func executeImportDump(t *testing.T, dialect string, testData testStruct) {
 		"import -source-format=%s -project=%s -instance=%s -database=%s "+
 			"-source-uri=%s -database-dialect=%s",
 		testData.sourceFormat, projectID, instanceID, testData.dbName, dumpFilePath, dialect)
-	fmt.Printf("Executing: %s\n", args)
+	logger.Log.Info(fmt.Sprintf("Executing: %s\n", args))
 	err := common.RunCommand(args, projectID)
 	assert.NoError(t, err)
 

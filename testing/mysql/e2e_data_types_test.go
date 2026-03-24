@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var expectedColumnDefsSpannerDialect = map[string]string {
@@ -158,7 +159,7 @@ func checkColumnDataTypes(t *testing.T, dbURI string, dialect string) {
 	}
 
 	delete(actualColumnDefs, "row_id")
-	fmt.Println(actualColumnDefs)
+	logger.Log.Info(fmt.Sprint(actualColumnDefs))
 
 	var expectedColumnDefs map[string]string
 	if dialect == constants.DIALECT_GOOGLESQL {

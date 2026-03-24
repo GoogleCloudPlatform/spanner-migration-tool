@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type SourceProfileType int
@@ -75,7 +76,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileFile(params map[string]string) 
 		profile.Format = format
 		// TODO: Add check that format takes values from ["dump", "csv", "avro", ... etc]
 	} else {
-		fmt.Printf("source-profile format defaulting to `dump`\n")
+		logger.Log.Info(fmt.Sprintf("source-profile format defaulting to `dump`\n"))
 		profile.Format = "dump"
 	}
 	return profile
@@ -162,8 +163,8 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
 		// No connection params provided through source-profile. Fetching from env variables.
-		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
-			"environment variables MYSQLHOST, MYSQLUSER, MYSQLDATABASE, MYSQLPORT, MYSQLPWD...\n")
+		logger.Log.Info(fmt.Sprintf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables MYSQLHOST, MYSQLUSER, MYSQLDATABASE, MYSQLPORT, MYSQLPWD...\n"))
 		mysql.Host = os.Getenv("MYSQLHOST")
 		mysql.User = os.Getenv("MYSQLUSER")
 		mysql.Db = os.Getenv("MYSQLDATABASE")
@@ -262,8 +263,8 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
 		// No connection params provided through source-profile. Fetching from env variables.
-		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
-			"environment variables PGHOST, PGUSER, PGDATABASE, PGPORT, PGPASSWORD...\n")
+		logger.Log.Info(fmt.Sprintf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables PGHOST, PGUSER, PGDATABASE, PGPORT, PGPASSWORD...\n"))
 		pg.Host = os.Getenv("PGHOST")
 		pg.User = os.Getenv("PGUSER")
 		pg.Db = os.Getenv("PGDATABASE")
@@ -316,8 +317,8 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionSqlServer(params 
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
 		// No connection params provided through source-profile. Fetching from env variables.
-		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
-			"environment variables MSSQL_IP_ADDRESS, MSSQL_USER, MSSQL_DATABASE, MSSQL_TCP_PORT, MSSQL_SA_PASSWORD...\n")
+		logger.Log.Info(fmt.Sprintf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables MSSQL_IP_ADDRESS, MSSQL_USER, MSSQL_DATABASE, MSSQL_TCP_PORT, MSSQL_SA_PASSWORD...\n"))
 		ss.Host = os.Getenv("MSSQL_IP_ADDRESS") //For default SQL Server instances.
 		ss.Port = os.Getenv("MSSQL_TCP_PORT")
 		ss.Pwd = os.Getenv("MSSQL_SA_PASSWORD")
@@ -325,7 +326,7 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionSqlServer(params 
 		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for Spanner migration tool.
 		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for Spanner migration tool.
 		if ss.User == "" {
-			fmt.Printf("MSSQL_SA_USER environment variable is not set. Default admin user 'SA' will be used for further processing.\n")
+			logger.Log.Info(fmt.Sprintf("MSSQL_SA_USER environment variable is not set. Default admin user 'SA' will be used for further processing.\n"))
 			ss.User = "SA"
 		}
 		// Throw error if the input entered is empty.

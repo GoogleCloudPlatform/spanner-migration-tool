@@ -95,16 +95,16 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 		return err
 	}
 	if tableCount != len(conv.SpSchema) {
-		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
+		logger.Log.Info(fmt.Sprintf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema)))
 		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
 	}
-	fmt.Println("loaded schema")
+	logger.Log.Info(fmt.Sprint("loaded schema"))
 	return nil
 }
 
 func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
 	tables, err := infoSchema.GetTables()
-	fmt.Println("fetched tables", tables)
+	logger.Log.Info(fmt.Sprint("fetched tables", tables))
 	if err != nil {
 		return 0, err
 	}
@@ -125,7 +125,7 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 	r := task.RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
 	res, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, false)
 	if e != nil {
-		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
+		logger.Log.Info(fmt.Sprintf("exiting due to error: %s , while processing schema for table %s\n", e, res))
 		return 0, e
 	}
 

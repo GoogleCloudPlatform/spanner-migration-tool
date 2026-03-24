@@ -1129,8 +1129,8 @@ func App(logLevel string, open bool, port int) error {
 	}
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
-	fmt.Println("Reverse Replication feature in preview: Please refer to https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/reverse_replication/README.md for detailed instructions.")
+	logger.Log.Info(fmt.Sprint("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr)))
+	logger.Log.Info(fmt.Sprint("Reverse Replication feature in preview: Please refer to https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/reverse_replication/README.md for detailed instructions."))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}

@@ -104,11 +104,11 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	//Generate a job Id
 	migrationJobId := conv.Audit.MigrationRequestId
-	fmt.Printf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId)
+	logger.Log.Info(fmt.Sprintf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId))
 	conv.Audit.StreamingStats.ShardToShardResourcesMap = make(map[string]internal.ShardResources)
 	schemaDetails, err := is.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
-		fmt.Printf("unable to determine tableList from schema, falling back to full database")
+		logger.Log.Info(fmt.Sprintf("unable to determine tableList from schema, falling back to full database"))
 		schemaDetails = map[string]internal.SchemaDetails{}
 	}
 	err = streaming.PersistJobDetails(ctx, targetProfile, sourceProfile, conv, migrationJobId, true)
@@ -127,7 +127,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 				return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 			}
 			p.DataShardId = dataShardId
-			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
+			logger.Log.Info(fmt.Sprintf("Data shard id generated: %v\n", p.DataShardId))
 		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, schemaDetails)
@@ -135,7 +135,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
+		logger.Log.Info(fmt.Sprintf("Initiating migration for shard: %v\n", p.DataShardId))
 		pubsubCfg, err := streaming.CreatePubsubResources(ctx, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname, constants.REGULAR_GCS)
 		if err != nil {
 			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
@@ -205,13 +205,13 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 			logger.Log.Debug("Error", zap.Error(dashboardErr))
 		} else {
 			dashboardName = strings.Split(respDash.Name, "/")[3]
-			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
+			logger.Log.Info(fmt.Sprintf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName))
 		}
 		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, migrationProjectId, p.DataShardId, internal.GcsResources{BucketName: gcsBucket}, dashboardName)
 		//persist the generated resources in a metadata db
 		err = streaming.PersistResources(ctx, targetProfile, sourceProfile, conv, migrationJobId, p.DataShardId)
 		if err != nil {
-			fmt.Printf("Error storing generated resources in SMT metadata store for dataShardId: %s...the migration job will still continue as intended, error: %v\n", p.DataShardId, err)
+			logger.Log.Info(fmt.Sprintf("Error storing generated resources in SMT metadata store for dataShardId: %s...the migration job will still continue as intended, error: %v\n", p.DataShardId, err))
 		}
 		return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
@@ -234,7 +234,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 	if dashboardErr != nil {
 		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 	} else {
-		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
+		logger.Log.Info(fmt.Sprintf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3]))
 		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName: strings.Split(aggRespDash.Name, "/")[3]}
 	}
 	err = streaming.PersistAggregateMonitoringResources(ctx, targetProfile, sourceProfile, conv, migrationJobId)
@@ -254,7 +254,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(migrationProjec
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
 
-		fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
+		logger.Log.Info(fmt.Sprintf("Initiating migration for shard: %v\n", dataShard.DbName))
 		infoSchema, err := gi.getInfoSchemaForShard(migrationProjectId, dataShard, sourceProfile.Driver, targetProfile, &profiles.SourceProfileDialectImpl{}, &GetInfoImpl{})
 		if err != nil {
 			return nil, err

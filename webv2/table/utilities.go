@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 const (
@@ -74,7 +75,6 @@ func GetSpannerTableDDL(spannerTable ddl.CreateTable, spDialect string, driver s
 
 	return ddl
 }
-
 
 func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 
@@ -139,7 +139,7 @@ func addColumnToSequence(sequenceId string, tableId, colId string, sequences map
 		for _, c := range cols {
 			if c == colId {
 				found = true
-				fmt.Println(found)
+				logger.Log.Info(fmt.Sprint(found))
 				return sequences
 			}
 		}

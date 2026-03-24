@@ -118,7 +118,6 @@ func TestGetTables(t *testing.T) {
 	mockKeyspace.AssertExpectations(t)
 }
 
-
 func TestGetTypeString(t *testing.T) {
 	tests := []struct {
 		name     string

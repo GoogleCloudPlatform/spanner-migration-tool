@@ -915,7 +915,6 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	tableInterleaveStatus := parentTableHelper(tableId, parentTableId, interleaveType, onDelete, update)
