@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/cloudsqlconn"
-	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra" 
+	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -80,7 +80,13 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		var d *cloudsqlconn.Dialer
+		var err error
+		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
+			d, err = cloudsqlconn.NewDialer(context.Background())
+		} else {
+			d, err = cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
 		}
@@ -91,8 +97,12 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 				return d.Dial(ctx, instanceName, opts...)
 			})
 
-		dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-			sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+		password := "empty"
+		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
+			password = sourceProfile.ConnCloudSQL.Mysql.Pwd
+		}
+		dbURI := fmt.Sprintf("%s:%s@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, password, sourceProfile.ConnCloudSQL.Mysql.Db)
 
 		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
@@ -106,13 +116,22 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 			TargetProfile:      targetProfile,
 		}, nil
 	case constants.POSTGRES:
-		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		var d *cloudsqlconn.Dialer
+		var err error
+		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
+			d, err = cloudsqlconn.NewDialer(context.Background())
+		} else {
+			d, err = cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
 		}
 		var opts []cloudsqlconn.DialOption
 
 		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
+			dsn = fmt.Sprintf("user=%s password=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Pwd, sourceProfile.ConnCloudSQL.Pg.Db)
+		}
 		config, err := pgx.ParseConfig(dsn)
 		if err != nil {
 			return nil, err

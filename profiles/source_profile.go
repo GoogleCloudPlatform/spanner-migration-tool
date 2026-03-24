@@ -108,6 +108,7 @@ type SourceProfileConnectionCloudSQLMySQL struct {
 	InstanceName string
 	Project      string
 	Region       string
+	Pwd          string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
@@ -116,12 +117,16 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	db, dbOk := params["dbName"]
 	instance, instanceOk := params["instance"]
 	project, projectOk := params["project"]
+	password, passwordOk := params["password"]
 	var err error
 	if !projectOk {
 		project, err = g.GetProject()
 		if err != nil {
 			return mysql, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
+	}
+	if !passwordOk {
+		password = ""
 	}
 	region, regionOk := params["region"]
 	if !userOk || !dbOk || !instanceOk || !regionOk {
@@ -132,8 +137,18 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(par
 	mysql.InstanceName = instance
 	mysql.Project = project
 	mysql.Region = region
+	mysql.Pwd = password
+	if secretManagerUri, ok := params["secretManagerUri"]; ok {
+		_, pwd, err := utils.FetchPasswordFromSecretManager(secretManagerUri)
+		if err != nil {
+			return mysql, err
+		}
+		mysql.Pwd = pwd
+	}
 	return mysql, nil
 }
+
+
 
 type SourceProfileConnectionMySQL struct {
 	Host            string // Same as MYSQLHOST environment variable
@@ -209,6 +224,7 @@ type SourceProfileConnectionCloudSQLPostgreSQL struct {
 	InstanceName string
 	Project      string
 	Region       string
+	Pwd          string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
@@ -217,12 +233,16 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	db, dbOk := params["dbName"]
 	instance, instanceOk := params["instance"]
 	project, projectOk := params["project"]
+	password, passwordOk := params["password"]
 	var err error
 	if !projectOk {
 		project, err = g.GetProject()
 		if err != nil {
 			return postgres, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
+	}
+	if !passwordOk {
+		password = ""
 	}
 	region, regionOk := params["region"]
 	if !userOk || !dbOk || !instanceOk || !regionOk {
@@ -233,6 +253,14 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQ
 	postgres.InstanceName = instance
 	postgres.Project = project
 	postgres.Region = region
+	postgres.Pwd = password
+	if secretManagerUri, ok := params["secretManagerUri"]; ok {
+		_, pwd, err := utils.FetchPasswordFromSecretManager(secretManagerUri)
+		if err != nil {
+			return postgres, err
+		}
+		postgres.Pwd = pwd
+	}
 	return postgres, nil
 }
 

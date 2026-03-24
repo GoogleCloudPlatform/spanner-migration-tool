@@ -32,6 +32,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -71,11 +72,12 @@ type SchemaToSpannerImpl struct {
 }
 
 var ErrorTypeMapping = map[string]internal.SchemaIssue{
-	"No matching signature for operator": internal.TypeMismatchError,
-	"Syntax error":                       internal.InvalidConditionError,
-	"Unrecognized name":                  internal.ColumnNotFoundError,
-	"Function not found":                 internal.CheckConstraintFunctionNotFoundError,
-	"unhandled error":                    internal.GenericError,
+	"No matching signature for operator":  internal.TypeMismatchError,
+	"Syntax error":                        internal.InvalidConditionError,
+	"Unrecognized name":                   internal.ColumnNotFoundError,
+	"Function not found":                  internal.CheckConstraintFunctionNotFoundError,
+	"unhandled error":                     internal.GenericError,
+	"Generated Column function not found": internal.GeneratedColumnValueError,
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -97,7 +99,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		conv.AddShardIdColumn()
 	}
 
-	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+	if ss.DdlV != nil && (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
 		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
@@ -105,6 +107,12 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 			return err
 		}
 		spannerSchemaApplyExpressions(conv, expressions)
+		expressionDetails = createPrimaryKeyExpressionVerifyInput(expressions)
+		expressions, err = ss.DdlV.VerifyPrimaryKeysExpressionsUsingCreateTable(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		applyExpressionGeneratedColumnPKErrors(conv, expressions)
 	}
 
 	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
@@ -119,6 +127,23 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 
 	internal.ResolveRefs(conv)
 	return nil
+}
+
+// Returns list of valid primary key expressions. If multiple primary key within a table has valid expressions,
+// then only single instance is added.
+func createPrimaryKeyExpressionVerifyInput(expressions internal.VerifyExpressionsOutput) []internal.ExpressionDetail {
+	// tableId to expressionDetail map
+	expressionDetailMap := make(map[string]internal.ExpressionDetail)
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		if expression.Result {
+			if isPrimaryKey, _ := strconv.ParseBool(expression.ExpressionDetail.Metadata["IsPrimaryKey"]); isPrimaryKey {
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				expressionDetailMap[tableId] = expression.ExpressionDetail
+			}
+		}
+
+	}
+	return maps.Values(expressionDetailMap)
 }
 
 // GenerateExpressionDetailList it will generate the expression detail list which is used in verify expression method as a input
@@ -255,6 +280,12 @@ func RemoveCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
 func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
+	if ss.ExpressionVerificationAccessor == nil {
+		// If accessor is nil, we can't verify expressions, but we should not block the conversion.
+		// This case should ideally be caught earlier by the outer nil check in SchemaToSpannerDDL.
+		// However, adding this for robustness within the function itself.
+		return nil
+	}
 	ctx := context.Background()
 
 	spschema := conv.SpSchema
@@ -264,7 +295,10 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		Source:               conv.Source,
 		ExpressionDetailList: GenerateExpressionDetailList(spschema),
 	}
-	ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	err := ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return err
+	}
 	if len(verifyExpressionsInput.ExpressionDetailList) != 0 {
 		result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 		if result.ExpressionVerificationOutputList == nil {
@@ -671,6 +705,34 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 	return spIndex
 }
 
+// For primary key with Generated expression, we remove the expression and add column error.
+// This happens when the expression itself is correct but the expression is not allowed by Spanner.
+// For eg, multi-column dependencies.
+func removeGeneratedColumnExpressionFromPrimaryKey(conv *internal.Conv, tableId string) {
+	table := conv.SpSchema[tableId]
+	for _, primaryKey := range table.PrimaryKeys {
+		col := table.ColDefs[primaryKey.ColId]
+		if col.GeneratedColumn.IsPresent {
+			col.GeneratedColumn = ddl.GeneratedColumn{
+				IsPresent: false,
+			}
+			colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[primaryKey.ColId]
+			colIssues = append(colIssues, internal.GeneratedColumnValueError)
+			conv.SchemaIssues[tableId].ColumnLevelIssues[primaryKey.ColId] = colIssues
+			conv.SpSchema[tableId].ColDefs[primaryKey.ColId] = col
+		}
+	}
+}
+
+func applyExpressionGeneratedColumnPKErrors(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		if !expression.Result {
+			tableId := expression.ExpressionDetail.Metadata["TableId"]
+			removeGeneratedColumnExpressionFromPrimaryKey(conv, tableId)
+		}
+	}
+}
+
 // Applies all valid expressions which can be migrated to spanner conv object
 func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
 	for _, expression := range expressions.ExpressionVerificationOutputList {
@@ -693,6 +755,28 @@ func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.Ver
 				} else {
 					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
 					colIssues = append(colIssues, internal.DefaultValue)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
+		case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.GeneratedColumn = ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    fmt.Sprintf("(%s)", expression.ExpressionDetail.Expression),
+						},
+						Type: ddl.GeneratedColType(expression.ExpressionDetail.Type),
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.GeneratedColumnValueError)
 					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
 				}
 			}

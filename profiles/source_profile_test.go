@@ -21,11 +21,15 @@ import (
 	"testing"
 	"time"
 
+	secretmanagerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/secretmanager"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
+
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	googleapis "github.com/googleapis/gax-go/v2"
 )
 
 type MockSourceProfileDialect struct {
@@ -171,6 +175,20 @@ func (nspm *MockNewSourceProfile) NewSourceProfileConnectionCloudSQL(source stri
 func (nspm *MockNewSourceProfile) NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error) {
 	args := nspm.Called()
 	return args.Get(0).(SourceProfileConnection), args.Error(1)
+}
+
+type MockSecretManagerClient struct {
+	mock.Mock
+}
+
+func (m *MockSecretManagerClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...googleapis.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
+	args := m.Called(ctx, req, opts)
+	return args.Get(0).(*secretmanagerpb.AccessSecretVersionResponse), args.Error(1)
+}
+
+func (m *MockSecretManagerClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
 }
 
 func TestNewSourceProfileFile(t *testing.T) {
@@ -699,6 +717,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -710,8 +733,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
@@ -758,6 +784,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -769,8 +800,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
@@ -1239,4 +1273,168 @@ func TestNewSourceProfile(t *testing.T) {
 		assert.Equal(t, SourceProfileType(tc.returnTy), res.Ty, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
+}
+
+func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password"
+	secretId := "projects/p/secrets/s/versions/1"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == secretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri": secretId,
+	}
+
+	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, mysql.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password"
+	// User provides ID without version
+	userInputSecretId := "projects/p/secrets/s"
+	// Expect tool to append /versions/latest
+	expectedSecretId := userInputSecretId + "/versions/latest"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == expectedSecretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri":   userInputSecretId,
+	}
+
+	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, mysql.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password-pg"
+	secretId := "projects/p/secrets/s/versions/2"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == secretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri": secretId,
+	}
+
+	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, pg.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLatest(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password-pg"
+	userInputSecretId := "projects/p/secrets/s"
+	expectedSecretId := userInputSecretId + "/versions/latest"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == expectedSecretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri":   userInputSecretId,
+	}
+
+	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, pg.Pwd)
+
+	mockClient.AssertExpectations(t)
 }

@@ -582,6 +582,146 @@ func TestSpannerSchemaApplyExpressions(t *testing.T) {
 					},
 				}),
 		},
+		{
+			name: "successful stored generated value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: true,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "STORED",
+							ExpressionId: "expr2",
+							Expression:   "col2 + 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {
+								GeneratedColumn: ddl.GeneratedColumn{
+									IsPresent: true,
+									Value: ddl.Expression{
+										ExpressionId: "expr2",
+										Statement:    "(col2 + 1)",
+									},
+									Type: ddl.GeneratedColStored,
+								},
+							},
+						},
+					},
+				}, map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				}),
+		},
+		{
+			name: "failed stored generated value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: false,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "STORED",
+							ExpressionId: "expr2",
+							Expression:   "col2 + 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {},
+						},
+					},
+				},
+				map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"col1": {internal.GeneratedColumnValueError},
+						},
+					},
+				}),
+		},
+		{
+			name: "successful virtual generated value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: true,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "VIRTUAL",
+							ExpressionId: "expr3",
+							Expression:   "col2 + 2",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {
+								GeneratedColumn: ddl.GeneratedColumn{
+									IsPresent: true,
+									Value: ddl.Expression{
+										ExpressionId: "expr3",
+										Statement:    "(col2 + 2)",
+									},
+									Type: ddl.GeneratedColVirtual,
+								},
+							},
+						},
+					},
+				}, map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				}),
+		},
+		{
+			name: "failed virtual generated value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: false,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "VIRTUAL",
+							ExpressionId: "expr3",
+							Expression:   "col2 + 2",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {},
+						},
+					},
+				},
+				map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"col1": {internal.GeneratedColumnValueError},
+						},
+					},
+				}),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -757,4 +897,89 @@ func TestSchemaToSpannerDDLHelper_CassandraOpts(t *testing.T) {
 	assert.Equal(t, expectedAnnotation, spCol.Opts["cassandra_type"])
 	mockToddl.AssertCalled(t, "ToSpannerType", mock.Anything, "", mock.AnythingOfType("schema.Type"), mock.AnythingOfType("bool"))
 	mockToddl.AssertCalled(t, "GetTypeOption", "uuid", expectedSpannerType)
+}
+
+func TestCreatePrimaryKeyExpressionVerifyInput(t *testing.T) {
+	expressions := internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{
+				Result: true,
+				ExpressionDetail: internal.ExpressionDetail{
+					Metadata: map[string]string{"TableId": "t1", "IsPrimaryKey": "true"},
+				},
+			},
+			{
+				Result: true,
+				ExpressionDetail: internal.ExpressionDetail{
+					Metadata: map[string]string{"TableId": "t2", "IsPrimaryKey": "false"},
+				},
+			},
+			{
+				Result: false,
+				ExpressionDetail: internal.ExpressionDetail{
+					Metadata: map[string]string{"TableId": "t3", "IsPrimaryKey": "true"},
+				},
+			},
+			{
+				Result: true,
+				ExpressionDetail: internal.ExpressionDetail{
+					Metadata: map[string]string{"TableId": "t1", "IsPrimaryKey": "true"},
+				},
+			},
+		},
+	}
+	res := createPrimaryKeyExpressionVerifyInput(expressions)
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "t1", res[0].Metadata["TableId"])
+}
+
+func TestRemoveGeneratedColumnExpressionFromPrimaryKey(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SchemaIssues = make(map[string]internal.TableIssues)
+	conv.SchemaIssues["t1"] = internal.TableIssues{ColumnLevelIssues: make(map[string][]internal.SchemaIssue)}
+	conv.SpSchema = ddl.Schema{
+		"t1": ddl.CreateTable{
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+					},
+				},
+			},
+		},
+	}
+	removeGeneratedColumnExpressionFromPrimaryKey(conv, "t1")
+	assert.False(t, conv.SpSchema["t1"].ColDefs["c1"].GeneratedColumn.IsPresent)
+	assert.Contains(t, conv.SchemaIssues["t1"].ColumnLevelIssues["c1"], internal.GeneratedColumnValueError)
+}
+
+func TestApplyExpressionGeneratedColumnPKErrors(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SchemaIssues = make(map[string]internal.TableIssues)
+	conv.SchemaIssues["t1"] = internal.TableIssues{ColumnLevelIssues: make(map[string][]internal.SchemaIssue)}
+	conv.SpSchema = ddl.Schema{
+		"t1": ddl.CreateTable{
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+					},
+				},
+			},
+		},
+	}
+	expressions := internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{
+				Result: false,
+				ExpressionDetail: internal.ExpressionDetail{
+					Metadata: map[string]string{"TableId": "t1", "IsPrimaryKey": "true"},
+				},
+			},
+		},
+	}
+	applyExpressionGeneratedColumnPKErrors(conv, expressions)
+	assert.False(t, conv.SpSchema["t1"].ColDefs["c1"].GeneratedColumn.IsPresent)
 }

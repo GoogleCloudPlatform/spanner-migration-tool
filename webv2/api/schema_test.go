@@ -390,10 +390,22 @@ func TestGetTableWithErrors(t *testing.T) {
 						Name: "table1",
 						Id:   "t1",
 					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c5": {},
+						},
+					},
 				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {ColumnLevelIssues: map[string][]internal.SchemaIssue{
 						"c1": {},
+						"c5": {},
+					}},
+					"t2": {ColumnLevelIssues: map[string][]internal.SchemaIssue{
+						"c5": {},
 					}},
 				},
 			},
@@ -410,6 +422,16 @@ func TestGetTableWithErrors(t *testing.T) {
 									Metadata:     map[string]string{"TableId": "t1", "ColId": "c1"},
 								},
 							},
+							{
+								Result: false,
+								ExpressionDetail: internal.ExpressionDetail{
+									Type:         "STORED",
+									ExpressionId: "expr2",
+									Expression:   "SELECT 1",
+									Metadata:     map[string]string{"TableId": "t2", "ColId": "c5"},
+								},
+								Err: fmt.Errorf("expressions verification failed"),
+							},
 						},
 					}, fmt.Errorf("expressions either failed verification")
 				},
@@ -425,7 +447,7 @@ func TestGetTableWithErrors(t *testing.T) {
 				},
 			},
 			expectedTableIdName: []types.TableIdAndName{
-				{Id: "t1", Name: "table1"},
+				{Id: "t1", Name: "table1"}, {Id: "t2", Name: "table2"},
 			},
 			statusCode: http.StatusOK,
 		},
@@ -1840,7 +1862,7 @@ func TestSetParentTable(t *testing.T) {
 			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "The child table 't1' does not have primary key 'c2' of parent table 't2'."},
-		    update:		      true,
+			update:           true,
 		},
 		{
 			name: "interleave causes cycle",
@@ -1875,7 +1897,7 @@ func TestSetParentTable(t *testing.T) {
 			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Interleaving table 't2' in parent table 't1' will create a cycle."},
-			update:		      true,
+			update:           true,
 		},
 		{
 			name: "successful interleave IN",
@@ -2020,8 +2042,8 @@ func TestSetParentTable(t *testing.T) {
 			update:           true,
 		},
 		{
-			name: 		   "child table has less primary keys than parent table",
-			ct:             &internal.Conv{
+			name: "child table has less primary keys than parent table",
+			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -2054,11 +2076,11 @@ func TestSetParentTable(t *testing.T) {
 			statusCode:     http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{
 				Possible: false, Comment: "The child table 't1' has '1' primary keys, which is less than the parent table 't2' primary keys count of '2'."},
-			update: 	    true,
+			update: true,
 		},
 		{
-			name:	   "both parent and child tables have no primary keys",
-			ct:             &internal.Conv{
+			name: "both parent and child tables have no primary keys",
+			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -2090,7 +2112,7 @@ func TestSetParentTable(t *testing.T) {
 			statusCode:     http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{
 				Possible: false, Comment: "Both parent table 't2' and child table 't1' must have primary keys."},
-			update: 	    true,
+			update: true,
 		},
 		{
 			name:             "invalid onDelete value",
@@ -2137,8 +2159,8 @@ func TestSetParentTable(t *testing.T) {
 			update:           true,
 		},
 		{
-			name:             "get interleave status without updating",
-			ct:               &internal.Conv{
+			name: "get interleave status without updating",
+			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -2526,7 +2548,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		},
 		"t2": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c20": {internal.Widened},    //l
+				"c20": {internal.Widened}, //l
 			},
 		},
 	}
@@ -2982,4 +3004,43 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			assert.Equal(t, tc.expectedResponse, response.HasErrorOccurred)
 		})
 	}
+}
+
+func TestHandleExpressionColError(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SchemaIssues = map[string]internal.TableIssues{
+		"table1": {
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"col1": {},
+			},
+		},
+	}
+	handler := &api.TableAPIHandler{}
+	
+	tc1 := &internal.ExpressionVerificationOutput{
+		Result: false,
+		Err:    fmt.Errorf("some error"),
+		ExpressionDetail: internal.ExpressionDetail{
+			Metadata: map[string]string{
+				"TableId": "table1",
+				"ColId":   "col1",
+			},
+		},
+	}
+	res := handler.HandleExpressionColErrorForTest(tc1, conv, internal.GeneratedColumnValueError)
+	assert.Equal(t, "table1", res)
+	assert.Equal(t, []internal.SchemaIssue{internal.GeneratedColumnValueError}, conv.SchemaIssues["table1"].ColumnLevelIssues["col1"])
+
+	tc2 := &internal.ExpressionVerificationOutput{
+		Result: true,
+		Err:    nil,
+		ExpressionDetail: internal.ExpressionDetail{
+			Metadata: map[string]string{
+				"TableId": "table1",
+				"ColId":   "col1",
+			},
+		},
+	}
+	res2 := handler.HandleExpressionColErrorForTest(tc2, conv, internal.DefaultValueError)
+	assert.Equal(t, "", res2)
 }
