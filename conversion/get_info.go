@@ -108,6 +108,9 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		return mysql.InfoSchemaImpl{
 			DbName:             sourceProfile.ConnCloudSQL.Mysql.Db,
 			Db:                 db,
@@ -145,6 +148,9 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
@@ -171,6 +177,9 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err != nil {
 			return nil, err
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		return mysql.InfoSchemaImpl{
 			DbName:             dbName,
 			Db:                 db,
@@ -182,6 +191,9 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
 			return nil, err
+		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
@@ -210,12 +222,18 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err != nil {
 			return nil, err
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.ORACLE:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
 			return nil, err
+		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	case constants.CASSANDRA:
@@ -224,7 +242,7 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		return cassandra.InfoSchemaImpl{
-			KeyspaceMetadata: ksMetadata, 
+			KeyspaceMetadata: ksMetadata,
 			SourceProfile:    sourceProfile,
 			TargetProfile:    targetProfile,
 		}, nil

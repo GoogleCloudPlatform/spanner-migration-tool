@@ -141,7 +141,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		schemaToSpanner := common.SchemaToSpannerImpl{
 			ExpressionVerificationAccessor: expressionVerificationAccessor,
 		}
-		err := schemaToSpanner.VerifyExpressions(conv)
+		err = schemaToSpanner.VerifyExpressions(conv)
 
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Error while verifying the expressions %v", err))
@@ -149,7 +149,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		}
 	} else {
 		ctx := context.Background()
-		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+		var ddlVerifier *expressions_api.DDLVerifierImpl
+		ddlVerifier, err = expressions_api.NewDDLVerifierImpl(ctx, "", "")
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
 			return subcommands.ExitFailure

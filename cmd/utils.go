@@ -221,7 +221,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err = ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +265,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err = ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
