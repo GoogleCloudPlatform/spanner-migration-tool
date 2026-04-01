@@ -697,7 +697,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.UI = true
-	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(ctx, sessionState, details)
 	// TODO: Fix UX flow of migration project id
 	migrationProjectId := sessionState.GCPProjectID
 	if sessionState.SpannerProjectId == "" {
@@ -816,7 +816,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(generatedResources)
 }
 
-func getSourceAndTargetProfiles(sessionState *session.SessionState, details types.MigrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
+func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.SessionState, details types.MigrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
 		err                 error
@@ -889,7 +889,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
-	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(ctx, sourceProfileString, targetProfileString, source)
 	if err != nil && sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}

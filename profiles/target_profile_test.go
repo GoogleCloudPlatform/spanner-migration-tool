@@ -15,10 +15,13 @@
 package profiles
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 func TestNewTargetProfile(t *testing.T) {
@@ -30,16 +33,13 @@ func TestNewTargetProfile(t *testing.T) {
 	}{
 		{
 			targetProfileString: "",
-			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
-				Dialect: constants.DIALECT_GOOGLESQL,
-			},
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{},
 			expectedErr: false,
 		},
 		{
 			targetProfileString: "instance=test-instance,defaultTimezone=America/New_York",
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Instance: "test-instance",
-				Dialect: constants.DIALECT_GOOGLESQL,
 				DefaultTimezone: "America/New_York",
 			},
 			expectedErr: false,
@@ -48,7 +48,6 @@ func TestNewTargetProfile(t *testing.T) {
 			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=10-50",
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Instance: "test-instance",
-				Dialect: constants.DIALECT_GOOGLESQL,
 			},
 			expectedDefaultIdentityOptions: DefaultIdentityOptions{
 				SkipRangeMin: "10",
@@ -60,7 +59,6 @@ func TestNewTargetProfile(t *testing.T) {
 			targetProfileString: "instance=test-instance,defaultIdentityStartCounterWith=100",
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Instance: "test-instance",
-				Dialect: constants.DIALECT_GOOGLESQL,
 			},
 			expectedDefaultIdentityOptions: DefaultIdentityOptions{
 				StartCounterWith: "100",
@@ -71,7 +69,6 @@ func TestNewTargetProfile(t *testing.T) {
 			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=100-500,defaultIdentityStartCounterWith=10",
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Instance: "test-instance",
-				Dialect: constants.DIALECT_GOOGLESQL,
 			},
 			expectedDefaultIdentityOptions: DefaultIdentityOptions{
 				SkipRangeMin: "100",
@@ -216,4 +213,73 @@ func TestExtractDefaultIdentityOptions(t *testing.T) {
 			assert.Equal(t, tc.expectedDefaultIdentityOptions, actual)
 		}
 	}
+}
+
+type mockDatabaseAdminClient struct {
+	GetDatabaseFunc func(ctx context.Context, req *adminpb.GetDatabaseRequest, opts ...gax.CallOption) (*adminpb.Database, error)
+}
+
+func (m *mockDatabaseAdminClient) GetDatabase(ctx context.Context, req *adminpb.GetDatabaseRequest, opts ...gax.CallOption) (*adminpb.Database, error) {
+	if m.GetDatabaseFunc != nil {
+		return m.GetDatabaseFunc(ctx, req, opts...)
+	}
+	return nil, fmt.Errorf("unimplemented")
+}
+
+func (m *mockDatabaseAdminClient) Close() error {
+	return nil
+}
+
+func TestFetchTargetDialect_Validation(t *testing.T) {
+	origNewDatabaseAdminClient := NewDatabaseAdminClient
+	defer func() {
+		NewDatabaseAdminClient = origNewDatabaseAdminClient
+	}()
+
+	trg := TargetProfile{
+		Conn: TargetProfileConnection{
+			Ty: TargetProfileConnectionTypeSpanner,
+			Sp: TargetProfileConnectionSpanner{
+				Project:  "test-project",
+				Instance: "test-instance",
+				Dbname:   "test-db",
+			},
+		},
+	}
+
+	// Test Case 1: Valid GoogleSQL
+	NewDatabaseAdminClient = func(ctx context.Context) (DatabaseAdminClient, error) {
+		return &mockDatabaseAdminClient{
+			GetDatabaseFunc: func(ctx context.Context, req *adminpb.GetDatabaseRequest, opts ...gax.CallOption) (*adminpb.Database, error) {
+				return &adminpb.Database{DatabaseDialect: adminpb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
+			},
+		}, nil
+	}
+	dialect, err := trg.FetchTargetDialect(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, "google_standard_sql", dialect)
+
+	// Test Case 2: Valid PostgreSQL
+	NewDatabaseAdminClient = func(ctx context.Context) (DatabaseAdminClient, error) {
+		return &mockDatabaseAdminClient{
+			GetDatabaseFunc: func(ctx context.Context, req *adminpb.GetDatabaseRequest, opts ...gax.CallOption) (*adminpb.Database, error) {
+				return &adminpb.Database{DatabaseDialect: adminpb.DatabaseDialect_POSTGRESQL}, nil
+			},
+		}, nil
+	}
+	dialect, err = trg.FetchTargetDialect(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, "postgresql", dialect)
+
+	// Test Case 3: Invalid Unspecified Dialect
+	NewDatabaseAdminClient = func(ctx context.Context) (DatabaseAdminClient, error) {
+		return &mockDatabaseAdminClient{
+			GetDatabaseFunc: func(ctx context.Context, req *adminpb.GetDatabaseRequest, opts ...gax.CallOption) (*adminpb.Database, error) {
+				return &adminpb.Database{DatabaseDialect: adminpb.DatabaseDialect_DATABASE_DIALECT_UNSPECIFIED}, nil
+			},
+		}, nil
+	}
+	_, err = trg.FetchTargetDialect(context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported database dialect")
 }
