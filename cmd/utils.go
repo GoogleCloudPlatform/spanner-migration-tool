@@ -143,10 +143,14 @@ func PrepareMigrationPrerequisites(ctx context.Context, sourceProfileString, tar
 	}
 
 	getInfo := utils.GetUtilInfoImpl{}
-	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
-	if err != nil {
-		err = fmt.Errorf("can't generate database name for prefix: %v", err)
-		return sourceProfile, targetProfile, ioHelper, "", err
+	dbName := targetProfile.Conn.Sp.Dbname
+	if dbName == "" {
+		var err error
+		dbName, err = getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
+		if err != nil {
+			err = fmt.Errorf("can't generate database name for prefix: %v", err)
+			return sourceProfile, targetProfile, ioHelper, "", err
+		}
 	}
 
 	if targetProfile.Conn.Sp.Dialect == "" {
