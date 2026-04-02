@@ -82,8 +82,6 @@ type SpannerAccessor interface {
 	DropDatabase(ctx context.Context, dbURI string) error
 	//Runs a query against the provided spanner database and returns if the executed DML is validate or not
 	ValidateDML(ctx context.Context, query string) (bool, error)
-	// GetTableNamesFromSpanner returns the list of tables in the spanner database.
-	GetTableNamesFromSpanner(ctx context.Context, dialect, dbURI string, client *sp.Client) ([]string, error)
 
 	TableExists(ctx context.Context, tableName string) (bool, error)
 

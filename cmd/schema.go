@@ -103,7 +103,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 	defer logger.Log.Sync()
 	// validate and parse source-profile, target-profile and source
-	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(ctx, cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
@@ -124,6 +124,14 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = dbName
+	}
+
+	if !cmd.dryRun {
+		_, _, _, err = targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, ioHelper.Out, &utils.GetUtilInfoImpl{})
+		if err != nil {
+			err = fmt.Errorf("failed to populate target profile: %v", err)
+			return subcommands.ExitFailure
+		}
 	}
 
 	schemaConversionStartTime := time.Now()

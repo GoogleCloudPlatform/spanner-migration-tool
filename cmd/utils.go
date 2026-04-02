@@ -42,8 +42,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -51,11 +49,6 @@ var (
 	schemaFile    = ".schema.txt"
 	sessionFile   = ".session.json"
 	overridesFile = ".overrides.json"
-	newSpannerAccessorClient = func(ctx context.Context) (spanneraccessor.SpannerAccessor, error) {
-		return spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-	}
-	createDatabaseClient = CreateDatabaseClient
-	checkOrCreateMetadataDb = helpers.CheckOrCreateMetadataDb
 )
 
 const (
@@ -117,8 +110,8 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 }
 
 // PrepareMigrationPrerequisites creates source and target profiles, opens a new IOStream and generates the database name.
-func PrepareMigrationPrerequisites(ctx context.Context, sourceProfileString, targetProfileString, source string) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
-	targetProfile, err := profiles.NewTargetProfile(targetProfileString)
+func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source string, dryRun bool) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
+	targetProfile, err := profiles.NewTargetProfile(targetProfileString, dryRun)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
 	}
@@ -143,31 +136,13 @@ func PrepareMigrationPrerequisites(ctx context.Context, sourceProfileString, tar
 	}
 
 	getInfo := utils.GetUtilInfoImpl{}
-	dbName := targetProfile.Conn.Sp.Dbname
-	if dbName == "" {
-		var err error
-		dbName, err = getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
-		if err != nil {
-			err = fmt.Errorf("can't generate database name for prefix: %v", err)
-			return sourceProfile, targetProfile, ioHelper, "", err
-		}
+	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
+	if err != nil {
+		err = fmt.Errorf("can't generate database name for prefix: %v", err)
+		return sourceProfile, targetProfile, ioHelper, "", err
 	}
-
-	if targetProfile.Conn.Sp.Dialect == "" {
-		dialect, err := targetProfile.FetchTargetDialect(ctx)
-		if err != nil {
-			if status.Code(err) == codes.NotFound {
-				targetProfile.Conn.Sp.Dialect = constants.DIALECT_GOOGLESQL
-			} else {
-				return sourceProfile, targetProfile, ioHelper, "", err
-			}
-		} else {
-			targetProfile.Conn.Sp.Dialect = dialect
-		}
-	}
-
 	// check or create the internal metadata database for all flows.
-	checkOrCreateMetadataDb(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+	helpers.CheckOrCreateMetadataDb(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
@@ -182,35 +157,13 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 			*migrationError = err
 		}
 	}()
-	adminClient, client, dbURI, err := createDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
+	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
 	if err != nil {
 		err = fmt.Errorf("can't create database client: %v", err)
 		return nil, err
 	}
-	if adminClient != nil {
-		defer adminClient.Close()
-	}
-	if client != nil {
-		defer client.Close()
-	}
-
-	spA, err := newSpannerAccessorClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("can't create spanner accessor: %v", err)
-	}
-	dbExists, err := spA.CheckExistingDb(ctx, dbURI)
-	if err != nil {
-		return nil, err
-	}
-	if dbExists {
-		actualDialect, err := spA.GetDatabaseDialect(ctx, dbURI)
-		if err != nil {
-			return nil, err
-		}
-		if targetProfile.Conn.Sp.Dialect != "" && actualDialect != targetProfile.Conn.Sp.Dialect {
-			return nil, fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetProfile.Conn.Sp.Dialect, actualDialect)
-		}
-	}
+	defer adminClient.Close()
+	defer client.Close()
 	// Before this point, the actual DB name to use isn't finalized...
 	conv.DatabaseOptions = ddl.DatabaseOptions{
 		DbName: targetProfile.Conn.Sp.Dbname,
@@ -233,7 +186,7 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client) error {
-	spA, err := newSpannerAccessorClient(ctx)
+	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
 	}
@@ -283,7 +236,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		spA, err := newSpannerAccessorClient(ctx)
+		spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return bw, err
 		}
@@ -294,7 +247,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 
 func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	spA, err := newSpannerAccessorClient(ctx)
+	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +287,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 }
 
 func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spanneraccessorClient, err := newSpannerAccessorClient(ctx)
+	spanneraccessor, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
 	}
@@ -346,7 +299,7 @@ func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId st
 	if err != nil {
 		return err
 	}
-	validateResource := conversion.NewValidateResourcesImpl(spanneraccessorClient, &datastream_accessor.DatastreamAccessorImpl{},
+	validateResource := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, instanceId, sourceProfile, conv)
 	if err != nil {

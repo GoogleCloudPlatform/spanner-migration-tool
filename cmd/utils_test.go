@@ -15,15 +15,8 @@
 package cmd
 
 import (
-	"context"
 	"testing"
 
-	sp "cloud.google.com/go/spanner"
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,57 +72,3 @@ func TestGetSessionFileName(t *testing.T) {
 		})
 	}
 }
-
-func TestMigrateDatabase_DialectValidation(t *testing.T) {
-	origNewSpannerAccessorClient := newSpannerAccessorClient
-	origCreateDatabaseClient := createDatabaseClient
-	defer func() {
-		newSpannerAccessorClient = origNewSpannerAccessorClient
-		createDatabaseClient = origCreateDatabaseClient
-	}()
-
-	mockSpA := &spanneraccessor.SpannerAccessorMock{
-		CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
-			return true, nil
-		},
-		GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
-			return "postgresql", nil
-		},
-	}
-
-	newSpannerAccessorClient = func(ctx context.Context) (spanneraccessor.SpannerAccessor, error) {
-		return mockSpA, nil
-	}
-
-	createDatabaseClient = func(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
-		return nil, nil, "projects/p/instances/i/databases/d", nil
-	}
-
-	// Case 1: Dialect mismatch (Target Profile says GoogleSQL, DB is PostgreSQL)
-	trgProfileGoogleSQL := profiles.TargetProfile{
-		Conn: profiles.TargetProfileConnection{
-			Sp: profiles.TargetProfileConnectionSpanner{
-				Dialect: "googlesql",
-			},
-		},
-	}
-	srcProfile := profiles.SourceProfile{}
-	ioHelper := &utils.IOStreams{}
-	conv := &internal.Conv{}
-
-	_, err := MigrateDatabase(context.Background(), "project", trgProfileGoogleSQL, srcProfile, "db", ioHelper, nil, conv, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "database dialect is different for target dialect")
-
-	// Case 2: Dialects match (Target Profile says PostgreSQL, DB is PostgreSQL)
-	trgProfilePostgreSQL := profiles.TargetProfile{
-		Conn: profiles.TargetProfileConnection{
-			Sp: profiles.TargetProfileConnectionSpanner{
-				Dialect: "postgresql",
-			},
-		},
-	}
-	_, err = MigrateDatabase(context.Background(), "project", trgProfilePostgreSQL, srcProfile, "db", ioHelper, nil, conv, nil)
-	assert.NoError(t, err)
-}
-

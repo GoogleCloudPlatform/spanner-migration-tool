@@ -16,7 +16,6 @@ package spanneraccessor
 import (
 	"context"
 
-	sp "cloud.google.com/go/spanner"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 
@@ -48,7 +47,6 @@ type SpannerAccessorMock struct {
 	SetSpannerClientMock            func(spannerClient spannerclient.SpannerClient)
 	GetSpannerClientMock            func() spannerclient.SpannerClient
 	GetSpannerAdminClientMock       func() spanneradmin.AdminClient
-	GetTableNamesFromSpannerMock    func(ctx context.Context, dialect, dbURI string, client *sp.Client) ([]string, error)
 }
 
 func (sam *SpannerAccessorMock) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
@@ -133,11 +131,3 @@ func (sam *SpannerAccessorMock) GetSpannerClient() spannerclient.SpannerClient {
 func (sam *SpannerAccessorMock) GetSpannerAdminClient() spanneradmin.AdminClient {
 	return sam.GetSpannerAdminClientMock()
 }
-
-func (sam *SpannerAccessorMock) GetTableNamesFromSpanner(ctx context.Context, dialect, dbURI string, client *sp.Client) ([]string, error) {
-	if sam.GetTableNamesFromSpannerMock != nil {
-		return sam.GetTableNamesFromSpannerMock(ctx, dialect, dbURI, client)
-	}
-	return nil, nil
-}
-

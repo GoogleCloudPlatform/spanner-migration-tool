@@ -27,6 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"golang.org/x/net/context"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type TargetProfileType int
@@ -82,9 +84,8 @@ var NewDatabaseAdminClient = func(ctx context.Context) (DatabaseAdminClient, err
 	return client, nil
 }
 
-// This expects that GetResourceIds has already been called once and the project, instance and dbName
-// fields in target profile are populated.
-func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error) {
+
+func (trg TargetProfile) FetchTargetDialect(ctx context.Context, project, instance, dbName string) (string, error) {
 	// TODO: consider moving all clients to target profile instead of passing them around the codebase.
 	// Ideally we should use the client we create at the beginning, but we can fix that with the refactoring.
 	adminClient, err := NewDatabaseAdminClient(ctx)
@@ -95,11 +96,7 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 		return "", fmt.Errorf("admin client is nil")
 	}
 	defer adminClient.Close()
-	// The parameters are irrelevant because the results are already cached when called the first time.
-	project, instance, dbName, err := trg.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
-	if err != nil {
-		return "", fmt.Errorf("cannot parse target profile: %w", err)
-	}
+
 	result, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)})
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to target: %w", err)
@@ -141,6 +138,24 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 		}
 		targetProfile.Conn.Sp.Dbname = dbName
 	}
+
+	// Fetch and verify dialect
+	actualDialect, dialectErr := targetProfile.FetchTargetDialect(ctx, project, instance, dbName)
+	if dialectErr != nil {
+		if status.Code(dialectErr) == codes.NotFound {
+			if targetProfile.Conn.Sp.Dialect == "" {
+				targetProfile.Conn.Sp.Dialect = constants.DIALECT_GOOGLESQL
+			}
+		} else {
+			return project, instance, dbName, fmt.Errorf("failed to fetch target dialect: %v", dialectErr)
+		}
+	} else {
+		if targetProfile.Conn.Sp.Dialect != "" && targetProfile.Conn.Sp.Dialect != actualDialect {
+			return project, instance, dbName, fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetProfile.Conn.Sp.Dialect, actualDialect)
+		}
+		targetProfile.Conn.Sp.Dialect = actualDialect
+	}
+
 	return project, instance, dbName, err
 }
 
@@ -162,7 +177,7 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 //
 // Example: -target-profile="instance=my-instance1,dbName=my-new-db1"
 // Example: -target-profile="instance=my-instance1,dbName=my-new-db1,dialect=PostgreSQL"
-func NewTargetProfile(s string) (TargetProfile, error) {
+func NewTargetProfile(s string, isDryRun bool) (TargetProfile, error) {
 	params, err := ParseMap(s)
 	if err != nil {
 		return TargetProfile{}, fmt.Errorf("could not parse target profile, error = %v", err)
@@ -187,6 +202,11 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	if defaultTimezone, ok := params["defaultTimezone"]; ok {
 		sp.DefaultTimezone = defaultTimezone
 	}
+
+	if sp.Dialect == "" && isDryRun {
+		sp.Dialect = constants.DIALECT_GOOGLESQL
+	}
+
 	if sp.Dialect != "" && sp.Dialect != constants.DIALECT_POSTGRESQL && sp.Dialect != constants.DIALECT_GOOGLESQL {
 		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}

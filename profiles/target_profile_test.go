@@ -100,7 +100,7 @@ func TestNewTargetProfile(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual, err := NewTargetProfile(tc.targetProfileString)
+		actual, err := NewTargetProfile(tc.targetProfileString, false)
 		if tc.expectedErr {
 			assert.Equal(t, TargetProfile{}, actual)
 			assert.Error(t, err)
@@ -255,7 +255,7 @@ func TestFetchTargetDialect_Validation(t *testing.T) {
 			},
 		}, nil
 	}
-	dialect, err := trg.FetchTargetDialect(context.Background())
+	dialect, err := trg.FetchTargetDialect(context.Background(), trg.Conn.Sp.Project, trg.Conn.Sp.Instance, trg.Conn.Sp.Dbname)
 	assert.NoError(t, err)
 	assert.Equal(t, "google_standard_sql", dialect)
 
@@ -267,7 +267,7 @@ func TestFetchTargetDialect_Validation(t *testing.T) {
 			},
 		}, nil
 	}
-	dialect, err = trg.FetchTargetDialect(context.Background())
+	dialect, err = trg.FetchTargetDialect(context.Background(), trg.Conn.Sp.Project, trg.Conn.Sp.Instance, trg.Conn.Sp.Dbname)
 	assert.NoError(t, err)
 	assert.Equal(t, "postgresql", dialect)
 
@@ -279,7 +279,7 @@ func TestFetchTargetDialect_Validation(t *testing.T) {
 			},
 		}, nil
 	}
-	_, err = trg.FetchTargetDialect(context.Background())
+	_, err = trg.FetchTargetDialect(context.Background(), trg.Conn.Sp.Project, trg.Conn.Sp.Instance, trg.Conn.Sp.Dbname)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported database dialect")
 }

@@ -109,7 +109,7 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 		return subcommands.ExitSuccess
 	}
 
-	conv, sourceProfile, exitStatus := generateConv(ctx, cmd)
+	conv, sourceProfile, exitStatus := generateConv(cmd)
 	if conv == nil {
 		return exitStatus
 	}
@@ -141,8 +141,8 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 	return subcommands.ExitSuccess
 }
 
-func generateConv(ctx context.Context, cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
-	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(ctx, cmd.sourceProfile, cmd.targetProfile, cmd.source)
+func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
+	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return nil, profiles.SourceProfile{}, subcommands.ExitUsageError
