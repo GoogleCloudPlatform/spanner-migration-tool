@@ -142,7 +142,7 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 }
 
 func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
-	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return nil, profiles.SourceProfile{}, subcommands.ExitUsageError

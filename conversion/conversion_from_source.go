@@ -189,18 +189,6 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 	conv.SpProjectId = targetProfile.Conn.Sp.Project
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
-	dialect, err := targetProfile.FetchTargetDialect(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch dialect: %v", err)
-	}
-	if strings.ToLower(dialect) != constants.DIALECT_POSTGRESQL {
-		dialect = constants.DIALECT_GOOGLESQL
-	}
-
-	if dialect != conv.SpDialect {
-		return nil, fmt.Errorf("dialect specified in target profile does not match spanner dialect")
-	}
-
 	delimiterStr := sourceProfile.Csv.Delimiter
 	if len(delimiterStr) != 1 {
 		return nil, fmt.Errorf("delimiter should only be a single character long, found '%s'", delimiterStr)
@@ -208,7 +196,7 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 
 	delimiter := rune(delimiterStr[0])
 
-	err = utils.ReadSpannerSchema(ctx, conv, client)
+	err := utils.ReadSpannerSchema(ctx, conv, client)
 	if err != nil {
 		return nil, fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}

@@ -109,7 +109,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	defer logger.Log.Sync()
 	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
 	// validate and parse source-profile, target-profile and source
-	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
@@ -147,6 +147,13 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 	sfs := &conversion.SchemaFromSourceImpl{
 		DdlVerifier: ddlVerifier,
+	}
+	if !cmd.dryRun {
+		_, _, _, err = targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, ioHelper.Out, &utils.GetUtilInfoImpl{})
+		if err != nil {
+			err = fmt.Errorf("failed to populate target profile: %v", err)
+			return subcommands.ExitFailure
+		}
 	}
 	conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
 	if err != nil {
