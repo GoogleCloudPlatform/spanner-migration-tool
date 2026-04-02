@@ -2,6 +2,7 @@ package webv2
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -319,7 +320,7 @@ func TestGetSourceAndTargetProfiles_Cassandra(t *testing.T) {
 		MigrationMode: helpers.SCHEMA_ONLY,
 	}
 
-	sourceProfile, _, _, _, err := getSourceAndTargetProfiles(sessionState, details)
+	sourceProfile, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
 
 	assert.NoError(t, err)
 	assert.Equal(t, constants.CASSANDRA, sourceProfile.Driver)

@@ -113,7 +113,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conv := internal.MakeConv()
 	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
 	// validate and parse source-profile, target-profile and source
-	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError

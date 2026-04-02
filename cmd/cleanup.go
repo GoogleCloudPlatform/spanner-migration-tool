@@ -80,7 +80,7 @@ func (cmd *CleanupCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
-	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
+	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile, false)
 	if err != nil {
 		logger.Log.Debug(fmt.Sprintf("Target profile is not properly configured, this is needed for SMT to lookup job details in the metadata database: %v\n", err))
 		return subcommands.ExitFailure
