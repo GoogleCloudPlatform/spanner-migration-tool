@@ -1,5 +1,5 @@
 # --- Go Builder Stage ---
-FROM golang:1.24-bullseye AS go-builder
+FROM golang:1.25-bullseye AS go-builder
 
 # Disable cgo to remove gcc dependency
 ENV CGO_ENABLED=0
