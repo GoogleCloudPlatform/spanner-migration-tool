@@ -4,9 +4,10 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { MigrationDetails, TargetDetails } from 'src/app/app.constants'
 import { ISpannerDetails } from 'src/app/model/conv'
 @Component({
-  selector: 'app-target-details-form',
-  templateUrl: './target-details-form.component.html',
-  styleUrls: ['./target-details-form.component.scss'],
+    selector: 'app-target-details-form',
+    templateUrl: './target-details-form.component.html',
+    styleUrls: ['./target-details-form.component.scss'],
+    standalone: false
 })
 export class TargetDetailsFormComponent implements OnInit {
   targetDetailsForm: FormGroup

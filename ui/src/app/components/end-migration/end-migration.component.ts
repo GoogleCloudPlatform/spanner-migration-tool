@@ -5,9 +5,10 @@ import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
 @Component({
-  selector: 'app-end-migration',
-  templateUrl: './end-migration.component.html',
-  styleUrls: ['./end-migration.component.scss']
+    selector: 'app-end-migration',
+    templateUrl: './end-migration.component.html',
+    styleUrls: ['./end-migration.component.scss'],
+    standalone: false
 })
 export class EndMigrationComponent implements OnInit {
 
