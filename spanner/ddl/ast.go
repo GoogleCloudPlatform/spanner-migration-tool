@@ -228,14 +228,9 @@ func isSourceCaseSensitive(source string) bool {
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			if isIdentifierReservedInPG(s) || isSourceCaseSensitive(c.Source) {
-				return "\"" + s + "\""
-			} else {
-				return s
-			}
-		} else {
-			return "`" + s + "`"
+			return "\"" + s + "\""
 		}
+		return "`" + s + "`"
 	}
 	return s
 }
