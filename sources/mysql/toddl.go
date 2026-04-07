@@ -42,12 +42,16 @@ var maxMysqlSizesMap = map[string]int64{
 
 const maxLengthPerCell = 10_485_760
 
-func getMaxSize(srcType string) int64 {
+func getMaxSize(srcType string) (int64, []internal.SchemaIssue) {
 	value, found := maxMysqlSizesMap[strings.ToUpper(srcType)]
 	if !found {
-		value = ddl.MaxLength
+		// Since the source type is not found, this can be both widening or overflow.
+		return maxLengthPerCell, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}
 	}
-	return min(value, maxLengthPerCell)
+	if value > maxLengthPerCell {
+		return maxLengthPerCell, []internal.SchemaIssue{internal.PossibleOverflow}
+	}
+	return value, nil
 }
 
 // ToSpannerType maps a scalar source schema type (defined by id and
@@ -78,8 +82,8 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 	switch autoGenCol.GenerationType {
 	case constants.AUTO_INCREMENT:
 		autoGen := &ddl.AutoGenCol{
-			Name: constants.IDENTITY,
-			GenerationType: constants.IDENTITY,
+			Name:            constants.IDENTITY,
+			GenerationType:  constants.IDENTITY,
 			IdentityOptions: conv.DefaultIdentityOptions,
 		}
 		return autoGen, nil
@@ -142,7 +146,7 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// capabilities between MySQL and Spanner NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
- 	case "bigint":
+	case "bigint":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -224,9 +228,15 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			if len(srcType.Mods) > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: min(srcType.Mods[0], maxLengthPerCell)}, nil
+				var issues []internal.SchemaIssue = nil
+				blobLen := min(srcType.Mods[0], maxLengthPerCell)
+				if blobLen != srcType.Mods[0] {
+					issues = []internal.SchemaIssue{internal.PossibleOverflow}
+				}
+				return ddl.Type{Name: ddl.Bytes, Len: blobLen}, issues
 			}
-			return ddl.Type{Name: ddl.Bytes, Len: getMaxSize(srcType.Name)}, nil
+			blobLen, issues := getMaxSize(srcType.Name)
+			return ddl.Type{Name: ddl.Bytes, Len: blobLen}, issues
 		}
 	case "date":
 		switch spType {
