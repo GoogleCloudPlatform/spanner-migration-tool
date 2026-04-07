@@ -8,7 +8,7 @@ CREATE TABLE `table_with_invalid_chars____` (
     `id` INT64 NOT NULL ,
 ) PRIMARY KEY (`id`)
 -- PostgreSQL
-CREATE TABLE table_with_invalid_chars____ (
+CREATE TABLE "table_with_invalid_chars____" (
     id INT8 NOT NULL ,
     PRIMARY KEY (id)
 )
@@ -24,7 +24,7 @@ CREATE TABLE `test` (
     `col` STRING(MAX),
 ) PRIMARY KEY (`id`)
 -- PostgreSQL
-CREATE TABLE test (
+CREATE TABLE "test" (
     id INT8 NOT NULL ,
     col VARCHAR(2621440),
     PRIMARY KEY (id)
@@ -42,8 +42,8 @@ CREATE TABLE `MixedCaseTable` (
 ) PRIMARY KEY (`Id`)
 -- PostgreSQL
 CREATE TABLE "MixedCaseTable" (
-    "Id" INT8 NOT NULL ,
-    "ColName" VARCHAR(2621440),
-    PRIMARY KEY ("Id")
+    Id INT8 NOT NULL ,
+    ColName VARCHAR(2621440),
+    PRIMARY KEY (Id)
 )
 ==

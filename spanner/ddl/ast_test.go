@@ -523,7 +523,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			"quote",
 			true,
 			s["t1"],
-			"CREATE TABLE table1 (\n" +
+			"CREATE TABLE \"table1\" (\n" +
 				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
@@ -613,8 +613,8 @@ func TestPrintCreateIndex(t *testing.T) {
 		{"no quote non unique", false, "", ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
 		{"quote non unique", true, "", ci[0], "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
 		{"unique key", true, "", ci[1], "CREATE UNIQUE INDEX `myindex2` ON `mytable` (`col1` DESC, `col2`)"},
-		{"quote non unique PG", true, constants.DIALECT_POSTGRESQL, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
-		{"unique key PG", true, constants.DIALECT_POSTGRESQL, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
+		{"quote non unique PG", true, constants.DIALECT_POSTGRESQL, ci[0], "CREATE INDEX myindex ON \"mytable\" (col1 DESC, col2)"},
+		{"unique key PG", true, constants.DIALECT_POSTGRESQL, ci[1], "CREATE UNIQUE INDEX myindex2 ON \"mytable\" (col1 DESC, col2)"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(ct, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
@@ -661,7 +661,7 @@ func TestPrintForeignKey(t *testing.T) {
 		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
 		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`) ON DELETE NO ACTION", fk[0]},
 		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1) ON DELETE CASCADE", fk[1]},
-		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES \"ref_table\" (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[2]},
 	}
 	for _, tc := range tests {
@@ -735,7 +735,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, from) REFERENCES table2 (productid, userid, from) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`, `from`) REFERENCES `table2` (`productid`, `userid`, `from`) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, \"from\") REFERENCES table2 (productid, userid, \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE \"table1\" ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, \"from\") REFERENCES \"table2\" (productid, userid, \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {

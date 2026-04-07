@@ -225,10 +225,16 @@ func isSourceCaseSensitive(source string) bool {
 	}
 }
 
-func (c Config) quote(s string) string {
+func (c Config) quote(s string, isTable bool) string {
 	if c.ProtectIds {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			return "\"" + s + "\""
+			if isTable {
+				return "\"" + s + "\""
+			}
+			if isIdentifierReservedInPG(s) {
+				return "\"" + s + "\""
+			}
+			return s
 		}
 		return "`" + s + "`"
 	}
@@ -241,7 +247,7 @@ func (c Config) quote(s string) string {
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
 	if c.SpDialect == constants.DIALECT_POSTGRESQL {
-		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType(cd.GeneratedColumn.IsVirtual()))
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name, false), cd.T.PGPrintColumnDefType(cd.GeneratedColumn.IsVirtual()))
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
@@ -249,7 +255,7 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		s += cd.AutoGen.PGPrintAutoGenCol(c)
 		s += cd.GeneratedColumn.PGPrintGeneratedColumn(cd.T)
 	} else {
-		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType(cd.GeneratedColumn.IsVirtual()))
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name, false), cd.T.PrintColumnDefType(cd.GeneratedColumn.IsVirtual()))
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
@@ -290,7 +296,7 @@ type CheckConstraint struct {
 
 // PrintPkOrIndexKey unparses the primary or index keys.
 func (idx IndexKey) PrintPkOrIndexKey(ct CreateTable, c Config) string {
-	col := c.quote(ct.ColDefs[idx.ColId].Name)
+	col := c.quote(ct.ColDefs[idx.ColId].Name, false)
 	if idx.Desc {
 		return fmt.Sprintf("%s DESC", col)
 	}
@@ -325,14 +331,14 @@ type InterleavedParent struct {
 func (k Foreignkey) PrintForeignKey(c Config) string {
 	var cols, referCols []string
 	for i, col := range k.ColIds {
-		cols = append(cols, c.quote(col))
-		referCols = append(referCols, c.quote(k.ReferColumnIds[i]))
+		cols = append(cols, c.quote(col, false))
+		referCols = append(referCols, c.quote(k.ReferColumnIds[i], false))
 	}
 	var s string
 	if k.Name != "" {
-		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
+		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name, false))
 	}
-	s = s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	s = s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId, true), strings.Join(referCols, ", "))
 	if k.OnDelete != "" {
 		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
 	}
@@ -400,18 +406,18 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 			// and thus INTERLEAVE follows immediately after closing brace.
 			// ON DELETE option is not supported by INTERLEAVE IN and is dropped.
 			if ct.ParentTable.InterleaveType == "IN" {
-				interleave = " INTERLEAVE IN " + config.quote(parent)
+				interleave = " INTERLEAVE IN " + config.quote(parent, true)
 			} else {
-				interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
+				interleave = " INTERLEAVE IN PARENT " + config.quote(parent, true)
 				if ct.ParentTable.OnDelete != "" {
 					interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
 				}
 			}
 		} else {
 			if ct.ParentTable.InterleaveType == "IN" {
-				interleave = ",\nINTERLEAVE IN " + config.quote(parent)
+				interleave = ",\nINTERLEAVE IN " + config.quote(parent, true)
 			} else {
-				interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
+				interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent, true)
 				if ct.ParentTable.OnDelete != "" {
 					interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
 				}
@@ -427,12 +433,12 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	}
 
 	if len(keys) == 0 {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name, true), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name, true), cols, checkString, strings.Join(keys, ", "), interleave)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name, true), cols, checkString, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -615,12 +621,12 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
 			if !isStoredColumnKeyPartOfPrimaryKey(ct, colId) {
-				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
+				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name, false))
 			}
 		}
 		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(storedColumns, ", "))
 	}
-	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ct.Name), strings.Join(keys, ", "), storingClause)
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name, false), c.quote(ct.Name, true), strings.Join(keys, ", "), storingClause)
 }
 
 // Checks if the colId is part of the primary of a table
@@ -639,14 +645,14 @@ func isStoredColumnKeyPartOfPrimaryKey(ct CreateTable, colId string) bool {
 func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, tableId string) string {
 	var cols, referCols []string
 	for i, col := range k.ColIds {
-		cols = append(cols, c.quote(spannerSchema[tableId].ColDefs[col].Name))
-		referCols = append(referCols, c.quote(spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name))
+		cols = append(cols, c.quote(spannerSchema[tableId].ColDefs[col].Name, false))
+		referCols = append(referCols, c.quote(spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name, false))
 	}
 	var s string
 	if k.Name != "" {
-		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
+		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name, false))
 	}
-	s = fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
+	s = fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name, true), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name, true), strings.Join(referCols, ", "))
 	if k.OnDelete != "" {
 		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
 	}
@@ -835,7 +841,7 @@ func (seq Sequence) PrintSequence(c Config) string {
 		options = append(options, fmt.Sprintf("start_with_counter = %s", seq.StartWithCounter))
 	}
 
-	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name))
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name, false))
 	if len(options) > 0 {
 		seqDDL += " OPTIONS (" + strings.Join(options, ", ") + ") "
 	}
@@ -857,7 +863,7 @@ func (seq Sequence) PGPrintSequence(c Config) string {
 		options = append(options, fmt.Sprintf("START COUNTER WITH %s", seq.StartWithCounter))
 	}
 
-	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name))
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name, false))
 	if len(options) > 0 {
 		seqDDL += strings.Join(options, " ")
 	}
