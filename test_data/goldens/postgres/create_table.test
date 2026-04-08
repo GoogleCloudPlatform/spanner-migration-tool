@@ -8,9 +8,9 @@ CREATE TABLE `table_with_invalid_chars____` (
     `id` INT64 NOT NULL ,
 ) PRIMARY KEY (`id`)
 -- PostgreSQL
-CREATE TABLE table_with_invalid_chars____ (
-    id INT8 NOT NULL ,
-    PRIMARY KEY (id)
+CREATE TABLE "table_with_invalid_chars____" (
+    "id" INT8 NOT NULL ,
+    PRIMARY KEY ("id")
 )
 ==
 -- create_table_happy_path
@@ -24,9 +24,9 @@ CREATE TABLE `test` (
     `col` STRING(MAX),
 ) PRIMARY KEY (`id`)
 -- PostgreSQL
-CREATE TABLE test (
-    id INT8 NOT NULL ,
-    col VARCHAR(2621440),
-    PRIMARY KEY (id)
+CREATE TABLE "test" (
+    "id" INT8 NOT NULL ,
+    "col" VARCHAR(2621440),
+    PRIMARY KEY ("id")
 )
 ==
