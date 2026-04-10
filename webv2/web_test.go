@@ -303,16 +303,16 @@ func TestGetSourceAndTargetProfiles_Cassandra(t *testing.T) {
 	sessionState.DbName = "test_keyspace"
 	sessionState.Dialect = constants.DIALECT_GOOGLESQL
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-			Host:           "127.0.0.1",
-			Port:           "9042",
-			User:           "user",
-			Password:       "pass",
-			DataCenter:     "dc1",
-			ConnectionType: helpers.DIRECT_CONNECT_MODE,
+		Host:           "127.0.0.1",
+		Port:           "9042",
+		User:           "user",
+		Password:       "pass",
+		DataCenter:     "dc1",
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	sessionState.SpannerProjectId = "test-project"
 	sessionState.SpannerInstanceID = "test-instance"
-	
+
 	details := types.MigrationDetails{
 		TargetDetails: types.TargetDetails{
 			TargetDB: "test-spanner-db",
@@ -330,4 +330,91 @@ func TestGetSourceAndTargetProfiles_Cassandra(t *testing.T) {
 	assert.Equal(t, "pass", sourceProfile.Conn.Cassandra.Pwd)
 	assert.Equal(t, "test_keyspace", sourceProfile.Conn.Cassandra.Keyspace)
 	assert.Equal(t, "dc1", sourceProfile.Conn.Cassandra.DataCenter)
+}
+
+func TestCreateDatabaseConnectionString(t *testing.T) {
+	testCases := []struct {
+		name           string
+		config         types.DriverConfig
+		expectedString string
+		expectError    bool
+	}{
+		{
+			name: "Postgres driver",
+			config: types.DriverConfig{
+				Driver:   constants.POSTGRES,
+				Host:     "localhost",
+				Port:     "5432",
+				User:     "user",
+				Password: "passw\\`~ord",
+				Database: "testdb",
+			},
+			expectedString: "postgres://user:passw%5C%60~ord@localhost:5432/testdb?sslmode=disable",
+			expectError:    false,
+		},
+		{
+			name: "MySQL driver",
+			config: types.DriverConfig{
+				Driver:   constants.MYSQL,
+				Host:     "localhost",
+				Port:     "3306",
+				User:     "user",
+				Password: "passw\\`~ord",
+				Database: "testdb",
+			},
+			expectedString: "user:passw\\`~ord@tcp(localhost:3306)/testdb",
+			expectError:    false,
+		},
+		{
+			name: "SQL Server driver",
+			config: types.DriverConfig{
+				Driver:   constants.SQLSERVER,
+				Host:     "localhost",
+				Port:     "1433",
+				User:     "user",
+				Password: "passw\\`~ord",
+				Database: "testdb",
+			},
+			expectedString: "sqlserver://user:passw%5C%60~ord@localhost:1433/testdb?sslmode=disable",
+			expectError:    false,
+		},
+		{
+			name: "Oracle driver",
+			config: types.DriverConfig{
+				Driver:   constants.ORACLE,
+				Host:     "localhost",
+				Port:     "1521",
+				User:     "user",
+				Password: "passw\\`~ord",
+				Database: "testdb",
+			},
+			expectedString: "oracle://user:passw%5C%60~ord@localhost:1521/testdb",
+			expectError:    false,
+		},
+		{
+			name: "Unsupported driver",
+			config: types.DriverConfig{
+				Driver:   "unsupported",
+				Host:     "localhost",
+				Port:     "1234",
+				User:     "user",
+				Password: "password",
+				Database: "testdb",
+			},
+			expectedString: "",
+			expectError:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualString, err := createDatabaseConnectionString(tc.config)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedString, actualString)
+			}
+		})
+	}
 }
