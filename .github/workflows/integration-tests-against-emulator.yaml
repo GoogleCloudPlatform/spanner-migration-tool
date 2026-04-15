@@ -100,7 +100,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       # init a PostgresSQL database from the test_data
       - name: Install PostgreSQL 12 client required for loading .sql files
         run: |
@@ -146,11 +148,6 @@ jobs:
         run: |
           sudo apt-get install -yq libgtk2.0-0t64 libgtk-3-0t64 libgbm-dev libnotify-dev libnss3 libxss1 libasound2t64 libxtst6 xauth xvfb
           sudo apt-get install build-essential
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: 18
-
       - name: Install Dependencies
         run: |
           cd ui
