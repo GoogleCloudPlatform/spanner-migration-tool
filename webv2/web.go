@@ -22,10 +22,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -65,6 +67,36 @@ import (
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
+func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
+
+	var dataSourceName string
+	switch config.Driver {
+	case constants.MYSQL:
+		cfg := mysql.NewConfig()
+		cfg.User = config.User
+		cfg.Passwd = config.Password
+		cfg.Net = "tcp"
+		cfg.Addr = fmt.Sprintf("%s:%s", config.Host, config.Port)
+		cfg.DBName = config.Database
+		dataSourceName = cfg.FormatDSN()
+	case constants.SQLSERVER, constants.POSTGRES:
+		u := url.URL{
+			Scheme:   config.Driver,
+			User:     url.UserPassword(config.User, config.Password),
+			Host:     fmt.Sprintf("%s:%s", config.Host, config.Port),
+			Path:     config.Database,
+			RawQuery: "sslmode=disable", // Add other parameters here
+		}
+		dataSourceName = u.String()
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+	default:
+		return "", fmt.Errorf("driver : '%s' is not supported", config.Driver)
+	}
+	return dataSourceName, nil
+}
+
 // TODO:(searce):
 // 1) Test cases for APIs
 // 2) API for saving/updating table-level changes.
@@ -90,15 +122,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	var dataSourceName string
 	switch config.Driver {
-	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
-	case constants.MYSQL:
-		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
-	case constants.SQLSERVER:
-		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
-	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
 	case constants.CASSANDRA:
 		// Cassandra does not use sql.Open. We use the accessor to validate the connection.
 		keyspaceMetadata, err := validateCassandraConnection(config)
@@ -125,8 +148,11 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
-		return
+		dataSourceName, err = createDatabaseConnectionString(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
