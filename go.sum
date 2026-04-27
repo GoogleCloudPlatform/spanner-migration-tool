@@ -21,8 +21,8 @@ cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdB
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
 cloud.google.com/go/dataflow v0.11.0 h1:AdhB4cAkMOC9NtrHJxpKOVvO/VqBLaIyk0tEEhbGjYM=
 cloud.google.com/go/dataflow v0.11.0/go.mod h1:gNHC9fUjlV9miu0hd4oQaXibIuVYTQvZhMdPievKsPk=
-cloud.google.com/go/dataflow v0.11.1 h1:Z+UYlGrE+IoB+5IAN4/qWdPKO0IpIK9bs2Dy40HK6lg=
-cloud.google.com/go/dataflow v0.11.1/go.mod h1:3s6y/h5Qz7uuxTmKJKBifkYZ3zs63jS+6VGtSu8Cf7Y=
+cloud.google.com/go/dataflow v0.14.0 h1:on1PwQQjEcZcCvb/lYJp8Zj0s4oCu9DcLC3xqIKIUnM=
+cloud.google.com/go/dataflow v0.14.0/go.mod h1:BWhSrIGmsMfuYj3J+nJ2Tw7tplRR6r28kvRiqCD3WlQ=
 cloud.google.com/go/datastream v1.14.1 h1:j+y0lUKm9pbDjJn0YcWxPI/hXNGUQ80GE6yrFuJC/JA=
 cloud.google.com/go/datastream v1.14.1/go.mod h1:JqMKXq/e0OMkEgfYe0nP+lDye5G2IhIlmencWxmesMo=
 cloud.google.com/go/datastream v1.15.1 h1:7PKeDpksi8nbOR4gspmNokzsr0q/uRzDIt20bR3BtRs=
