@@ -10,7 +10,7 @@ import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
-import { MatTabChangeEvent } from '@angular/material/tabs/'
+import { MatTabChangeEvent } from '@angular/material/tabs'
 import IConv, {
   ICheckConstraints,
   ICreateIndex,
@@ -33,9 +33,10 @@ import { defaultAndSequenceSupportedDbs, identitySupportedDbs, generatedColSuppo
 import ICcTabData from 'src/app/model/cc-tab-data'
 import { title } from 'process'
 @Component({
-  selector: 'app-object-detail',
-  templateUrl: './object-detail.component.html',
-  styleUrls: ['./object-detail.component.scss'],
+    selector: 'app-object-detail',
+    templateUrl: './object-detail.component.html',
+    styleUrls: ['./object-detail.component.scss'],
+    standalone: false
 })
 export class ObjectDetailComponent implements OnInit, OnDestroy {
   userAddressValidations!: FormGroup

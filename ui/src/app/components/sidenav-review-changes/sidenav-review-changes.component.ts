@@ -6,9 +6,10 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 
 @Component({
-  selector: 'app-sidenav-review-changes',
-  templateUrl: './sidenav-review-changes.component.html',
-  styleUrls: ['./sidenav-review-changes.component.scss'],
+    selector: 'app-sidenav-review-changes',
+    templateUrl: './sidenav-review-changes.component.html',
+    styleUrls: ['./sidenav-review-changes.component.scss'],
+    standalone: false
 })
 export class SidenavReviewChangesComponent implements OnInit {
   ddl: string = ''

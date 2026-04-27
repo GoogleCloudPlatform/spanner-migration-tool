@@ -4,9 +4,10 @@ import { DataService } from 'src/app/services/data/data.service'
 import { FlatNode } from 'src/app/model/schema-object-node'
 
 @Component({
-  selector: 'app-rule',
-  templateUrl: './rule.component.html',
-  styleUrls: ['./rule.component.scss'],
+    selector: 'app-rule',
+    templateUrl: './rule.component.html',
+    styleUrls: ['./rule.component.scss'],
+    standalone: false
 })
 export class RuleComponent implements OnInit {
   dataSource: any = []
