@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/aiplatform v1.120.0
 	cloud.google.com/go/dataflow v0.14.0
 	cloud.google.com/go/datastream v1.15.1
-	cloud.google.com/go/monitoring v1.24.3
+	cloud.google.com/go/monitoring v1.27.3
 	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/resourcemanager v1.10.7
 	cloud.google.com/go/secretmanager v1.16.0
@@ -112,7 +112,7 @@ require (
 	cloud.google.com/go/cloudsqlconn v1.14.0
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.3 // indirect
-	cloud.google.com/go/longrunning v0.8.0 // indirect
+	cloud.google.com/go/longrunning v0.9.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
