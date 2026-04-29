@@ -18,7 +18,6 @@ func FetchSpannerClientOptions() []option.ClientOption {
 	return clientOptions
 }
 
-
 func FetchStorageClientOptions() []option.ClientOption {
 	var clientOptions []option.ClientOption
 	authOption := fetchAuthClientOptions()

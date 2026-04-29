@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
