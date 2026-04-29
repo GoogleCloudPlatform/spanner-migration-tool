@@ -253,7 +253,7 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-fk-action-dump"
+	dbName := "test-schema-and-data"
 	dumpFilePath := "../../test_data/mysql_foreignkeyaction_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
@@ -284,7 +284,7 @@ func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-reserved-keyword"
+	dbName := "test-check-constraint"
 	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
