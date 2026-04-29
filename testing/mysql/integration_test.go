@@ -167,6 +167,7 @@ func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFil
 
 func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -196,6 +197,7 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 
 func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -212,6 +214,7 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 
 func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -250,10 +253,11 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 
 func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-schema-and-data"
+	dbName := "test-fk-action-dump"
 	dumpFilePath := "../../test_data/mysql_foreignkeyaction_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
@@ -266,6 +270,7 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 
 func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -280,10 +285,11 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 
 func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-check-constraint"
+	dbName := "test-reserved-keyword"
 	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -294,6 +300,7 @@ func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
