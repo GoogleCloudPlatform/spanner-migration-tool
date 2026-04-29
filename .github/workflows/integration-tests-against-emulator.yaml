@@ -60,9 +60,6 @@ jobs:
         ports:
           - 9010:15000
           - 9020:15026
-
-
-
       postgres:
         image: postgres:9.6
         env:
