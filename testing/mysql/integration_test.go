@@ -609,8 +609,8 @@ func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" && os.Getenv("SPANNER_OMNI") != "true" {
-		t.Skip("Skipping tests only running against the emulator or Spanner Omni.")
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("Skipping tests only running against the emulator.")
 	}
 }
 
