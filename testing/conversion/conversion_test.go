@@ -155,11 +155,11 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 	// Each statement in the response is the DDL for a whole table including column names, foreign key statements and primary keys.
 	// The data type is bytes. Sample resp.Statements:
 	// ["2021/07/16 13:45:14 CREATE TABLE table_a (\n  col1 STRING(10),\n  col2 STRING(10),\n) PRIMARY KEY(col1);"]
-	var stmta, stmtb string
+	var stmtb string
 	if strings.Contains(resp.Statements[0], "CREATE TABLE table_a") {
-		stmta, stmtb = resp.Statements[0], resp.Statements[1]
+		_, stmtb = resp.Statements[0], resp.Statements[1]
 	} else {
-		stmta, stmtb = resp.Statements[1], resp.Statements[0]
+		_, stmtb = resp.Statements[1], resp.Statements[0]
 	}
 	assert.False(t, strings.Contains(stmtb, "FOREIGN KEY"))
 
@@ -169,10 +169,16 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 		wantFkStmts = append(wantFkStmts, fkStmt)
 	}
 	var gotFkStmts []string
-	// Filter out just the foreign key statements.
-	for _, Stmt := range strings.Split(stmta, "\n") {
-		if strings.Contains(Stmt, "FOREIGN KEY") {
-			gotFkStmts = append(gotFkStmts, strings.TrimSpace(Stmt))
+	for _, stmt := range resp.Statements {
+		for _, line := range strings.Split(stmt, "\n") {
+			if strings.Contains(line, "FOREIGN KEY") {
+				trimmed := strings.TrimSpace(line)
+				trimmed = strings.TrimPrefix(trimmed, "ALTER TABLE table_a ADD ")
+				if !strings.HasSuffix(trimmed, ",") {
+					trimmed = trimmed + ","
+				}
+				gotFkStmts = append(gotFkStmts, trimmed)
+			}
 		}
 	}
 
@@ -191,8 +197,8 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
 		numWorkers int // Number of concurrent workers (we set it as 1 for now since spanner emulator does not support concurrent schema updates yet).
 	}{
-		{"test-workers-five-fks", 10, 5, 1},
-		{"test-workers-ten-fks", 10, 10, 1},
+		{"test-workers-five-fks", 10, 5, 3},
+		{"test-workers-ten-fks", 10, 10, 3},
 	}
 
 	for _, tc := range testCases {
@@ -201,7 +207,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 			t.Fatal(err)
 		}
 		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s-%d", projectID, instanceID, tc.dbName, time.Now().Unix()%100000)
 		conv := BuildConv(t, tc.numCols, tc.numFks, false)
 		err = spA.CreateDatabase(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 		if err != nil {
@@ -209,7 +215,9 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		}
 		spanneraccessor.MaxWorkers = tc.numWorkers
 		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
-
+		if len(conv.Stats.Unexpected) > 0 {
+			fmt.Printf("UNEXPECTED ERRORS: %+v\n", conv.Stats.Unexpected)
+		}
 		checkResults(t, dbURI, tc.numFks)
 		// Drop the database later.
 		defer dropDatabase(t, dbURI)

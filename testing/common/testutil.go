@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 func RunCommand(args string, projectID string) error {
@@ -36,8 +35,8 @@ func RunCommand(args string, projectID string) error {
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Run(); err != nil {
-		logger.Log.Info(fmt.Sprintf("stdout: %q\n", out.String()))
-		logger.Log.Info(fmt.Sprintf("stderr: %q\n", stderr.String()))
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
 		return err
 	}
 	return nil
