@@ -28,6 +28,9 @@ jobs:
         with:
           # Need at least two commits to compare. By default, gh seems to clone only fetch depth of 1.
           fetch-depth: 2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 20
       - name: Check PR description for override
         env:
           PR_DESC: ${{ github.event.pull_request.body }}

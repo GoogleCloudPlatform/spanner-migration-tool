@@ -23,9 +23,10 @@ import * as JSZip from 'jszip'
 import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Component({
-  selector: 'app-workspace',
-  templateUrl: './workspace.component.html',
-  styleUrls: ['./workspace.component.scss'],
+    selector: 'app-workspace',
+    templateUrl: './workspace.component.html',
+    styleUrls: ['./workspace.component.scss'],
+    standalone: false
 })
 export class WorkspaceComponent implements OnInit, OnDestroy {
   conv!: IConv

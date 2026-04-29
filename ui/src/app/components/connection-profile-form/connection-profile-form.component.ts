@@ -7,9 +7,10 @@ import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
 @Component({
-  selector: 'app-connection-profile-form',
-  templateUrl: './connection-profile-form.component.html',
-  styleUrls: ['./connection-profile-form.component.scss']
+    selector: 'app-connection-profile-form',
+    templateUrl: './connection-profile-form.component.html',
+    styleUrls: ['./connection-profile-form.component.scss'],
+    standalone: false
 })
 export class ConnectionProfileFormComponent implements OnInit {
   connectionProfileForm: FormGroup

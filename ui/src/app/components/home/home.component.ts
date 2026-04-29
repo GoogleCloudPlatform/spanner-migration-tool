@@ -6,9 +6,10 @@ import { BackendHealthService } from 'src/app/services/backend-health/backend-he
 import { InfodialogComponent } from '../infodialog/infodialog.component';
 
 @Component({
-  selector: 'app-home',
-  templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss'],
+    selector: 'app-home',
+    templateUrl: './home.component.html',
+    styleUrls: ['./home.component.scss'],
+    standalone: false
 })
 export class HomeComponent implements OnInit {
   constructor(private dialog: MatDialog,

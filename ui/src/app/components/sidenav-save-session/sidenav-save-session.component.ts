@@ -8,9 +8,10 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IConv from 'src/app/model/conv'
 
 @Component({
-  selector: 'app-sidenav-save-session',
-  templateUrl: './sidenav-save-session.component.html',
-  styleUrls: ['./sidenav-save-session.component.scss'],
+    selector: 'app-sidenav-save-session',
+    templateUrl: './sidenav-save-session.component.html',
+    styleUrls: ['./sidenav-save-session.component.scss'],
+    standalone: false
 })
 export class SidenavSaveSessionComponent implements OnInit {
   errMessage: string = ''

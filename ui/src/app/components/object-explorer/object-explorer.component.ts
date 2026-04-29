@@ -17,9 +17,10 @@ import { BulkDropRestoreTableDialogComponent } from '../bulk-drop-restore-table-
 import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
 
 @Component({
-  selector: 'app-object-explorer',
-  templateUrl: './object-explorer.component.html',
-  styleUrls: ['./object-explorer.component.scss'],
+    selector: 'app-object-explorer',
+    templateUrl: './object-explorer.component.html',
+    styleUrls: ['./object-explorer.component.scss'],
+    standalone: false
 })
 export class ObjectExplorerComponent implements OnInit {
   conv!: IConv

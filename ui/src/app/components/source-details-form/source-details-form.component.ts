@@ -9,9 +9,10 @@ import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
 @Component({
-  selector: 'app-source-details-form',
-  templateUrl: './source-details-form.component.html',
-  styleUrls: ['./source-details-form.component.scss']
+    selector: 'app-source-details-form',
+    templateUrl: './source-details-form.component.html',
+    styleUrls: ['./source-details-form.component.scss'],
+    standalone: false
 })
 export class SourceDetailsFormComponent implements OnInit {
   inputOptions = [

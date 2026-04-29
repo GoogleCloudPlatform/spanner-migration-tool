@@ -6,9 +6,10 @@ import { DataService } from 'src/app/services/data/data.service';
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service';
 
 @Component({
-  selector: 'app-add-shard-id-primary-key',
-  templateUrl: './add-shard-id-primary-key.component.html',
-  styleUrls: ['./add-shard-id-primary-key.component.scss']
+    selector: 'app-add-shard-id-primary-key',
+    templateUrl: './add-shard-id-primary-key.component.html',
+    styleUrls: ['./add-shard-id-primary-key.component.scss'],
+    standalone: false
 })
 export class AddShardIdPrimaryKeyComponent implements OnInit {
   @Input() ruleNameValid: boolean = false

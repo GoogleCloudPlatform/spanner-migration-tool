@@ -4,9 +4,10 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { Gcs } from 'src/app/app.constants';
 
 @Component({
-  selector: 'app-tune-gcs-form',
-  templateUrl: './tune-gcs-form.component.html',
-  styleUrls: ['./tune-gcs-form.component.scss'],
+    selector: 'app-tune-gcs-form',
+    templateUrl: './tune-gcs-form.component.html',
+    styleUrls: ['./tune-gcs-form.component.scss'],
+    standalone: false
 })
 export class TuneGcsFormComponent implements OnInit {
   gcsForm: FormGroup

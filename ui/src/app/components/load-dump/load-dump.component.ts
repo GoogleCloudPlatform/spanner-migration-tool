@@ -9,9 +9,10 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
 import { ISpannerDetails } from 'src/app/model/target-details'
 
 @Component({
-  selector: 'app-load-dump',
-  templateUrl: './load-dump.component.html',
-  styleUrls: ['./load-dump.component.scss'],
+    selector: 'app-load-dump',
+    templateUrl: './load-dump.component.html',
+    styleUrls: ['./load-dump.component.scss'],
+    standalone: false
 })
 export class LoadDumpComponent implements OnInit {
   constructor(

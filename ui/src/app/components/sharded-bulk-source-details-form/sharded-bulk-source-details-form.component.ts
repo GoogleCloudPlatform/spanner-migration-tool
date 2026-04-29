@@ -8,9 +8,10 @@ import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
 @Component({
-  selector: 'app-sharded-bulk-source-details-form',
-  templateUrl: './sharded-bulk-source-details-form.component.html',
-  styleUrls: ['./sharded-bulk-source-details-form.component.scss']
+    selector: 'app-sharded-bulk-source-details-form',
+    templateUrl: './sharded-bulk-source-details-form.component.html',
+    styleUrls: ['./sharded-bulk-source-details-form.component.scss'],
+    standalone: false
 })
 export class ShardedBulkSourceDetailsFormComponent implements OnInit {
 

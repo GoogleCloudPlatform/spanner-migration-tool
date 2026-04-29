@@ -16,9 +16,10 @@ export interface tableContent {
 }
 
 @Component({
-  selector: 'app-sidenav-view-assessment',
-  templateUrl: './sidenav-view-assessment.component.html',
-  styleUrls: ['./sidenav-view-assessment.component.scss'],
+    selector: 'app-sidenav-view-assessment',
+    templateUrl: './sidenav-view-assessment.component.html',
+    styleUrls: ['./sidenav-view-assessment.component.scss'],
+    standalone: false
 })
 
 export class SidenavViewAssessmentComponent implements OnInit {

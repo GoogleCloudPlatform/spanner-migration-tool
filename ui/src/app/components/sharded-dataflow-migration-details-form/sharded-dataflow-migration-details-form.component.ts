@@ -11,9 +11,10 @@ import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 
 @Component({
-  selector: 'app-sharded-dataflow-migration-details-form',
-  templateUrl: './sharded-dataflow-migration-details-form.component.html',
-  styleUrls: ['./sharded-dataflow-migration-details-form.component.scss']
+    selector: 'app-sharded-dataflow-migration-details-form',
+    templateUrl: './sharded-dataflow-migration-details-form.component.html',
+    styleUrls: ['./sharded-dataflow-migration-details-form.component.scss'],
+    standalone: false
 })
 export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
 

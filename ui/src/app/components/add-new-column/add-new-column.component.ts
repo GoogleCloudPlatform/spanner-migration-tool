@@ -8,9 +8,10 @@ import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils';
 @Component({
-  selector: 'app-add-new-column',
-  templateUrl: './add-new-column.component.html',
-  styleUrls: ['./add-new-column.component.scss']
+    selector: 'app-add-new-column',
+    templateUrl: './add-new-column.component.html',
+    styleUrls: ['./add-new-column.component.scss'],
+    standalone: false
 })
 
 export class AddNewColumnComponent implements OnInit {
