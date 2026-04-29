@@ -197,8 +197,8 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
 		numWorkers int // Number of concurrent workers (we set it as 1 for now since spanner emulator does not support concurrent schema updates yet).
 	}{
-		{"test-workers-five-fks", 10, 5, 1},
-		{"test-workers-ten-fks", 10, 10, 1},
+		{"test-workers-five-fks", 10, 5, 5},
+		{"test-workers-ten-fks", 10, 10, 5},
 	}
 
 	for _, tc := range testCases {
