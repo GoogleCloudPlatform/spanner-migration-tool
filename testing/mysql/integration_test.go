@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
@@ -618,3 +620,63 @@ func onlyRunForEmulatorTest(t *testing.T) {
 		t.Skip("Skipping tests only running against the emulator.")
 	}
 }
+
+func TestIntegration_MYSQL_DirectConnect_2500Tables(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_2500_TABLES"), os.Getenv("MYSQLPWD")
+	if host == "" || user == "" || srcDb == "" {
+		t.Skip("Skipping test: MySQL environment variables not set.")
+	}
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-schema-2500-tables"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	defer dropDatabase(t, dbURI)
+
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -log-level=INFO -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify generated files
+	if _, err := os.Stat(fmt.Sprintf("%s.report.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("report file not generated during schema-only 2500 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.ddl.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("legal ddl file not generated during schema-only 2500 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("readable schema file not generated during schema-only 2500 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.session.json", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("session file not generated during schema-only 2500 tables direct connect test")
+	}
+
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatalf("failed to create spanner client: %v", err)
+	}
+	defer client.Close()
+
+	query := spanner.Statement{SQL: `SELECT count(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'`}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var numberOfTablesCreated int64
+	row, err := iter.Next()
+	if err != nil {
+		t.Fatalf("failed to read table count row: %v", err)
+	}
+	if err := row.Columns(&numberOfTablesCreated); err != nil {
+		t.Fatalf("failed to scan table count: %v", err)
+	}
+	if got, want := numberOfTablesCreated, int64(2500); got != want {
+		t.Fatalf("number of tables created in spanner is incorrect: got %v, want %v", got, want)
+	}
+}
+
