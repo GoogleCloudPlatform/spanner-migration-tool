@@ -197,8 +197,8 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
 		numWorkers int // Number of concurrent workers (we set it as 1 for now since spanner emulator does not support concurrent schema updates yet).
 	}{
-		{"test-workers-five-fks", 10, 5, 3},
-		{"test-workers-ten-fks", 10, 10, 3},
+		{"test-workers-five-fks", 10, 5, 1},
+		{"test-workers-ten-fks", 10, 10, 1},
 	}
 
 	for _, tc := range testCases {
@@ -207,7 +207,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 			t.Fatal(err)
 		}
 		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s-%d", projectID, instanceID, tc.dbName, time.Now().Unix()%100000)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		conv := BuildConv(t, tc.numCols, tc.numFks, false)
 		err = spA.CreateDatabase(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 		if err != nil {
@@ -215,9 +215,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		}
 		spanneraccessor.MaxWorkers = tc.numWorkers
 		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
-		if len(conv.Stats.Unexpected) > 0 {
-			fmt.Printf("UNEXPECTED ERRORS: %+v\n", conv.Stats.Unexpected)
-		}
+
 		checkResults(t, dbURI, tc.numFks)
 		// Drop the database later.
 		defer dropDatabase(t, dbURI)
