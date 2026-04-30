@@ -34,7 +34,7 @@ Spanner migration tool UI has the following components:
 - **[Connect to Spanner](./connect-spanner.md)** - This contains the ability to configure the GCP projectId and the spanner instanceId that will be used in the migration.
 - **[Connect to Source Page](./connect-source.md)** - This page can be used to configure source of data in the Spanner migration tool UI.
 - **[Schema Conversion Workspace](./schema-conv/schema-conv.md)** - This page can be used to make schema conversion changes from source to Spanner. This page will help you visualise how your schema would look like in Spanner, and also provide issues/warnings/suggestions based on the automated analysis of your schema.
-- **[Prepare Migration Page](./prepare-migration/prepare.md)** - This page is used to configure the migration. It asks for details such as the mode (`schema`/`data`/`schema-and-data`) and the type (`poc` or `minimal downtime`) of migration and accordingly requests for configuration input (e.g destionation `databaseName`, Datastream connection profiles etc.)
+- **[Prepare Migration Page](./prepare-migration/prepare.md)** - This page is used to configure the migration. It asks for details such as the mode (`schema`/`data`/`schema-and-data`) and accordingly requests for configuration input (e.g destination `databaseName` etc.)
 
 ## Launching the web UI for Spanner migration tool
 In order to launch the web UI for Spanner migration tool, run the following command:
@@ -63,6 +63,5 @@ Detailed description of optional flags can be found [here](./flags.md).
      --validate
         Flag for validating if all the required input parameters are present
 
-     --dataflow-template=DATAFLOW_TEMPLATE
-        The google cloud storage path of the minimal downtime migration template to use to run the migration job. Default value is the latest dataflow template.
+
  

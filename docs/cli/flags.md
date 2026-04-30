@@ -48,7 +48,7 @@ such as `avro` etc.
 
 * **`streamingCfg`**: Optional flag. Specifies the file path for streaming config.
 Please note that streaming migration is only supported for MySQL and PostgreSQL databases currently.
-Here is an example of a [streamingCfg JSON](./config-json.md#streamingcfg-for-non-sharded-minimal-downtime-migrations) and [how to use it in the CLI](./schema-and-data.md#examples).
+See [how to use it in the CLI](./schema-and-data.md#examples) for examples.
 
 ## Target Profile
 

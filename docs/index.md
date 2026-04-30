@@ -17,9 +17,6 @@ Spanner migration tool (SMT) is a stand-alone open source tool for Cloud Spanner
 
 ---
 
-{: .highlight }
-We have changed architecture of the minimal downtime migration and added Pub/Sub notifications component. There are changes on required permissions to run the migrations because of the new component. Please go through [Permissions page](./permissions.md) and [design page](./minimal/minimal.md) of the documentation.
-
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
 migration, using data from an existing PostgreSQL or MySQL database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
@@ -33,10 +30,7 @@ Spanner migration tool is designed to simplify Spanner evaluation and migration.
 
 ### Data migrations
 
-Spanner migration tool supports production grade minimal downtime migrations using GCP services (**Datastream and Dataflow**).
-It can also be used to do small scale on-prem POC migrations to get a feel of Spanner.
-
-- **Minimal Downtime migration** - This is the production ready, recommended mode of migration for most databases. It provides a unified interface to configure an end-to-end pipeline to transfer both existing and new data from source database to Spanner. More details about minimal downtime migrations are [here](./minimal/minimal.md).
+Spanner migration tool can be used to do small scale on-prem POC migrations to get a feel of Spanner.
 
 - **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here](./poc/poc.md).
 
@@ -44,9 +38,7 @@ It can also be used to do small scale on-prem POC migrations to get a feel of Sp
 
 To launch reverse replication, refer details [here](./reverse-replication/ReverseReplication.md).
 
-### Monitoring Dashboards
 
-To find out how to monitor your migration, refer [here](./monitoring/MonitoringUserGuide.md).
 
 ### Custom transformation
 
@@ -55,7 +47,7 @@ To find out how to configure custom transformations, refer [here](./transformati
 ## Supported Sources and Targets
 
 - **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL and Cassandra.
-- **Data Migrations**: SMT supports minimal downtime migrations and POC migration for MySQL and PostgreSQL databases.
+- **Data Migrations**: SMT supports POC migration for MySQL and PostgreSQL databases.
 
 ## About the project
 
