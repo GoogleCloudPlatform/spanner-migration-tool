@@ -267,28 +267,6 @@ func TestNewSourceProfileConfigFile(t *testing.T) {
 			},
 		},
 		{
-			name:          "streaming config for mysql",
-			source:        "mysql",
-			path:          filepath.Join("..", "test_data", "mysql_shard_streaming.cfg"),
-			errorExpected: false,
-			validationFn: func(spc SourceProfileConfig) {
-				assert.NotNil(t, spc.ShardConfigurationDataflow)
-				assert.NotNil(t, spc.ShardConfigurationDataflow.SchemaSource)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.DbName)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Host)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Password)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Port)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.User)
-				assert.NotNil(t, spc.ShardConfigurationDataflow.DataShards)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataShardId)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].TmpDir)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].StreamLocation)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataflowConfig)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DstConnectionProfile)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].SrcConnectionProfile)
-			},
-		},
-		{
 			name:          "config for non-mysql",
 			source:        "postgres",
 			path:          "",
@@ -346,11 +324,7 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e"},
 			errorExpected: false,
 		},
-		{
-			name:          "mandatory params provided",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e", "streamingCfg": ""},
-			errorExpected: true,
-		},
+
 		{
 			name:          "mandatory params provided",
 			params:        map[string]string{},
@@ -476,49 +450,45 @@ func TestNewSourceProfileConnectionOracle(t *testing.T) {
 		params        map[string]string
 		errorExpected bool
 	}{
-		{
-			name:          "streamingCfg is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": ""},
-			errorExpected: true,
-		},
+
 		{
 			name:          "host is blank",
-			params:        map[string]string{"host": "", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "", "user": "b", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "user is blank",
-			params:        map[string]string{"host": "a", "user": "", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "dbname is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "host is not specified",
-			params:        map[string]string{"user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"user": "b", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "user is not specified",
-			params:        map[string]string{"host": "a", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "dbname is not specified",
-			params:        map[string]string{"host": "a", "user": "b", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "port is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e"},
 			errorExpected: false,
 		},
 		{
 			name:          "password is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": ""},
 			errorExpected: false,
 		},
 	}

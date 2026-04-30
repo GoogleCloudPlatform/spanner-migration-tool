@@ -419,8 +419,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if findSchemaIssue(issues, internal.NoGoodType) != -1 {
 			isNotNull = false
 		}
-		// Set the not null constraint to false for array datatype and add a warning because
-		// datastream does not support array datatypes.
+		// Set the not null constraint to false for array datatype and add a warning.
 		if ty.IsArray {
 			issues = append(issues, internal.ArrayTypeNotSupported)
 			isNotNull = false

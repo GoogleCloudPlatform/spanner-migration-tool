@@ -24,39 +24,9 @@ export interface ISetUpConnectionProfile {
     SourceDatabaseType: string
 }
 
-export interface IShardedDataflowMigration {
-    IsSource: boolean
-    SourceDatabaseType: string
-    Region: string
-}
-
-export interface IDatastreamConfig {
-    maxConcurrentBackfillTasks: string
-    maxConcurrentCdcTasks: string
-}
-
 export interface IGcsConfig {
     ttlInDays: string
     ttlInDaysSet: boolean
-}
-
-export interface IDataflowConfig {
-    network: string
-    subnetwork: string
-    // This specifies the host project id of the vpc network if specified.
-    hostProjectId: string
-    maxWorkers: string
-    numWorkers: string
-    serviceAccountEmail: string
-    machineType: string
-    additionalUserLabels: string
-    kmsKeyName: string
-    projectId: string
-    location: string
-    gcsTemplatePath: string
-    customJarPath: string
-    customClassName: string
-    customParameter: string
 }
 
 export interface IDirectConnectionConfig {
@@ -67,36 +37,12 @@ export interface IDirectConnectionConfig {
     dbName: string
 }
 
-export interface IDatastreamConnProfile {
-    name?: string
-    host?: string
-    user?: string
-    password?: string
-    port?: string
-    location?: string
-}
-
-export interface ILogicalShard {
-    dbName: string
-    databaseId: string
-    refDataShardId: string
-}
-
-
-export interface IDataShard {
-    dataShardId: string
-    srcConnectionProfile: IDatastreamConnProfile
-    dstConnectionProfile: IDatastreamConnProfile
-    streamLocation: string
-    databases: Array<ILogicalShard>
-}
-
-export interface IShardConfigurationDataflow {
+export interface IShardConfigurationBulk {
     schemaSource: IDirectConnectionConfig
-    dataShards: Array<IDataShard>
+    dataShards: Array<IDirectConnectionConfig>
 }
 
 export interface IMigrationProfile {
     configType: string
-    shardConfigurationDataflow: IShardConfigurationDataflow
+    shardConfigurationBulk: IShardConfigurationBulk
 }

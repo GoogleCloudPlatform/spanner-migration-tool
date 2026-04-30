@@ -24,11 +24,8 @@ description: "Permissions and connectivity required to run SMT"
 
 ### API enablement
 
-Ensure that required APIs are enabled on your project.
-
 1. [Make sure that billing is enabled for your Google Cloud project](https://cloud.google.com/billing/docs/how-to/verify-billing-enabled#gcloud).
-
-4. Google Cloud Storage apis are generally enabled by [default](https://cloud.google.com/service-usage/docs/enabled-service#default). In they have been disabled, you will need to enable them.
+2. Google Cloud Storage apis are generally enabled by [default](https://cloud.google.com/service-usage/docs/enabled-service#default). In they have been disabled, you will need to enable them.
 
    ```sh
    gcloud services enable storage.googleapis.com
@@ -47,12 +44,7 @@ In generic terms (your specific network settings may differ), do the following:
 6. Save the firewall rule, and then exit.
 
 
-### Configuring connectivity for Dataflow
 
-{: .highlight }
-This is only required when if you plan to run Dataflow inside a VPC.
-
-Follow the [Internet access for Dataflow guidelines](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) to allow the necessary access from the VPC in which you will run the `Dataflow` jobs.
 
 ## Permissions
 
@@ -87,7 +79,7 @@ Grant the user **Editor role** to create buckets in the project.
 
 ### GCE
 
-Enable access to Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
+Enable access to Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
 
 
 

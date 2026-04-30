@@ -20,12 +20,9 @@ There are three supported modes of migration:
 - **Data** - This mode of migration writes data to an existing Spanner database. Please note that for data migration to work the schema of the existing spanner database must match with Spanner Migration Tool's generated spanner schema.
 - **Schema and Data** - This mode will create a new spanner database with the modified schema and perform the data migration to the new schema.
 
-## Migration Types
+## Data Migration
 
-Spanner Migration Tool supports POC migration:
-
-- **POC migration** - Spanner Migration Tool reads data from the source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve a consistent version of data, stop writing on the source while migration is in progress. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
-
+Spanner Migration Tool supports POC migration. Spanner Migration Tool reads data from the source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve a consistent version of data, stop writing on the source while migration is in progress. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 The **Prepare Migration** page provides a summary of the source and target databases. It also provides users with the options for selecting migration mode. Once the users select these values they need to set up source and target database details. Each of these is described in detail in the sub-components listed below.
 
 

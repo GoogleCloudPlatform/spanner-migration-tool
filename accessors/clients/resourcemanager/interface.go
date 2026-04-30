@@ -21,7 +21,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
-// Use this interface instead of datastream.FlexTemplatesClient to support mocking.
+// Use this interface instead of resourcemanager.ProjectsClient to support mocking.
 type ResourcemanagerProjectsClient interface {
 	GetProject(ctx context.Context, req *resourcemanagerpb.GetProjectRequest, opts ...gax.CallOption) (*resourcemanagerpb.Project, error)
 }

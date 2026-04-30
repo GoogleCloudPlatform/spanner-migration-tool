@@ -186,11 +186,4 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	return ""
 }
 
-func updateShardsWithTuningConfigs(shardedTuningConfig profiles.ShardConfigurationDataflow) {
-	for _, dataShard := range shardedTuningConfig.DataShards {
-		dataShard.DatastreamConfig = shardedTuningConfig.DatastreamConfig
-		dataShard.GcsConfig = shardedTuningConfig.GcsConfig
-		dataShard.DataflowConfig = shardedTuningConfig.DataflowConfig
-	}
-}
 

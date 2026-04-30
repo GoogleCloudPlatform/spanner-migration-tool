@@ -30,12 +30,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
-	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -47,26 +44,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
 
-var (
-	once             sync.Once
-	datastreamClient *datastream.Client
-)
-
-type CreateMigrationResources interface {
-	multiError(errorMessages []error) error
-	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq]
-	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client)
-}
-
-func GetDatastreamClient(ctx context.Context) *datastream.Client {
-	if datastreamClient == nil {
-		once.Do(func() {
-			datastreamClient, _ = datastream.NewClient(ctx)
-		})
-		return datastreamClient
-	}
-	return datastreamClient
-}
 
 type ConvInterface interface {
 	SchemaConv(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, schemaFromSource SchemaFromSourceInterface) (*internal.Conv, error)

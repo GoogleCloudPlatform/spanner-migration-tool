@@ -32,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
@@ -53,7 +52,7 @@ type DataCmd struct {
 	logLevel         string
 	SkipForeignKeys  bool
 	validate         bool
-	dataflowTemplate string
+
 }
 
 // Name returns the name of operation.
@@ -91,7 +90,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
-	f.StringVar(&cmd.dataflowTemplate, "dataflow-template", constants.DEFAULT_TEMPLATE_PATH, "GCS path of the Dataflow template")
+
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -111,7 +110,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer logger.Log.Sync()
 
 	conv := internal.MakeConv()
-	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
+
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
@@ -169,13 +168,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner = utils.GetBanner(now, dbURI)
 	} else {
 		conv.Audit.DryRun = true
-		// If migration type is Minimal Downtime, validate if required resources can be generated
-		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			err = ValidateResourceGenerationHelper(ctx, cmd.project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
-			if err != nil {
-				return subcommands.ExitFailure
-			}
-		}
 
 		convImpl := &conversion.ConvImpl{}
 		bw, err = convImpl.DataConv(ctx, cmd.project, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})

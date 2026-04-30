@@ -41,7 +41,7 @@ The migration setup consists of:
    - Verify dual-write functionality on Cassandra and Spanner
 
 3. **Data Migration**
-   - Execute [bulk data migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/README_Sourcedb_to_Spanner.md#cassandra-to-spanner-bulk-migration)
+   - Execute bulk data migration.
    - Monitor progress and performance
 
 4. **Validation**

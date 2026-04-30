@@ -153,7 +153,6 @@ type SourceProfileConnectionMySQL struct {
 	User            string // Same as MYSQLUSER environment variable
 	Db              string // Same as MYSQLDATABASE environment variable
 	Pwd             string // Same as MYSQLPWD environment variable
-	StreamingConfig string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error) {
@@ -164,12 +163,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
-
-	streamingConfig, cfgOk := params["streamingCfg"]
-	if cfgOk && streamingConfig == "" {
-		return mysql, fmt.Errorf("specify a non-empty streaming config file path")
-	}
-	mysql.StreamingConfig = streamingConfig
 
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
@@ -267,7 +260,6 @@ type SourceProfileConnectionPostgreSQL struct {
 	User            string // Same as PGUSER environment variable
 	Db              string // Same as PGDATABASE environment variable
 	Pwd             string // Same as PGPASSWORD environment variable
-	StreamingConfig string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error) {
@@ -277,12 +269,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params
 	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
-
-	streamingConfig, cfgOk := params["streamingCfg"]
-	if cfgOk && streamingConfig == "" {
-		return pg, fmt.Errorf("specify a non-empty streaming config file path")
-	}
-	pg.StreamingConfig = streamingConfig
 
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
@@ -395,7 +381,6 @@ type SourceProfileConnectionOracle struct {
 	User            string
 	Db              string
 	Pwd             string
-	StreamingConfig string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error) {
@@ -405,12 +390,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map
 	db, dbOk := params["dbName"]
 	port := params["port"]
 	pwd := params["password"]
-
-	streamingConfig, cfgOk := params["streamingCfg"]
-	if cfgOk && streamingConfig == "" {
-		return ss, fmt.Errorf("specify a non-empty streaming config file path")
-	}
-	ss.StreamingConfig = streamingConfig
 
 	if hostOk && userOk && dbOk {
 		// All connection params provided through source-profile. Port and password handled later.
@@ -478,7 +457,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params 
 
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
-	Streaming bool
 	Mysql     SourceProfileConnectionMySQL
 	Pg        SourceProfileConnectionPostgreSQL
 	SqlServer SourceProfileConnectionSqlServer
@@ -503,9 +481,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 			if err != nil {
 				return conn, err
 			}
-			if conn.Mysql.StreamingConfig != "" {
-				conn.Streaming = true
-			}
+
 		}
 	case "postgresql", "postgres", "pg":
 		{
@@ -514,9 +490,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 			if err != nil {
 				return conn, err
 			}
-			if conn.Pg.StreamingConfig != "" {
-				conn.Streaming = true
-			}
+
 		}
 	case "sqlserver", "mssql":
 		{
@@ -533,9 +507,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 			if err != nil {
 				return conn, err
 			}
-			if conn.Oracle.StreamingConfig != "" {
-				conn.Streaming = true
-			}
+
 		}
 	case "cassandra":
 		{
@@ -584,74 +556,6 @@ type DirectConnectionConfig struct {
 	DbName      string `json:"dbName"`
 }
 
-type DatastreamConnProfileSource struct {
-	Name     string `json:"name"`
-	Host     string `json:"host"`
-	User     string `json:"user"`
-	Port     string `json:"port"`
-	Password string `json:"password"`
-	Location string `json:"location"`
-}
-
-type DatastreamConnProfileTarget struct {
-	Name     string `json:"name"`
-	Location string `json:"location"`
-}
-
-type DatastreamConfig struct {
-	MaxConcurrentBackfillTasks string `json:"maxConcurrentBackfillTasks"`
-	MaxConcurrentCdcTasks      string `json:"maxConcurrentCdcTasks"`
-}
-
-type GcsConfig struct {
-	TtlInDays    int64 `json:"ttlInDays,string"`
-	TtlInDaysSet bool  `json:"ttlInDaysSet"`
-}
-
-type DataflowConfig struct {
-	ProjectId            string `json:"projectId"`
-	Location             string `json:"location"`
-	Network              string `json:"network"`
-	Subnetwork           string `json:"subnetwork"`
-	VpcHostProjectId     string `json:"hostProjectId"`
-	MaxWorkers           string `json:"maxWorkers"`
-	NumWorkers           string `json:"numWorkers"`
-	ServiceAccountEmail  string `json:"serviceAccountEmail"`
-	JobName              string `json:"jobName"`
-	MachineType          string `json:"machineType"`
-	AdditionalUserLabels string `json:"additionalUserLabels"`
-	KmsKeyName           string `json:"kmsKeyName"`
-	GcsTemplatePath      string `json:"gcsTemplatePath"`
-	CustomJarPath        string `json:"customJarPath"`
-	CustomClassName      string `json:"customClassName"`
-	CustomParameter      string `json:"customParameter"`
-}
-
-type DataShard struct {
-	DataShardId          string                      `json:"dataShardId"`
-	SrcConnectionProfile DatastreamConnProfileSource `json:"srcConnectionProfile"`
-	DstConnectionProfile DatastreamConnProfileTarget `json:"dstConnectionProfile"`
-	DatastreamConfig     DatastreamConfig            `json:"datastreamConfig"`
-	GcsConfig            GcsConfig                   `json:"gcsConfig"`
-	DataflowConfig       DataflowConfig              `json:"dataflowConfig"`
-	TmpDir               string                      `json:"tmpDir"`
-	StreamLocation       string                      `json:"streamLocation"`
-	LogicalShards        []LogicalShard              `json:"databases"`
-}
-
-type LogicalShard struct {
-	DbName         string `json:"dbName"`
-	LogicalShardId string `json:"databaseId"`
-	RefDataShardId string `json:"refDataShardId"`
-}
-
-type ShardConfigurationDataflow struct {
-	SchemaSource     DirectConnectionConfig `json:"schemaSource"`
-	DataShards       []*DataShard           `json:"dataShards"`
-	DatastreamConfig DatastreamConfig       `json:"datastreamConfig"`
-	GcsConfig        GcsConfig              `json:"gcsConfig"`
-	DataflowConfig   DataflowConfig         `json:"dataflowConfig"`
-}
 
 type ShardConfigurationBulk struct {
 	SchemaSource DirectConnectionConfig   `json:"schemaSource"`
@@ -665,7 +569,6 @@ type ShardConfigurationDMS struct {
 type SourceProfileConfig struct {
 	ConfigType                 string                     `json:"configType"`
 	ShardConfigurationBulk     ShardConfigurationBulk     `json:"shardConfigurationBulk"`
-	ShardConfigurationDataflow ShardConfigurationDataflow `json:"shardConfigurationDataflow"`
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
 }
 

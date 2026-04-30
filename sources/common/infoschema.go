@@ -15,12 +15,10 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
 
-	sp "cloud.google.com/go/spanner"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -43,8 +41,7 @@ type InfoSchema interface {
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
-	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
-	StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) (internal.DataflowOutput, error)
+
 }
 
 // SchemaAndName contains the schema and name for a table
