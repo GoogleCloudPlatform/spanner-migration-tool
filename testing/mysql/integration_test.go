@@ -621,10 +621,11 @@ func onlyRunForEmulatorTest(t *testing.T) {
 	}
 }
 
-func TestIntegration_MYSQL_DirectConnect_2500Tables(t *testing.T) {
+func TestIntegration_MYSQL_DirectConnect_5000Tables(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 
-	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_2500_TABLES"), os.Getenv("MYSQLPWD")
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_5000_TABLES"), os.Getenv("MYSQLPWD")
 	if host == "" || user == "" || srcDb == "" {
 		t.Skip("Skipping test: MySQL environment variables not set.")
 	}
@@ -632,7 +633,7 @@ func TestIntegration_MYSQL_DirectConnect_2500Tables(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-schema-2500-tables"
+	dbName := "test-schema-5000-tables"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	defer dropDatabase(t, dbURI)
 
@@ -646,16 +647,16 @@ func TestIntegration_MYSQL_DirectConnect_2500Tables(t *testing.T) {
 
 	// Verify generated files
 	if _, err := os.Stat(fmt.Sprintf("%s.report.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("report file not generated during schema-only 2500 tables direct connect test")
+		t.Fatalf("report file not generated during schema-only 5000 tables direct connect test")
 	}
 	if _, err := os.Stat(fmt.Sprintf("%s.schema.ddl.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("legal ddl file not generated during schema-only 2500 tables direct connect test")
+		t.Fatalf("legal ddl file not generated during schema-only 5000 tables direct connect test")
 	}
 	if _, err := os.Stat(fmt.Sprintf("%s.schema.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("readable schema file not generated during schema-only 2500 tables direct connect test")
+		t.Fatalf("readable schema file not generated during schema-only 5000 tables direct connect test")
 	}
 	if _, err := os.Stat(fmt.Sprintf("%s.session.json", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("session file not generated during schema-only 2500 tables direct connect test")
+		t.Fatalf("session file not generated during schema-only 5000 tables direct connect test")
 	}
 
 	client, err := spanner.NewClient(ctx, dbURI)
@@ -675,7 +676,7 @@ func TestIntegration_MYSQL_DirectConnect_2500Tables(t *testing.T) {
 	if err := row.Columns(&numberOfTablesCreated); err != nil {
 		t.Fatalf("failed to scan table count: %v", err)
 	}
-	if got, want := numberOfTablesCreated, int64(2500); got != want {
+	if got, want := numberOfTablesCreated, int64(5000); got != want {
 		t.Fatalf("number of tables created in spanner is incorrect: got %v, want %v", got, want)
 	}
 }

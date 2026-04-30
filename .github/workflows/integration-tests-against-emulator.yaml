@@ -40,7 +40,7 @@ jobs:
       MYSQLDB_FKACTION: test_foreign_key_action_data
       MYSQLDB_CHECK_CONSTRAINT: test_mysql_checkconstraint
       MYSQLDB_DATA_TYPES: test_mysql_data_types
-      MYSQLDB_2500_TABLES: test_mysql_2500_tables
+      MYSQLDB_5000_TABLES: test_mysql_5000_tables
       MYSQLPWD: root
 
       # set DynamoDB related environment variables
@@ -121,8 +121,8 @@ jobs:
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_checkconstraint_dump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_data_types_dump.test.out
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot -e "CREATE DATABASE test_mysql_2500_tables;"
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot test_mysql_2500_tables < test_data/mysql_2500_tables.sql
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot -e "CREATE DATABASE test_mysql_5000_tables;"
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot test_mysql_5000_tables < test_data/mysql_5000_tables.sql
 
       # init sql server with test_data
       # since we use ubuntu-latest container, we should ensure that the path matches the latest from  https://packages.microsoft.com/config/ubuntu/
