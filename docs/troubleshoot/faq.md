@@ -41,12 +41,4 @@ If you are connecting from a GCE VM please verify the access scope of your GCE V
 
 Otherwise, execute the following command: `gcloud auth application-default login`
 
-### What happens behind the scenes in minimal downtime migration?
 
-Spanner Migration Tool orchestrates the entire process using a unified interface, which comprises the following steps:
-
-1. Setting up a GCS bucket to store incoming change events on the source database while the snapshot migration progresses.
-2. Setting up the bulk load of the snapshot data and stream of incoming change events using Datastream. **Within the Spanner Migration Tool UI, source and target connection profile will need to be setup**
-3. Setting up the Dataflow job to migrate the change events into Spanner, which drains the GCS bucket over time.
-
-Once the GCS bucket is almost empty, users need to stop writing to the source database so that the remaining change events can be applied. This results in a short downtime while Spanner catches up to the source database. Afterwards,the application can be cut over to Spanner. Currently, Spanner Migration Tool provides minimal downtime migration support for **MySQL and PostgreSQL** databases.

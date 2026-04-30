@@ -18,9 +18,6 @@ Spanner migration tool provides the ability to migrate a subset of tables from t
 Spanner migration tool supports skipping/restoring both, each table individually, and several tables in bulk.
 In the section below, we will look at how this can be configured using the Spanner migration tool UI.
 
-{: .highlight }
-Note: For Postgres minimal downtime migrations, Spanner migration tool currently does not support configuring Datastream to stream only the selected tables. All tables will be streamed, but only the selected tables will be copied into Spanner.
-
 <details open markdown="block">
   <summary>
     Table of contents
