@@ -37,7 +37,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
-	"github.com/aws/aws-sdk-go/aws"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
@@ -156,9 +155,6 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		} else {
 			return profiles.GetSQLConnectionStr(sourceProfile), nil
 		}
-	// For Dynamodb, both legacy and new flows use env vars.
-	case constants.DYNAMODB:
-		return getDynamoDBClientConfig()
 	case constants.SQLSERVER:
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	case constants.ORACLE:
@@ -198,11 +194,3 @@ func updateShardsWithTuningConfigs(shardedTuningConfig profiles.ShardConfigurati
 	}
 }
 
-func getDynamoDBClientConfig() (*aws.Config, error) {
-	cfg := aws.Config{}
-	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
-	if endpointOverride != "" {
-		cfg.Endpoint = aws.String(endpointOverride)
-	}
-	return &cfg, nil
-}

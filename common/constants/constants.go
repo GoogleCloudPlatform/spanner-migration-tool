@@ -33,10 +33,6 @@ const (
 	// SQLSERVER is the driver name for sqlserver.
 	SQLSERVER string = "sqlserver"
 
-	// DYNAMODB is the driver name for AWS DynamoDB.
-	// This is an experimental driver; implementation in progress.
-	DYNAMODB string = "dynamodb"
-
 	// CSV is the driver name when loading data using csv.
 	CSV string = "csv"
 

@@ -48,8 +48,6 @@ func (sm *SnapshotMigrationImpl) snapshotMigrationHandler(sourceProfile profiles
 	// Skip snapshot migration via Spanner migration tool for mysql and oracle since dataflow job will job will handle this from backfilled data.
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
-	case constants.DYNAMODB:
-		return sm.performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}, &common.InfoSchemaImpl{}, &PopulateDataConvImpl{}), nil
 	default:
 		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
 	}
