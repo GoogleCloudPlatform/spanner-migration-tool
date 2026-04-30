@@ -61,10 +61,6 @@ func (m *MockSourceProfileDialect) NewSourceProfileConnectionSqlServer(params ma
 	return args.Get(0).(SourceProfileConnectionSqlServer), args.Error(1)
 }
 
-func (m *MockSourceProfileDialect) NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error) {
-	args := m.Called(params, g)
-	return args.Get(0).(SourceProfileConnectionDynamoDB), args.Error(1)
-}
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error) {
 	args := m.Called(params, g)
@@ -388,66 +384,6 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 	}
 }
 
-func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
-	// Avoid getting/settinng env variables in the unit tests.
-	testCases := []struct {
-		name          string
-		params        map[string]string
-		errorExpected bool
-	}{
-		{
-			name:          "no params",
-			params:        map[string]string{},
-			errorExpected: false,
-		},
-		{
-			name:          "valid schema sample size",
-			params:        map[string]string{"schema-sample-size": "15"},
-			errorExpected: false,
-		},
-		{
-			name:          "invalid schema sample size",
-			params:        map[string]string{"schema-sample-size": "a"},
-			errorExpected: true,
-		},
-		{
-			name:          "valid aws access key id ",
-			params:        map[string]string{"aws-access-key-id": "hdsjg"},
-			errorExpected: false,
-		},
-		{
-			name:          "valid aws region",
-			params:        map[string]string{"aws-region": "us-central"},
-			errorExpected: false,
-		},
-		{
-			name:          "valid dydb endpoint",
-			params:        map[string]string{"dydb-endpoint": "0.0.0.0"},
-			errorExpected: false,
-		},
-		{
-			name:          "enable streaming true",
-			params:        map[string]string{"enableStreaming": "true"},
-			errorExpected: false,
-		},
-		{
-			name:          "enable streaming false",
-			params:        map[string]string{"enableStreaming": "false"},
-			errorExpected: false,
-		},
-		{
-			name:          "invalid enable streaming",
-			params:        map[string]string{"enableStreaming": "ujeh"},
-			errorExpected: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		sourceProfileDialect := SourceProfileDialectImpl{}
-		_, err := sourceProfileDialect.NewSourceProfileConnectionDynamoDB(tc.params, &GetUtilInfoMock{})
-		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
-	}
-}
 
 func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
@@ -836,14 +772,6 @@ func TestNewSourceProfileConnection(t *testing.T) {
 			errorExpected:     false,
 		},
 		{
-			name:              "source dynamodb",
-			source:            "dynamodb",
-			params:            map[string]string{},
-			function:          "NewSourceProfileConnectionDynamoDB",
-			returnConnProfile: SourceProfileConnectionDynamoDB{},
-			errorExpected:     false,
-		},
-		{
 			name:              "source sqlserver",
 			source:            "sqlserver",
 			params:            map[string]string{},
@@ -1054,13 +982,6 @@ func TestToLegacyDriver(t *testing.T) {
 			errorExpected:  false,
 		},
 		{
-			name:           "source profile type FILE and source dynamodb",
-			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
-			source:         "dynamodb",
-			returnConstant: "",
-			errorExpected:  true,
-		},
-		{
 			name:           "source profile type FILE and source cassandra",
 			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
 			source:         "cassandra",
@@ -1086,13 +1007,6 @@ func TestToLegacyDriver(t *testing.T) {
 			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
 			source:         "postgresql",
 			returnConstant: constants.POSTGRES,
-			errorExpected:  false,
-		},
-		{
-			name:           "source profile type CONNECTION and source dynamodb",
-			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
-			source:         "dynamodb",
-			returnConstant: constants.DYNAMODB,
 			errorExpected:  false,
 		},
 		{

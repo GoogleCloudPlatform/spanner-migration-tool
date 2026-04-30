@@ -48,12 +48,10 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             < ~/cart.pg_dump --target-profile='instance=spanner-instance'
 
 
-
 ## REQUIRED FLAGS
 
      --source=SOURCE
-        Flag for specifying source database (e.g., PostgreSQL, MySQL,
-        DynamoDB).
+        Flag for specifying source database (e.g., PostgreSQL, MySQL).
 
 ## OPTIONAL FLAGS
 
@@ -93,7 +91,6 @@ Detailed description of optional flags can be found [here](./flags.md).
         Flag for specifying the name of the Google Cloud Project in which the Spanner migration tool
         can create resources required for migration. If the project is not specified, Spanner migration 
         tool will try to fetch the configured project in the gCloud CLI.
-
 
 
      --session-file-name=SESSION_FILENAME

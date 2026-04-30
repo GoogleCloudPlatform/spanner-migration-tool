@@ -15,7 +15,6 @@ require (
 	cloud.google.com/go/storage v1.56.0
 	cloud.google.com/go/vertexai v0.13.3
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/aws/aws-sdk-go v1.55.5
 	github.com/basgys/goxml2json v1.1.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/denisenkom/go-mssqldb v0.11.0

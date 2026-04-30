@@ -109,8 +109,6 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 		return migration.MigrationData_DIRECT_CONNECTION.Enum(), migration.MigrationData_POSTGRESQL.Enum()
 	case constants.MYSQL:
 		return migration.MigrationData_DIRECT_CONNECTION.Enum(), migration.MigrationData_MYSQL.Enum()
-	case constants.DYNAMODB:
-		return migration.MigrationData_DIRECT_CONNECTION.Enum(), migration.MigrationData_DYNAMODB.Enum()
 	case constants.ORACLE:
 		return migration.MigrationData_DIRECT_CONNECTION.Enum(), migration.MigrationData_ORACLE.Enum()
 	case constants.SQLSERVER:

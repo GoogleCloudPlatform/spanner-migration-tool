@@ -7,17 +7,12 @@ resources required for running the integration tests.
 ## Setup Source Databases
 
 The following integration tests expect an actually running database to use as the source:
-- `testing/dynamodb/streaming`
 - `testing/mysql`
 - `testing/oracle`
 - `testing/postgres`
 - `testing/sqlserver`
 
 The schema and data for these source databases can be found in the `test_data` directory, as described below.
-
-### DynamoDB
-
-TODO
 
 ### MySQL
 
