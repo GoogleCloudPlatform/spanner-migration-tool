@@ -578,6 +578,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 }
 func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
 	onlyRunForEmulatorTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
