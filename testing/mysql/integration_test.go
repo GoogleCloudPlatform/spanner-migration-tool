@@ -111,7 +111,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -166,7 +166,7 @@ func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFil
 }
 
 func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -196,7 +196,7 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -213,7 +213,7 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -230,7 +230,7 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -252,7 +252,7 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -269,7 +269,7 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -284,7 +284,7 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -299,7 +299,7 @@ func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 }
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -577,7 +577,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	assert.Equal(t, iterator.Done, err, "Expected rows in table 'cart' with productid 'zxi-631' to be deleted")
 }
 func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -605,7 +605,7 @@ func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
 	assert.True(t, strings.Contains(ddlContent, "`invalid_gc` STRING(50),"), fmt.Sprintf("Generated column invalid_gc should have been removed from DDL: %s", ddlContent))
 
 	// Case 3: A generated column where the expression is valid but invalid for primary key
-	// TODO: Integration tests executes in emulator where this scenario is valid.
+	// TODO: Integration tests executes in Spanner Omni where this scenario is valid.
 	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_a` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_a not found in DDL: %s", ddlContent))
 	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_b` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_b not found in DDL: %s", ddlContent))
 
@@ -614,8 +614,8 @@ func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
 	assert.True(t, strings.Contains(ddlContent, "`valid_pk` INT64 NOT NULL ,"), fmt.Sprintf("Generated column valid_pk not found in DDL: %s", ddlContent))
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

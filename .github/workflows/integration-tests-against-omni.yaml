@@ -19,7 +19,7 @@ on:
     branches:
       - master
   pull_request:
-name: integration-tests-against-emulator
+name: integration-tests-against-omni
 jobs:
   integration-tests:
     runs-on: self-hosted

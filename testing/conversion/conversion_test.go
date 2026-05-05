@@ -189,13 +189,13 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 }
 
 func TestUpdateDDLForeignKeys(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	testCases := []struct {
 		dbName     string
 		numCols    int // Number of columns in the table.
 		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
-		numWorkers int // Number of concurrent workers (we set it as 1 for now since spanner emulator does not support concurrent schema updates yet).
+		numWorkers int // Number of concurrent workers (we set it as 1 for now since Spanner Omni does not support concurrent schema updates yet).
 	}{
 		{"test-workers-five-fks", 10, 5, 5},
 		{"test-workers-ten-fks", 10, 10, 5},
@@ -223,7 +223,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 }
 
 func TestVerifyDb(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 
 	testCases := []struct {
 		dbName                  string
@@ -277,7 +277,7 @@ func TestVerifyDb(t *testing.T) {
 }
 
 func TestValidateDDL(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 
 	testCases := []struct {
 		dbName                  string
@@ -322,7 +322,7 @@ func TestValidateDDL(t *testing.T) {
 }
 
 func TestGetTableNamesFromSpanner(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	type testCase struct {
@@ -394,8 +394,8 @@ func TestGetTableNamesFromSpanner(t *testing.T) {
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

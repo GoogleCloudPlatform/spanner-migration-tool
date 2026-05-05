@@ -101,7 +101,7 @@ func dropDatabase(t *testing.T, dbPath string) {
 }
 
 func TestCheckExistingDb(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -130,8 +130,8 @@ func TestCheckExistingDb(t *testing.T) {
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

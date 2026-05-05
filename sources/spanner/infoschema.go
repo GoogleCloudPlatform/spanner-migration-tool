@@ -167,7 +167,7 @@ func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *inter
 	if err != nil {
 		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
 		// We raise an unexpected error for now to make it compatible with the integration tests.
-		// In the emulator, the interleave_type column in not supported hence the query fails.
+		// In Spanner Omni, the interleave_type column in not supported hence the query fails.
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
