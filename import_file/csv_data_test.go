@@ -136,7 +136,7 @@ func getCommonInfoSchemaMock(tableCount int) *MockInfoSchemaInterface {
 		MockProcessData: func(conv *internal.Conv, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
 		},
 		MockSetRowStats: func(conv *internal.Conv, infoSchema common.InfoSchema) {},
-		MockProcessTable: func(conv *internal.Conv, table common.SchemaAndName, infoSchema common.InfoSchema) (schema.Table, error) {
+		MockProcessTable: func(conv *internal.Conv, table common.SchemaAndName, infoSchema common.StandardInfoSchema) (schema.Table, error) {
 			return schema.Table{}, nil
 		},
 		MockGetIncludedSrcTablesFromConv: func(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
@@ -149,7 +149,7 @@ type MockInfoSchemaInterface struct {
 	MockGenerateSrcSchema            func(conv *internal.Conv, infoSchema common.InfoSchema, numWorkers int) (int, error)
 	MockProcessData                  func(conv *internal.Conv, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes)
 	MockSetRowStats                  func(conv *internal.Conv, infoSchema common.InfoSchema)
-	MockProcessTable                 func(conv *internal.Conv, table common.SchemaAndName, infoSchema common.InfoSchema) (schema.Table, error)
+	MockProcessTable                 func(conv *internal.Conv, table common.SchemaAndName, infoSchema common.StandardInfoSchema) (schema.Table, error)
 	MockGetIncludedSrcTablesFromConv func(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)
 }
 
@@ -182,7 +182,7 @@ func (m *MockInfoSchemaInterface) ProcessData(conv *internal.Conv, infoSchema co
 func (m *MockInfoSchemaInterface) SetRowStats(conv *internal.Conv, infoSchema common.InfoSchema) {
 }
 
-func (m *MockInfoSchemaInterface) ProcessTable(conv *internal.Conv, table common.SchemaAndName, infoSchema common.InfoSchema) (schema.Table, error) {
+func (m *MockInfoSchemaInterface) ProcessTable(conv *internal.Conv, table common.SchemaAndName, infoSchema common.StandardInfoSchema) (schema.Table, error) {
 	return m.MockProcessTable(conv, table, infoSchema)
 }
 

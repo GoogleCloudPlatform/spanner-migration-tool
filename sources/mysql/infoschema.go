@@ -613,3 +613,384 @@ func createSequence(conv *internal.Conv) ddl.Sequence {
 	srcSequences[id] = sequence
 	return sequence
 }
+
+// GetColumnsBatch returns columns for a batch of tables.
+func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error) {
+	if len(tables) == 0 {
+		return nil, nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+	q := fmt.Sprintf(`SELECT c.table_name, c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.generation_expression, c.extra
+              FROM information_schema.COLUMNS c
+              where table_schema = ? and table_name IN (%s) ORDER BY c.table_name, c.ordinal_position;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	cols, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't get schema for tables: %s", err)
+	}
+	defer cols.Close()
+
+	colDefs := make(map[string]map[string]schema.Column)
+	colIds := make(map[string][]string)
+
+	var tableName, colName, dataType, isNullable, columnType string
+	var colDefault, colExtra, colGeneratedExpression sql.NullString
+	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+
+	for cols.Next() {
+		err := cols.Scan(&tableName, &colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colGeneratedExpression, &colExtra)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if colGeneratedExpression.String == "" {
+			colGeneratedExpression.Valid = false
+		}
+		ignored := schema.Ignored{}
+		ignored.Default = colDefault.Valid
+		colId := internal.GenerateColumnId()
+		var colAutoGen ddl.AutoGenCol
+		if colExtra.String == "auto_increment" {
+			colAutoGen = ddl.AutoGenCol{
+				Name:           constants.AUTO_INCREMENT,
+				GenerationType: constants.AUTO_INCREMENT,
+			}
+		} else {
+			colAutoGen = ddl.AutoGenCol{}
+		}
+
+		defaultVal := ddl.DefaultValue{
+			IsPresent: colDefault.Valid,
+			Value:     ddl.Expression{},
+		}
+		if colDefault.Valid {
+			ty := dataType
+			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				ty = ddl.GetPGType(ddl.Type{Name: ty})
+			}
+			defaultVal.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:    common.SanitizeExpressionsValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
+			}
+		}
+
+		generatedColumn := ddl.GeneratedColumn{
+			IsPresent: colGeneratedExpression.Valid,
+			Value:     ddl.Expression{},
+		}
+		if colGeneratedExpression.Valid {
+			generatedColumn.Type = ddl.GeneratedColStored
+			if strings.Contains(strings.ToUpper(colExtra.String), constants.VIRTUAL_GENERATED) {
+				generatedColumn.Type = ddl.GeneratedColVirtual
+			}
+			generatedColumn.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:    common.SanitizeExpressionsValue(colGeneratedExpression.String, "", false),
+			}
+		}
+
+		c := schema.Column{
+			Id:              colId,
+			Name:            colName,
+			Type:            toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:         common.ToNotNull(conv, isNullable),
+			Ignored:         ignored,
+			AutoGen:         colAutoGen,
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedColumn,
+		}
+
+		if _, ok := colDefs[tableName]; !ok {
+			colDefs[tableName] = make(map[string]schema.Column)
+		}
+		colDefs[tableName][colId] = c
+		colIds[tableName] = append(colIds[tableName], colId)
+	}
+	return colDefs, colIds, nil
+}
+
+// GetConstraintsBatch returns constraints for a batch of tables.
+func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+	if len(tables) == 0 {
+		return nil, nil, nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	var tableExistsCount int
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	var q string
+	if tableExistsCount > 0 {
+		q = fmt.Sprintf(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
+            ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
+            WHERE t.TABLE_SCHEMA = ? 
+            AND t.TABLE_NAME IN (%s) 
+            ORDER BY t.TABLE_NAME, COALESCE(k.ORDINAL_POSITION, 0);`, strings.Join(placeholders, ","))
+	} else {
+		q = fmt.Sprintf(`SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            WHERE t.TABLE_SCHEMA = ?
+            AND t.TABLE_NAME IN (%s)
+            ORDER BY t.TABLE_NAME, k.ORDINAL_POSITION;`, strings.Join(placeholders, ","))
+	}
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer rows.Close()
+
+	primaryKeys := make(map[string][]string)
+	checkKeys := make(map[string][]schema.CheckConstraint)
+	m := make(map[string]map[string][]string)
+
+	var tableName, col, constraintType, checkClause, constraintName, ordinal_position string
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	for rows.Next() {
+		switch len(cols) {
+		case 3:
+			err = rows.Scan(&tableName, &col, &constraintType)
+		case 6:
+			err = rows.Scan(&tableName, &col, &constraintName, &constraintType, &checkClause, &ordinal_position)
+		default:
+			return nil, nil, nil, fmt.Errorf("unexpected number of columns: %d", len(cols))
+		}
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan constraints. error: %v", err))
+			continue
+		}
+
+		if col == "" && constraintType == "" {
+			conv.Unexpected("Got empty column or constraint type")
+			continue
+		}
+
+		switch constraintType {
+		case "PRIMARY KEY":
+			primaryKeys[tableName] = append(primaryKeys[tableName], col)
+		case "CHECK":
+			checkClause = collationRegex.ReplaceAllString(checkClause, "")
+			checkClause = checkAndAddParentheses(checkClause)
+			checkKeys[tableName] = append(checkKeys[tableName], schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
+		default:
+			if _, ok := m[tableName]; !ok {
+				m[tableName] = make(map[string][]string)
+			}
+			m[tableName][col] = append(m[tableName][col], constraintType)
+		}
+	}
+	return primaryKeys, checkKeys, m, nil
+}
+
+// GetForeignKeysBatch returns foreign keys for a batch of tables.
+func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]schema.ForeignKey, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	q := fmt.Sprintf(`SELECT k.TABLE_NAME,
+			k.REFERENCED_TABLE_NAME,
+			k.COLUMN_NAME,
+			k.REFERENCED_COLUMN_NAME,
+			k.CONSTRAINT_NAME,
+			r.DELETE_RULE,
+			r.UPDATE_RULE
+		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS r
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+			ON r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
+			AND r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
+			AND r.TABLE_NAME = k.TABLE_NAME
+			AND r.REFERENCED_TABLE_NAME = k.REFERENCED_TABLE_NAME
+			AND k.REFERENCED_TABLE_SCHEMA = k.TABLE_SCHEMA
+		WHERE k.TABLE_SCHEMA = ?
+			AND k.TABLE_NAME IN (%s)
+		ORDER BY
+			k.TABLE_NAME,
+			k.REFERENCED_TABLE_NAME,
+			k.ORDINAL_POSITION;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tableName, col, refCol, refTable, fKeyName, OnDelete, OnUpdate string
+	fKeys := make(map[string]map[string]common.FkConstraint)
+
+	for rows.Next() {
+		err := rows.Scan(&tableName, &refTable, &col, &refCol, &fKeyName, &OnDelete, &OnUpdate)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if _, ok := fKeys[tableName]; !ok {
+			fKeys[tableName] = make(map[string]common.FkConstraint)
+		}
+		if _, found := fKeys[tableName][fKeyName]; found {
+			fk := fKeys[tableName][fKeyName]
+			fk.Cols = append(fk.Cols, col)
+			fk.Refcols = append(fk.Refcols, refCol)
+			fKeys[tableName][fKeyName] = fk
+			continue
+		}
+		fKeys[tableName][fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: OnDelete, OnUpdate: OnUpdate}
+	}
+
+	foreignKeys := make(map[string][]schema.ForeignKey)
+	for tName, keys := range fKeys {
+		var keyNames []string
+		for k := range keys {
+			keyNames = append(keyNames, k)
+		}
+		sort.Strings(keyNames)
+		for _, k := range keyNames {
+			foreignKeys[tName] = append(foreignKeys[tName],
+				schema.ForeignKey{
+					Id:               internal.GenerateForeignkeyId(),
+					Name:             keys[k].Name,
+					ColumnNames:      keys[k].Cols,
+					ReferTableName:   keys[k].Table,
+					ReferColumnNames: keys[k].Refcols,
+					OnDelete:         keys[k].OnDelete,
+					OnUpdate:         keys[k].OnUpdate,
+				})
+		}
+	}
+	return foreignKeys, nil
+}
+
+// GetIndexesBatch returns indexes for a batch of tables.
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	q := fmt.Sprintf(`SELECT DISTINCT TABLE_NAME, INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
+		FROM INFORMATION_SCHEMA.STATISTICS 
+		WHERE TABLE_SCHEMA = ?
+			AND TABLE_NAME IN (%s)
+			AND INDEX_NAME != 'PRIMARY' 
+		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tableName, name, column, sequence, nonUnique string
+	var collation sql.NullString
+	indexMap := make(map[string]map[string]schema.Index)
+	indexNames := make(map[string][]string)
+
+	for rows.Next() {
+		if err := rows.Scan(&tableName, &name, &column, &sequence, &collation, &nonUnique); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if _, ok := indexMap[tableName]; !ok {
+			indexMap[tableName] = make(map[string]schema.Index)
+		}
+		if _, found := indexMap[tableName][name]; !found {
+			indexNames[tableName] = append(indexNames[tableName], name)
+			indexMap[tableName][name] = schema.Index{
+				Id:     internal.GenerateIndexesId(),
+				Name:   name,
+				Unique: (nonUnique == "0"),
+			}
+		}
+		index := indexMap[tableName][name]
+		index.Keys = append(index.Keys, schema.Key{
+			ColId: colNameIdMap[tableName][column],
+			Desc:  (collation.Valid && collation.String == "D"),
+		})
+		indexMap[tableName][name] = index
+	}
+
+	indexes := make(map[string][]schema.Index)
+	for tName, names := range indexNames {
+		for _, k := range names {
+			indexes[tName] = append(indexes[tName], indexMap[tName][k])
+		}
+	}
+	return indexes, nil
+}
+
