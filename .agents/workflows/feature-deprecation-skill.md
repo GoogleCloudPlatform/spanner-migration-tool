@@ -23,6 +23,7 @@ Once the blast radius is confirmed, proceed with deletion in the following order
 3. Remove dangling imports in files that previously called the deleted feature.
 4. Clean up unused constants, error codes, and struct fields that were only used by the removed feature.
 5. Update package dependency files (e.g., `go.mod` and `go.sum`) if a third-party library is no longer needed.
+6. Run `go mod tidy` to clean up both the `go.mod` and `go.sum` files.
 
 ## Phase 3: Infrastructure & Documentation Purge
 Ensure no "ghost references" remain in the repository's plumbing.
@@ -34,7 +35,8 @@ Ensure no "ghost references" remain in the repository's plumbing.
 ## Phase 4: Rigorous Verification (The Safety Check)
 You must prove the codebase is stable after your changes.
 * Run the project's linter to catch any unused variables or missing imports.
-* Execute the test suite to ensure no unrelated tests are failing.
+* Execute the backend test suite to ensure no unrelated tests are failing.
+* Execute the frontend test suite to ensure no unrelated tests are failing.
 * Perform a dry-run build of the application.
 * Provide a final summary report listing all deleted files, modified files, and the results of your build/test checks.
 

@@ -47,10 +47,9 @@ The SMT contains a web interface that must be tested. You must spin up the UI an
 3.  **Sub-Agent Tasks:**
     *   Navigate to the "Connect Source" page and input the provided source credentials.
     *   Proceed to the schema conversion view to assess the generated tables and verify that global data type changes can be applied.
-    *   **Verify Feature**: Check that the "Equivalent Gcloud Command" component is visible and displays a valid command corresponding to the current UI state.
     *   Configure a Spanner target connection.
     *   Prepare and trigger a migration.
-    *   Monitor the migration dashboard for any frontend console errors or stalled states.
+    *   Wait for the migration to complete and validate that the UI displays "Migration completed successfully!" 
 
 ## Phase 4: Final Reporting
 Produce a structured Markdown report containing:
