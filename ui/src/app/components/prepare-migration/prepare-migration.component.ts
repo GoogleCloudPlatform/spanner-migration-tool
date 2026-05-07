@@ -10,7 +10,7 @@ import { Gcs, InputType, MigrationDetails, MigrationModes, MigrationTypes, Progr
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
-import { IGcsConfig, IMigrationProfile, ISetUpConnectionProfile } from 'src/app/model/profile'
+import { IGcsConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
@@ -85,7 +85,6 @@ export class PrepareMigrationComponent implements OnInit {
   
   displayedResources: ResourceDetails[] = []
   displayedResourcesDataSource: MatTableDataSource<ResourceDetails> = new MatTableDataSource<ResourceDetails>(this.displayedResources)
-  configuredMigrationProfile!: IMigrationProfile
   region: string = ''
   instance: string = ''
   dialect: string = ''
@@ -610,25 +609,6 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
   }
 
-  downloadConfiguration() {
-    this.fetch.getSourceProfile().subscribe({
-      next: (res: IMigrationProfile) => {
-        this.configuredMigrationProfile = res
-        var a = document.createElement('a')
-        // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-        // However the max value received from server is '9223372036854775807'
-        // Therefore an explicit replacement is necessary in the JSON content in the file.
-        let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
-        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-        a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
-        a.click()
-      },
-      error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
-      },
-    })
-
-  }
 
   fetchGeneratedResources() {
     this.fetch.getGeneratedResources().subscribe({

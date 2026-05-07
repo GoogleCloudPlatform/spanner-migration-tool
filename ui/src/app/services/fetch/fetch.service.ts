@@ -16,7 +16,7 @@ import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfileV2, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
+import IConnectionProfile, { ICreateConnectionProfileV2, IGcsConfig } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
 import ICreateSequence from 'src/app/model/auto-gen'
@@ -96,9 +96,6 @@ export class FetchService {
   }
 
 
-  getSourceProfile() {
-    return this.http.get<IMigrationProfile>(`${this.url}/GetSourceProfileConfig`)
-  }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)

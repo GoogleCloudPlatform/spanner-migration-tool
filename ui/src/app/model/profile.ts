@@ -28,21 +28,3 @@ export interface IGcsConfig {
     ttlInDays: string
     ttlInDaysSet: boolean
 }
-
-export interface IDirectConnectionConfig {
-    host: string
-    user: string
-    password: string
-    port: string
-    dbName: string
-}
-
-export interface IShardConfigurationBulk {
-    schemaSource: IDirectConnectionConfig
-    dataShards: Array<IDirectConnectionConfig>
-}
-
-export interface IMigrationProfile {
-    configType: string
-    shardConfigurationBulk: IShardConfigurationBulk
-}
