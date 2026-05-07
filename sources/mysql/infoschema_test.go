@@ -715,7 +715,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
+			query: regexp.QuoteMeta(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -725,40 +725,57 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?
-			ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`),
+            AND t.TABLE_NAME IN (?) 
+            ORDER BY t.TABLE_NAME, COALESCE(k.ORDINAL_POSITION, 0);`),
 			args: []driver.Value{"test_schema", "test_table"},
-			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
-			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"column2", "check_name", "CHECK", "(column2 > 0)", 0}},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
+			rows: [][]driver.Value{{"test_table", "column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"test_table", "column2", "check_name", "CHECK", "(column2 > 0)", 0}},
 		},
 	}
 	db := mkMockDB(t, ms)
-	isi := InfoSchemaImpl{Db: db}
+	isi := InfoSchemaImpl{Db: db, DbName: "test_schema"}
 	conv := &internal.Conv{}
 
-	primaryKeys, checkKeys, m, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "test_schema", Name: "test_table"})
+	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "test_schema", Name: "test_table"}})
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"column1"}, primaryKeys)
-	assert.Equal(t, len(checkKeys), 1)
-	assert.Equal(t, checkKeys[0].Name, "check_name")
-	assert.Equal(t, checkKeys[0].Expr, "(column2 > 0)")
+	assert.Equal(t, []string{"column1"}, primaryKeys["test_table"])
+	assert.Equal(t, len(checkKeys["test_table"]), 1)
+	assert.Equal(t, checkKeys["test_table"][0].Name, "check_name")
+	assert.Equal(t, checkKeys["test_table"][0].Expr, "(column2 > 0)")
 	assert.NotNil(t, m)
 }
 
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA' ) AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{0}},
 		},
+		{
+			query: regexp.QuoteMeta(`SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            WHERE t.TABLE_SCHEMA = ?
+            AND t.TABLE_NAME IN (?)
+            ORDER BY t.TABLE_NAME, k.ORDINAL_POSITION;`),
+			args: []driver.Value{"your_schema", "your_table"},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "CONSTRAINT_TYPE"},
+			rows: [][]driver.Value{{"your_table", "column1", "PRIMARY KEY"}},
+		},
 	}
 	db := mkMockDB(t, ms)
-	isi := InfoSchemaImpl{Db: db}
+	isi := InfoSchemaImpl{Db: db, DbName: "your_schema"}
 	conv := &internal.Conv{}
 
-	_, _, _, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "your_schema", Name: "your_table"})
-	assert.Error(t, err)
+	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "your_schema", Name: "your_table"}})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"column1"}, primaryKeys["your_table"])
+	assert.Empty(t, checkKeys["your_table"])
+	assert.NotNil(t, m)
 }
 
 func TestGetColumnsBatch(t *testing.T) {
