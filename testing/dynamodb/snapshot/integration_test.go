@@ -208,7 +208,7 @@ func populateDynamoDB(t *testing.T) {
 func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	// todo: find cause of flakiness
 	t.Skip("Skipping since test is flaky")
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -290,8 +290,8 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 	assert.True(t, cmp.Equal(wantRecord, gotRecord))
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

@@ -109,15 +109,14 @@ make build
 ./spanner-migration-tool help
 ```
 
-## Setting up the emulator
+## Setting up Spanner Omni
 
-To run migrations against a local instance without having to connect to Cloud
-spanner each time follow the following steps:
+To run migrations against a local instance without having to connect to Cloud Spanner each time, follow these steps:
 
-- **Start the emulator:**
+- **Start Spanner Omni:**
 
     ```sh
-    gcloud emulators spanner start
+    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta start-single-server
     ```
 
 - **Set the SPANNER_EMULATOR_HOST:**
