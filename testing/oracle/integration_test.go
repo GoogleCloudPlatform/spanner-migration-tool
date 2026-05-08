@@ -117,7 +117,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_ORACLE_SchemaSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -131,7 +131,7 @@ func TestIntegration_ORACLE_SchemaSubcommand(t *testing.T) {
 	}
 }
 func TestIntegration_ORACLE_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -200,8 +200,8 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

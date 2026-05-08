@@ -9,7 +9,7 @@ nav_order: 7
 # View Assessment
 {: .no_toc }
 
-It provides the summary of schema conversion in terms of assessment report. Assessment report helps the user to understand the complexity of the schema conversion. It's broken down into 3 categories - automatic conversion, minimal complexity conversion and high complexity conversion. The conversion complexity is calculated based on the warnings and issues.
+It provides the summary of schema conversion in terms of assessment report. Assessment report helps the user to understand the complexity of the schema conversion. It's broken down into 3 categories - automatic conversion, minimal complexity conversion and high complexity conversion. The conversion complexity is calculated based on the ratio of warnings to total columns per table. For a detailed explanation of how this is calculated, see [Conversion Assessment](conv-assess.md).
 
 <details open markdown="block">
   <summary>

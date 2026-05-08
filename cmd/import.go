@@ -133,8 +133,8 @@ func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAcc
 
 		skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
 
-		// Only used for Emulator integration testing.
-		// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
+		// Only used for Spanner Omni integration testing.
+		// TODO(b/406423609): Remove once Cl for fix within Spanner Omni is release.
 		if skipDialectValidation == "true" {
 			return nil
 		}
