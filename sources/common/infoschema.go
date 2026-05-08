@@ -31,7 +31,7 @@ import (
 
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
 
-// InfoSchema contains database information common to both standard and batched modes.
+// InfoSchema contains database information.
 type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string

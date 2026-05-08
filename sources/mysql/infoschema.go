@@ -175,138 +175,9 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 }
 
 
-// checkAndAddParentheses this method will check parentheses  if found it will return same string
-// or add the parentheses then return the string
-func checkAndAddParentheses(checkClause string) string {
-	if strings.HasPrefix(checkClause, "(") && strings.HasSuffix(checkClause, ")") {
-		return checkClause
-	} else {
-		return `(` + checkClause + `)`
-	}
-}
 
 
-// StartChangeDataCapture is used for automatic triggering of Datastream job when
-// performing a streaming migration.
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	mp := make(map[string]interface{})
-	var (
-		schemaDetails map[string]internal.SchemaDetails
-		err           error
-	)
-	commonInfoSchema := common.InfoSchemaImpl{}
-	schemaDetails, err = commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
-	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Mysql.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, schemaDetails)
-	if err != nil {
-		return nil, fmt.Errorf("error reading streaming config: %v", err)
-	}
-	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Mysql.Db, constants.REGULAR_GCS)
-	if err != nil {
-		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
-	}
-	streamingCfg.PubsubCfg = *pubsubCfg
-	dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Mysql.Db, constants.DLQ_GCS)
-	if err != nil {
-		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
-	}
-	streamingCfg.DlqPubsubCfg = *dlqPubsubCfg
-	streamingCfg, err = streaming.StartDatastream(ctx, isi.MigrationProjectId, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
-	if err != nil {
-		err = fmt.Errorf("error starting datastream: %v", err)
-		return nil, err
-	}
-	mp["streamingCfg"] = streamingCfg
-	return mp, err
-}
 
-// StartStreamingMigration is used for automatic triggering of Dataflow job when
-// performing a streaming migration.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
-
-	dfOutput, err := streaming.StartDataflow(ctx, migrationProjectId, isi.TargetProfile, streamingCfg, conv)
-	if err != nil {
-		err = fmt.Errorf("error starting dataflow: %v", err)
-		return internal.DataflowOutput{}, err
-	}
-	return dfOutput, nil
-}
-
-func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
-	switch {
-	case dataType == "set":
-		return schema.Type{Name: dataType, ArrayBounds: []int64{-1}}
-	case charLen.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	// We only want to parse the length for tinyints when it is present, in the form tinyint(12). columnType can also be just 'tinyint',
-	// in which case we skip this parsing.
-	case dataType == "tinyint" && len(columnType) > len("tinyint"):
-		var length int64
-		_, err := fmt.Sscanf(columnType, "tinyint(%d)", &length)
-		if err != nil {
-			return schema.Type{Name: dataType}
-		}
-		return schema.Type{Name: dataType, Mods: []int64{length}}
-	case dataType == "bigint" && len(columnType) > len("bigint") && strings.Contains(strings.ToUpper(columnType), "UNSIGNED"):
-		if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
-			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-		} else if numericPrecision.Valid {
-			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64}}
-		} else {
-			return schema.Type{Name: "bigint unsigned"}
-		}
-	case numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case numericPrecision.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	default:
-		return schema.Type{Name: dataType}
-	}
-}
-
-// buildVals constructs []sql.RawBytes value containers to scan row
-// results into.  Returns both the underlying containers (as a slice)
-// as well as an interface{} of pointers to containers to pass to
-// rows.Scan.
-func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
-	v = make([]sql.RawBytes, n)
-	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
-	// references into such a slice.
-	iv = make([]interface{}, len(v))
-	for i := range v {
-		iv[i] = &v[i]
-	}
-	return v, iv
-}
-
-func valsToStrings(vals []sql.RawBytes) []string {
-	toString := func(val sql.RawBytes) string {
-		if val == nil {
-			return "NULL"
-		}
-		return string(val)
-	}
-	var s []string
-	for _, v := range vals {
-		s = append(s, toString(v))
-	}
-	return s
-}
-
-func createSequence(conv *internal.Conv) ddl.Sequence {
-	id := internal.GenerateSequenceId()
-	sequenceName := "Sequence" + id[1:]
-	sequence := ddl.Sequence{
-		Id:           id,
-		Name:         sequenceName,
-		SequenceKind: "BIT REVERSED SEQUENCE",
-	}
-	conv.ConvLock.Lock()
-	defer conv.ConvLock.Unlock()
-	srcSequences := conv.SrcSequences
-	srcSequences[id] = sequence
-	return sequence
-}
 
 // GetColumnsBatch returns columns for a batch of tables.
 func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error) {
@@ -523,6 +394,16 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	return primaryKeys, checkKeys, m, nil
 }
 
+// checkAndAddParentheses this method will check parentheses  if found it will return same string
+// or add the parentheses then return the string
+func checkAndAddParentheses(checkClause string) string {
+	if strings.HasPrefix(checkClause, "(") && strings.HasSuffix(checkClause, ")") {
+		return checkClause
+	} else {
+		return `(` + checkClause + `)`
+	}
+}
+
 // GetForeignKeysBatch returns foreign keys for a batch of tables.
 func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]schema.ForeignKey, error) {
 	if len(tables) == 0 {
@@ -686,5 +567,127 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		}
 	}
 	return indexes, nil
+}
+
+// StartChangeDataCapture is used for automatic triggering of Datastream job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	mp := make(map[string]interface{})
+	var (
+		schemaDetails map[string]internal.SchemaDetails
+		err           error
+	)
+	commonInfoSchema := common.InfoSchemaImpl{}
+	schemaDetails, err = commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
+	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Mysql.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, schemaDetails)
+	if err != nil {
+		return nil, fmt.Errorf("error reading streaming config: %v", err)
+	}
+	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Mysql.Db, constants.REGULAR_GCS)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
+	}
+	streamingCfg.PubsubCfg = *pubsubCfg
+	dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Mysql.Db, constants.DLQ_GCS)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
+	}
+	streamingCfg.DlqPubsubCfg = *dlqPubsubCfg
+	streamingCfg, err = streaming.StartDatastream(ctx, isi.MigrationProjectId, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
+	if err != nil {
+		err = fmt.Errorf("error starting datastream: %v", err)
+		return nil, err
+	}
+	mp["streamingCfg"] = streamingCfg
+	return mp, err
+}
+
+// StartStreamingMigration is used for automatic triggering of Dataflow job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
+	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
+
+	dfOutput, err := streaming.StartDataflow(ctx, migrationProjectId, isi.TargetProfile, streamingCfg, conv)
+	if err != nil {
+		err = fmt.Errorf("error starting dataflow: %v", err)
+		return internal.DataflowOutput{}, err
+	}
+	return dfOutput, nil
+}
+
+func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
+	switch {
+	case dataType == "set":
+		return schema.Type{Name: dataType, ArrayBounds: []int64{-1}}
+	case charLen.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	// We only want to parse the length for tinyints when it is present, in the form tinyint(12). columnType can also be just 'tinyint',
+	// in which case we skip this parsing.
+	case dataType == "tinyint" && len(columnType) > len("tinyint"):
+		var length int64
+		_, err := fmt.Sscanf(columnType, "tinyint(%d)", &length)
+		if err != nil {
+			return schema.Type{Name: dataType}
+		}
+		return schema.Type{Name: dataType, Mods: []int64{length}}
+	case dataType == "bigint" && len(columnType) > len("bigint") && strings.Contains(strings.ToUpper(columnType), "UNSIGNED"):
+		if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+		} else if numericPrecision.Valid {
+			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64}}
+		} else {
+			return schema.Type{Name: "bigint unsigned"}
+		}
+	case numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+	case numericPrecision.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	default:
+		return schema.Type{Name: dataType}
+	}
+}
+
+// buildVals constructs []sql.RawBytes value containers to scan row
+// results into.  Returns both the underlying containers (as a slice)
+// as well as an interface{} of pointers to containers to pass to
+// rows.Scan.
+func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
+	v = make([]sql.RawBytes, n)
+	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+	// references into such a slice.
+	iv = make([]interface{}, len(v))
+	for i := range v {
+		iv[i] = &v[i]
+	}
+	return v, iv
+}
+
+func valsToStrings(vals []sql.RawBytes) []string {
+	toString := func(val sql.RawBytes) string {
+		if val == nil {
+			return "NULL"
+		}
+		return string(val)
+	}
+	var s []string
+	for _, v := range vals {
+		s = append(s, toString(v))
+	}
+	return s
+}
+
+func createSequence(conv *internal.Conv) ddl.Sequence {
+	id := internal.GenerateSequenceId()
+	sequenceName := "Sequence" + id[1:]
+	sequence := ddl.Sequence{
+		Id:           id,
+		Name:         sequenceName,
+		SequenceKind: "BIT REVERSED SEQUENCE",
+	}
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	srcSequences := conv.SrcSequences
+	srcSequences[id] = sequence
+	return sequence
 }
 
