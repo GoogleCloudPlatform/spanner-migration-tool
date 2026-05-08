@@ -14,7 +14,6 @@
 package cassandra
 
 import (
-	"context"
 	"sort"
 	"testing"
 
@@ -396,7 +395,6 @@ func TestGetIndexes(t *testing.T) {
 
 func TestDataMigrationStubs(t *testing.T) {
 	isi := InfoSchemaImpl{}
-	ctx := context.Background()
 	conv := internal.MakeConv()
 
 	_, err := isi.GetRowsFromTable(conv, "table1")
@@ -408,9 +406,5 @@ func TestDataMigrationStubs(t *testing.T) {
 	err = isi.ProcessData(conv, "table1", schema.Table{}, nil, ddl.CreateTable{}, internal.AdditionalDataAttributes{})
 	assert.ErrorIs(t, err, errNotSupported)
 
-	_, err = isi.StartChangeDataCapture(ctx, conv)
-	assert.ErrorIs(t, err, errNotSupported)
 
-	_, err = isi.StartStreamingMigration(ctx, "", nil, conv, nil)
-	assert.ErrorIs(t, err, errNotSupported)
 }

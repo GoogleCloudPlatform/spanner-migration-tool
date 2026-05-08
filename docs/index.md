@@ -17,6 +17,7 @@ Spanner migration tool (SMT) is a stand-alone open source tool for Cloud Spanner
 
 ---
 
+
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
 migration, using data from an existing PostgreSQL or MySQL database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
@@ -34,15 +35,6 @@ Spanner migration tool can be used to do small scale on-prem POC migrations to g
 
 - **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here](./poc/poc.md).
 
-### Reverse Replication
-
-To launch reverse replication, refer details [here](./reverse-replication/ReverseReplication.md).
-
-
-
-### Custom transformation
-
-To find out how to configure custom transformations, refer [here](./transformations/CustomTransformation.md)
 
 ## Supported Sources and Targets
 

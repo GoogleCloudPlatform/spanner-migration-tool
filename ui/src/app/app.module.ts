@@ -40,20 +40,13 @@ import { DatabaseLoaderComponent } from './components/database-loader/database-l
 import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
 import { GcsMetadataDetailsFormComponent } from './components/gcs-metadata-details-form/gcs-metadata-details-form.component'
-import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from './components/source-details-form/source-details-form.component'
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
-import { EndMigrationComponent } from './components/end-migration/end-migration.component'
-import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component';
 import { EditColumnMaxLengthComponent } from './components/edit-column-max-length/edit-column-max-length.component';
 import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk-source-details-form/sharded-bulk-source-details-form.component';
-import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component';
 import { BulkDropRestoreTableDialogComponent } from './components/bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
 import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component';
 import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component';
-import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
-import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
-import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.component';
 import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-sequence.component'
 import { NgSelectModule } from '@ng-select/ng-select';
 
@@ -86,20 +79,13 @@ import { NgSelectModule } from '@ng-select/ng-select';
         PrepareMigrationComponent,
         TargetDetailsFormComponent,
         GcsMetadataDetailsFormComponent,
-        ConnectionProfileFormComponent,
         SidenavReviewChangesComponent,
-        EndMigrationComponent,
         SourceDetailsFormComponent,
-        DataflowFormComponent,
         EditColumnMaxLengthComponent,
         ShardedBulkSourceDetailsFormComponent,
-        ShardedDataflowMigrationDetailsFormComponent,
         BulkDropRestoreTableDialogComponent,
         AddNewColumnComponent,
         AddShardIdPrimaryKeyComponent,
-        EquivalentGcloudCommandComponent,
-        TuneDatastreamFormComponent,
-        TuneGcsFormComponent,
         AddNewSequenceComponent
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
