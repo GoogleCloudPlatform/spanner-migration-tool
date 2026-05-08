@@ -47,6 +47,9 @@ const (
 	// CASSANDRA is the driver name for Cassandra.
 	CASSANDRA string = "cassandra"
 
+	// NEO4J is the driver name for Neo4j.
+	NEO4J string = "neo4j"
+
 	// Target db for which schema is being generated.
 	// This can be removed once the support for global flags is removed.
 	TargetSpanner              string = "spanner"
