@@ -19,7 +19,7 @@ on:
     branches:
       - master
   pull_request:
-name: integration-tests-against-emulator
+name: integration-tests-against-omni
 jobs:
   integration-tests:
     runs-on: self-hosted
@@ -170,7 +170,7 @@ jobs:
       - run: go build
       - name: Wait for Spanner Omni to start
         run: npx wait-on tcp:localhost:9010 -t 60000
-      - run: go test -v -timeout 30m ./...
+      - run: go test -v ./...
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: default

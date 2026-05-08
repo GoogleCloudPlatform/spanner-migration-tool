@@ -316,7 +316,7 @@ func rowCountTestTable(client *spanner.Client) (int, error) {
 }
 
 func TestIntegration_DYNAMODB_Streaming_Command(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -422,8 +422,8 @@ func checkResults(t *testing.T, client *spanner.Client) {
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }
