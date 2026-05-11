@@ -179,7 +179,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 
 
-// GetColumnsBatch returns columns for a batch of tables.
+// GetColumnsBatch returns a list of Column objects and names for a batch of tables.
 func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error) {
 	if len(tables) == 0 {
 		return nil, nil, nil
@@ -222,6 +222,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
+		// It's required as empty string is considered as valid within Database SQL.
 		if colGeneratedExpression.String == "" {
 			colGeneratedExpression.Valid = false
 		}
@@ -258,6 +259,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 			Value:     ddl.Expression{},
 		}
 		if colGeneratedExpression.Valid {
+			// Defaults to STORED type
 			generatedColumn.Type = ddl.GeneratedColStored
 			if strings.Contains(strings.ToUpper(colExtra.String), constants.VIRTUAL_GENERATED) {
 				generatedColumn.Type = ddl.GeneratedColVirtual
@@ -288,7 +290,10 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	return colDefs, colIds, nil
 }
 
-// GetConstraintsBatch returns constraints for a batch of tables.
+// GetConstraintsBatch returns a list of primary keys and by-column map of
+// other constraints for a batch of tables. Note: we need to preserve ordinal order of
+// columns in primary key constraints.
+// Note that foreign key constraints are handled in GetForeignKeysBatch.
 func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
 	if len(tables) == 0 {
 		return nil, nil, nil, nil
@@ -304,6 +309,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	}
 
 	var tableExistsCount int
+	// check if CHECK_CONSTRAINTS table exists.
 	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
@@ -311,6 +317,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	}
 
 	var q string
+	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
 	if tableExistsCount > 0 {
 		q = fmt.Sprintf(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -380,6 +387,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		switch constraintType {
 		case "PRIMARY KEY":
 			primaryKeys[tableName] = append(primaryKeys[tableName], col)
+		// Case added to handle check constraints
 		case "CHECK":
 			checkClause = collationRegex.ReplaceAllString(checkClause, "")
 			checkClause = checkAndAddParentheses(checkClause)
@@ -404,7 +412,11 @@ func checkAndAddParentheses(checkClause string) string {
 	}
 }
 
-// GetForeignKeysBatch returns foreign keys for a batch of tables.
+// GetForeignKeysBatch returns list all the foreign keys constraints for a batch of tables.
+// MySQL supports cross-database foreign key constraints. We ignore
+// them because the Spanner migration tool works database at a time (a specific run
+// of the Spanner migration tool focuses on a specific database) and so we can't handle
+// them effectively.
 func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]schema.ForeignKey, error) {
 	if len(tables) == 0 {
 		return nil, nil
@@ -497,7 +509,7 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 	return foreignKeys, nil
 }
 
-// GetIndexesBatch returns indexes for a batch of tables.
+// GetIndexesBatch returns a list of all indexes for the specified batch of tables.
 func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error) {
 	if len(tables) == 0 {
 		return nil, nil

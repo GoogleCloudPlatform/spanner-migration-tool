@@ -15,9 +15,11 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 func RunCommand(args string, projectID string) error {
@@ -27,16 +29,18 @@ func RunCommand(args string, projectID string) error {
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/GoogleCloudPlatform/spanner-migration-tool %v", args))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Run(); err != nil {
+		logger.Log.Info(fmt.Sprintf("stdout: %q\n", out.String()))
+		logger.Log.Info(fmt.Sprintf("stderr: %q\n", stderr.String()))
 		return err
 	}
 	return nil
-
 }
 
 // Clears the env variables specified in the input list and stashes the values

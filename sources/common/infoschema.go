@@ -130,7 +130,7 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 
 
 	if bis, ok := infoSchema.(BatchedInfoSchema); ok {
-		batchSize := 100
+		batchSize := 50
 		var batches [][]SchemaAndName
 		for i := 0; i < len(tables); i += batchSize {
 			end := i + batchSize
