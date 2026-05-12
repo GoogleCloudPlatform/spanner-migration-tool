@@ -157,6 +157,10 @@ func assertSrcColDef(t *testing.T, conv *Conv, tableId string, expectedColDef, a
 		assert.NotEqual(t, colId, "")
 		actualCol := actualColDef[colId]
 		actualCol.Id = ""
+		col.DefaultValue.Value.ExpressionId = ""
+		col.GeneratedColumn.Value.ExpressionId = ""
+		actualCol.DefaultValue.Value.ExpressionId = ""
+		actualCol.GeneratedColumn.Value.ExpressionId = ""
 		assert.Equal(t, col, actualCol)
 	}
 }

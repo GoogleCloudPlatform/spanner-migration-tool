@@ -160,14 +160,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
-	for tName, table := range conv.SrcSchema {
-		for cName, col := range table.ColDefs {
-			col.GeneratedColumn.Value.ExpressionId = ""
-			col.DefaultValue.Value.ExpressionId = ""
-			table.ColDefs[cName] = col
-		}
-		conv.SrcSchema[tName] = table
-	}
+
 	expectedSchema := map[string]schema.Table{
 		"cart": {
 			Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -284,14 +277,7 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
-	for tName, table := range conv.SrcSchema {
-		for cName, col := range table.ColDefs {
-			col.GeneratedColumn.Value.ExpressionId = ""
-			col.DefaultValue.Value.ExpressionId = ""
-			table.ColDefs[cName] = col
-		}
-		conv.SrcSchema[tName] = table
-	}
+
 	expectedSchema := map[string]schema.Table{
 		"pk_order": {
 			Name: "pk_order", Schema: "test", ColIds: []string{"pk_1", "pk_2"}, ColDefs: map[string]schema.Column{
