@@ -5,15 +5,12 @@ go 1.25.9
 require (
 	cloud.google.com/go v0.123.0
 	cloud.google.com/go/aiplatform v1.124.0
-	cloud.google.com/go/monitoring v1.27.0
-	cloud.google.com/go/resourcemanager v1.10.7
 	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.56.0
 	cloud.google.com/go/vertexai v0.13.3
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/basgys/goxml2json v1.1.0
-	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/dominikbraun/graph v0.23.0
 	github.com/go-sql-driver/mysql v1.8.1
@@ -32,7 +29,6 @@ require (
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/ratelimit v0.3.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.49.0
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
@@ -48,6 +44,7 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go/auth v0.18.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
+	cloud.google.com/go/monitoring v1.27.0 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
@@ -108,7 +105,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.7.0 // indirect
 	cloud.google.com/go/longrunning v0.9.0 // indirect
-	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -126,7 +122,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.21.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/jackc/pgx/v5 v5.9.2
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20230326075908-cb1d2100619a // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pingcap/errors v0.11.5-0.20241219054535-6b8c588c3122 // indirect
