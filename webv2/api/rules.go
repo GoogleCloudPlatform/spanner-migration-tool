@@ -99,8 +99,8 @@ func ApplyRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Rule cannot be added because some tables, eg: %v are interleaved. Please remove interleaving and try again.", tableName), http.StatusBadRequest)
 			return
 		}
-		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
-		addShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
+		SetShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
+		AddShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
