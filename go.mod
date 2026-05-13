@@ -4,7 +4,7 @@ go 1.25.9
 
 require (
 	cloud.google.com/go v0.123.0
-	cloud.google.com/go/aiplatform v1.124.0
+	cloud.google.com/go/aiplatform v1.125.0
 	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.56.0
