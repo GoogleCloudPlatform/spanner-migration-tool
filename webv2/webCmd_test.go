@@ -18,7 +18,6 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,7 +28,7 @@ func TestWebCmdSetFlags(t *testing.T) {
 		open:             false,
 		port:             8080,
 		validate:         false,
-		dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+
 	}
 
 	webCmd := WebCmd{}

@@ -91,7 +91,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	err = ev.SpannerAccessor.CreateDatabase(ctx, dbURI, verifyExpressionsInput.Conv, verifyExpressionsInput.Source, constants.DATAFLOW_MIGRATION)
+	err = ev.SpannerAccessor.CreateDatabase(ctx, dbURI, verifyExpressionsInput.Conv, verifyExpressionsInput.Source, constants.BULK_MIGRATION)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}

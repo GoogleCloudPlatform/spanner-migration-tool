@@ -34,9 +34,6 @@ type StorageAccessor interface {
 	// Create a GCS bucket with the given name in the input projectId and location. If ttl is > 0,
 	// also apply a delete lifecycle rule with the input ttl and prefixes. Set @ttl to 0 to skip creating lifecycle rules.
 	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
-	// Applies the bucket lifecycle with delete rule. Only accepts the Age and prefix rule conditions as it is only used for the Datastream destination
-	// bucket currently.
-	ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 	// UploadLocalFileToGCS uploads a local file at @localFilePath to a gcs file path @filePath with name @fileName.
 	UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
 	// Uploads a gcs object to gs://@filePath/@fileName with @data as content.
@@ -97,36 +94,6 @@ func (sa *StorageAccessorImpl) DeleteGCSBucket(ctx context.Context, sc storagecl
 	return bucket.Delete(ctx)
 }
 
-func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
-	for i, str := range req.MatchesPrefix {
-		req.MatchesPrefix[i] = strings.TrimPrefix(str, "/")
-	}
-	bucket := sc.Bucket(req.BucketName)
-	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
-		Lifecycle: &storage.Lifecycle{
-			Rules: []storage.LifecycleRule{
-				{
-					Action: storage.LifecycleAction{Type: "Delete"},
-					Condition: storage.LifecycleCondition{
-						AgeInDays: req.Ttl,
-						// The prefixes should not contain the bucket names and starting slash.
-						// For object gs://my_bucket/pictures/paris_2022.jpg,
-						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
-						MatchesPrefix: req.MatchesPrefix,
-					},
-				},
-			},
-		},
-	}
-
-	attrs, err := bucket.Update(ctx, bucketAttrsToUpdate)
-	if err != nil {
-		return fmt.Errorf("could not bucket with lifecycle: %w", err)
-	}
-	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
-		req.BucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
-	return nil
-}
 
 func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error {
 	data, err := os.ReadFile(localFilePath)

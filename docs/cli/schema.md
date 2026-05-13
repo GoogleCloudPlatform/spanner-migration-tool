@@ -104,5 +104,4 @@ Detailed description of optional flags can be found [here](./flags.md).
         Optional. Specifies the name of the file we store session state in.
 
      --source=SOURCE
-        Flag for specifying source database (e.g., PostgreSQL, MySQL,
-        DynamoDB).
+        Flag for specifying source database (e.g., PostgreSQL, MySQL).

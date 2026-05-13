@@ -5,17 +5,13 @@ go 1.25.9
 require (
 	cloud.google.com/go v0.123.0
 	cloud.google.com/go/aiplatform v1.124.0
-	cloud.google.com/go/dataflow v0.14.0
-	cloud.google.com/go/datastream v1.15.1
 	cloud.google.com/go/monitoring v1.27.0
-	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/resourcemanager v1.10.7
 	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.56.0
 	cloud.google.com/go/vertexai v0.13.3
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/aws/aws-sdk-go v1.55.5
 	github.com/basgys/goxml2json v1.1.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/denisenkom/go-mssqldb v0.11.0
@@ -52,7 +48,6 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go/auth v0.18.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
