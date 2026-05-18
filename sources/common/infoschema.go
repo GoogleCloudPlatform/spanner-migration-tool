@@ -34,14 +34,44 @@ type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string
 	GetTables() ([]SchemaAndName, error)
-	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
-	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error)
-	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
-	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
 
+}
+
+// StandardInfoSchema supports per-table fetching of metadata.
+type StandardInfoSchema interface {
+	InfoSchema
+	// GetColumns fetches column definitions for a single table.
+	// Returns a map of column ID to schema.Column, a list of column IDs in ordinal order, and any error.
+	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
+	// GetConstraints fetches constraints (primary keys, check constraints, etc.) for a single table.
+	// Returns a list of primary key column names, a list of check constraints, a map of column name to list of constraint types, and any error.
+	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error)
+	// GetForeignKeys fetches foreign key constraints for a single table.
+	// Returns a list of schema.ForeignKey and any error.
+	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
+	// GetIndexes fetches indexes for a single table.
+	// Returns a list of schema.Index and any error.
+	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
+}
+
+// BatchedInfoSchema supports bulk fetching of metadata for multiple tables.
+type BatchedInfoSchema interface {
+	InfoSchema
+	// GetColumnsBatch fetches column definitions for a batch of tables.
+	// Returns a map of table name to (map of column ID to schema.Column), a map of table name to list of column IDs, and any error.
+	GetColumnsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error)
+	// GetConstraintsBatch fetches constraints for a batch of tables.
+	// Returns a map of table name to list of primary key column names, a map of table name to list of check constraints, a map of table name to (map of column name to list of constraint types), and any error.
+	GetConstraintsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error)
+	// GetForeignKeysBatch fetches foreign key constraints for a batch of tables.
+	// Returns a map of table name to list of schema.ForeignKey and any error.
+	GetForeignKeysBatch(conv *internal.Conv, tables []SchemaAndName) (map[string][]schema.ForeignKey, error)
+	// GetIndexesBatch fetches indexes for a batch of tables.
+	// Returns a map of table name to list of schema.Index and any error.
+	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error)
 }
 
 // SchemaAndName contains the schema and name for a table
@@ -65,7 +95,7 @@ type InfoSchemaInterface interface {
 	GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error)
 	ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes)
 	SetRowStats(conv *internal.Conv, infoSchema InfoSchema)
-	ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)
+	ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema StandardInfoSchema) (schema.Table, error)
 	GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)
 }
 type InfoSchemaImpl struct{}
@@ -110,8 +140,84 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		numWorkers = DefaultWorkers
 	}
 
+	var tableCount int
+	var e error
+
+	if bis, ok := infoSchema.(BatchedInfoSchema); ok {
+		tableCount, e = is.generateSrcSchemaBatched(conv, bis, tables, numWorkers)
+	} else if sis, ok := infoSchema.(StandardInfoSchema); ok {
+		tableCount, e = is.generateSrcSchemaStandard(conv, sis, tables, numWorkers)
+	} else {
+		return 0, fmt.Errorf("source does not support schema fetching")
+	}
+
+	if e != nil {
+		return 0, e
+	}
+
+	internal.ResolveForeignKeyIds(conv.SrcSchema)
+	return tableCount, nil
+}
+
+func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis BatchedInfoSchema, tables []SchemaAndName, numWorkers int) (int, error) {
+	batchSize := 50
+	var batches [][]SchemaAndName
+	for i := 0; i < len(tables); i += batchSize {
+		end := i + batchSize
+		if end > len(tables) {
+			end = len(tables)
+		}
+		batches = append(batches, tables[i:end])
+	}
+
+	asyncProcessBatch := func(batch []SchemaAndName, mutex *sync.Mutex) task.TaskResult[[]SchemaAndName] {
+		colDefs, colIds, err := bis.GetColumnsBatch(conv, batch)
+		if err != nil {
+			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
+		}
+		primaryKeys, checkConstraints, _, err := bis.GetConstraintsBatch(conv, batch)
+		if err != nil {
+			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
+		}
+		foreignKeys, err := bis.GetForeignKeysBatch(conv, batch)
+		if err != nil {
+			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
+		}
+		colNameIdMap := make(map[string]map[string]string)
+		for _, t := range batch {
+			colNameIdMap[t.Name] = make(map[string]string)
+			for k, v := range colDefs[t.Name] {
+				colNameIdMap[t.Name][v.Name] = k
+			}
+		}
+		indexes, err := bis.GetIndexesBatch(conv, batch, colNameIdMap)
+		if err != nil {
+			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
+		}
+
+		mutex.Lock()
+		for _, t := range batch {
+			name := bis.GetTableName(t.Schema, t.Name)
+			tableObj := BuildSchemaTable(t, name, colDefs[t.Name], colIds[t.Name], primaryKeys[t.Name], checkConstraints[t.Name], indexes[t.Name], foreignKeys[t.Name])
+			conv.SrcSchema[tableObj.Id] = tableObj
+		}
+		mutex.Unlock()
+
+		return task.TaskResult[[]SchemaAndName]{Result: batch, Err: nil}
+	}
+
+	r := task.RunParallelTasksImpl[[]SchemaAndName, []SchemaAndName]{}
+	_, e := r.RunParallelTasks(batches, numWorkers, asyncProcessBatch, true)
+
+	if e != nil {
+		return 0, e
+	}
+	return len(tables), nil
+}
+
+func (is *InfoSchemaImpl) generateSrcSchemaStandard(conv *internal.Conv, sis StandardInfoSchema, tables []SchemaAndName, numWorkers int) (int, error) {
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) task.TaskResult[SchemaAndName] {
-		table, e := is.ProcessTable(conv, t, infoSchema)
+		table, e := is.ProcessTable(conv, t, sis)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
@@ -120,13 +226,10 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 	}
 
 	r := task.RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
-	res, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, false)
+	_, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, false)
 	if e != nil {
-		logger.Log.Info(fmt.Sprintf("exiting due to error: %s , while processing schema for table %s\n", e, res))
 		return 0, e
 	}
-
-	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return len(tables), nil
 }
 
@@ -180,10 +283,9 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 	}
 }
 
-func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema StandardInfoSchema) (schema.Table, error) {
 	var t schema.Table
 	logger.Log.Info(fmt.Sprintf("processing schema for table %s", table))
-	tblId := internal.GenerateTableId()
 	primaryKeys, checkConstraints, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
@@ -193,7 +295,6 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 
-	table.Id = tblId
 	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -209,11 +310,21 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 	}
 
 	name := infoSchema.GetTableName(table.Schema, table.Name)
+	return BuildSchemaTable(table, name, colDefs, colIds, primaryKeys, checkConstraints, indexes, foreignKeys), nil
+}
+
+// BuildSchemaTable constructs a schema.Table struct from fetched metadata.
+func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schema.Column, colIds []string, primaryKeys []string, checkConstraints []schema.CheckConstraint, indexes []schema.Index, foreignKeys []schema.ForeignKey) schema.Table {
+	tblId := internal.GenerateTableId()
+	colNameIdMap := make(map[string]string)
+	for k, v := range colDefs {
+		colNameIdMap[v.Name] = k
+	}
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
-	t = schema.Table{
+	return schema.Table{
 		Id:               tblId,
 		Name:             name,
 		Schema:           table.Schema,
@@ -224,8 +335,8 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 		CheckConstraints: checkConstraints,
 		Indexes:          indexes,
 		ForeignKeys:      foreignKeys}
-	return t, nil
 }
+
 
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.

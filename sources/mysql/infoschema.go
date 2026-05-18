@@ -171,134 +171,162 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
-// GetColumns returns a list of Column objects and names// ProcessColumns
-func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.generation_expression, c.extra
+
+
+
+
+
+// GetColumnsBatch returns a list of Column objects and names for a batch of tables.
+func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error) {
+	if len(tables) == 0 {
+		return nil, nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+	q := fmt.Sprintf(`SELECT c.table_name, c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.generation_expression, c.extra
               FROM information_schema.COLUMNS c
-              where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
-	cols, err := isi.Db.Query(q, table.Schema, table.Name)
+              where table_schema = ? and table_name IN (%s) ORDER BY c.table_name, c.ordinal_position;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	cols, err := isi.Db.Query(q, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+		return nil, nil, fmt.Errorf("couldn't get schema for tables: %s", err)
 	}
 	defer cols.Close()
-	colDefs := make(map[string]schema.Column)
-	var colIds []string
-	var colName, dataType, isNullable, columnType string
+
+	colDefs := make(map[string]map[string]schema.Column)
+	colIds := make(map[string][]string)
+
+	var tableName, colName, dataType, isNullable, columnType string
 	var colDefault, colExtra, colGeneratedExpression sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
-	var colAutoGen ddl.AutoGenCol
+
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colGeneratedExpression, &colExtra)
+		err := cols.Scan(&tableName, &colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colGeneratedExpression, &colExtra)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-
-		// It's required as empty string is considered as valid within Database SQL.
-		if colGeneratedExpression.String == "" {
-			colGeneratedExpression.Valid = false
-		}
-		ignored := schema.Ignored{}
-		ignored.Default = colDefault.Valid
 		colId := internal.GenerateColumnId()
-		if colExtra.String == "auto_increment" {
-			colAutoGen = ddl.AutoGenCol{
-				Name:           constants.AUTO_INCREMENT,
-				GenerationType: constants.AUTO_INCREMENT,
-			}
-		} else {
-			colAutoGen = ddl.AutoGenCol{}
-		}
+		c := buildColumn(conv, colId, colName, dataType, columnType, isNullable, colDefault, colExtra, colGeneratedExpression, charMaxLen, numericPrecision, numericScale)
 
-		defaultVal := ddl.DefaultValue{
-			IsPresent: colDefault.Valid,
-			Value:     ddl.Expression{},
+		if _, ok := colDefs[tableName]; !ok {
+			colDefs[tableName] = make(map[string]schema.Column)
 		}
-		if colDefault.Valid {
-			ty := dataType
-			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-				ty = ddl.GetPGType(ddl.Type{Name: ty})
-			}
-			defaultVal.Value = ddl.Expression{
-				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeExpressionsValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
-			}
-		}
-
-		generatedColumn := ddl.GeneratedColumn{
-			IsPresent: colGeneratedExpression.Valid,
-			Value:     ddl.Expression{},
-		}
-		if colGeneratedExpression.Valid {
-			// Defaults to STORED type
-			generatedColumn.Type = ddl.GeneratedColStored
-			if strings.Contains(strings.ToUpper(colExtra.String), constants.VIRTUAL_GENERATED) {
-				generatedColumn.Type = ddl.GeneratedColVirtual
-			}
-			generatedColumn.Value = ddl.Expression{
-				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeExpressionsValue(colGeneratedExpression.String, "", false),
-			}
-		}
-
-		c := schema.Column{
-			Id:              colId,
-			Name:            colName,
-			Type:            toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull:         common.ToNotNull(conv, isNullable),
-			Ignored:         ignored,
-			AutoGen:         colAutoGen,
-			DefaultValue:    defaultVal,
-			GeneratedColumn: generatedColumn,
-		}
-		colDefs[colId] = c
-		colIds = append(colIds, colId)
+		colDefs[tableName][colId] = c
+		colIds[tableName] = append(colIds[tableName], colId)
 	}
 	return colDefs, colIds, nil
 }
 
-// GetConstraints returns a list of primary keys and by-column map of
-// other constraints.  Note: we need to preserve ordinal order of
-// columns in primary key constraints.
-// Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
-	finalQuery, err := isi.getConstraintsDQL()
-	if err != nil {
-		return nil, nil, nil, err
+func buildColumn(conv *internal.Conv, colId, colName, dataType, columnType, isNullable string, colDefault, colExtra, colGeneratedExpression sql.NullString, charMaxLen, numericPrecision, numericScale sql.NullInt64) schema.Column {
+	// It's required as empty string is considered as valid within Database SQL.
+	if colGeneratedExpression.String == "" {
+		colGeneratedExpression.Valid = false
 	}
-	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
-	if err != nil {
-		return nil, nil, nil, err
+	ignored := schema.Ignored{}
+	ignored.Default = colDefault.Valid
+	
+	var colAutoGen ddl.AutoGenCol
+	if colExtra.String == "auto_increment" {
+		colAutoGen = ddl.AutoGenCol{
+			Name:           constants.AUTO_INCREMENT,
+			GenerationType: constants.AUTO_INCREMENT,
+		}
+	} else {
+		colAutoGen = ddl.AutoGenCol{}
 	}
-	defer rows.Close()
 
-	var primaryKeys []string
-	var checkKeys []schema.CheckConstraint
-	m := make(map[string][]string)
-
-	for rows.Next() {
-		if err := isi.processRow(rows, conv, &primaryKeys, &checkKeys, m); err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan constrants. error: %v", err))
-			continue
+	defaultVal := ddl.DefaultValue{
+		IsPresent: colDefault.Valid,
+		Value:     ddl.Expression{},
+	}
+	if colDefault.Valid {
+		ty := dataType
+		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty = ddl.GetPGType(ddl.Type{Name: ty})
+		}
+		defaultVal.Value = ddl.Expression{
+			ExpressionId: internal.GenerateExpressionId(),
+			Statement:    common.SanitizeExpressionsValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
 		}
 	}
 
-	return primaryKeys, checkKeys, m, nil
+	generatedColumn := ddl.GeneratedColumn{
+		IsPresent: colGeneratedExpression.Valid,
+		Value:     ddl.Expression{},
+	}
+	if colGeneratedExpression.Valid {
+		// Defaults to STORED type
+		generatedColumn.Type = ddl.GeneratedColStored
+		if strings.Contains(strings.ToUpper(colExtra.String), constants.VIRTUAL_GENERATED) {
+			generatedColumn.Type = ddl.GeneratedColVirtual
+		}
+		generatedColumn.Value = ddl.Expression{
+			ExpressionId: internal.GenerateExpressionId(),
+			Statement:    common.SanitizeExpressionsValue(colGeneratedExpression.String, "", false),
+		}
+	}
+
+	return schema.Column{
+		Id:              colId,
+		Name:            colName,
+		Type:            toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+		NotNull:         common.ToNotNull(conv, isNullable),
+		Ignored:         ignored,
+		AutoGen:         colAutoGen,
+		DefaultValue:    defaultVal,
+		GeneratedColumn: generatedColumn,
+	}
 }
 
-// getConstraintsDQL returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
-func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
+// GetConstraintsBatch returns a list of primary keys and by-column map of
+// other constraints for a batch of tables. Note: we need to preserve ordinal order of
+// columns in primary key constraints.
+// Note that foreign key constraints are handled in GetForeignKeysBatch.
+func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+	if len(tables) == 0 {
+		return nil, nil, nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
 	var tableExistsCount int
 	// check if CHECK_CONSTRAINTS table exists.
 	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
-		return "", err
+		return nil, nil, nil, err
 	}
 
-	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
 	if tableExistsCount > 0 {
-		return `SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
+		return isi.getConstraintsWithCheck(conv, tables, placeholders, tableNames)
+	} else {
+		return isi.getConstraintsWithoutCheck(conv, tables, placeholders, tableNames)
+	}
+}
+
+func (isi InfoSchemaImpl) getConstraintsWithCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+	q := fmt.Sprintf(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -308,64 +336,108 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ? 
-            ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`, nil
+            AND t.TABLE_NAME IN (%s) 
+            ORDER BY t.TABLE_NAME, COALESCE(k.ORDINAL_POSITION, 0);`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
 	}
-	return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+
+	rows, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer rows.Close()
+
+	primaryKeys := make(map[string][]string)
+	checkKeys := make(map[string][]schema.CheckConstraint)
+	m := make(map[string]map[string][]string)
+
+	var tableName, col, constraintType, checkClause, constraintName, ordinal_position string
+
+	for rows.Next() {
+		err = rows.Scan(&tableName, &col, &constraintName, &constraintType, &checkClause, &ordinal_position)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan constraints. error: %v", err))
+			continue
+		}
+
+		if col == "" && constraintType == "" {
+			conv.Unexpected("Got empty column or constraint type")
+			continue
+		}
+
+		switch constraintType {
+		case "PRIMARY KEY":
+			primaryKeys[tableName] = append(primaryKeys[tableName], col)
+		case "CHECK":
+			checkClause = collationRegex.ReplaceAllString(checkClause, "")
+			checkClause = checkAndAddParentheses(checkClause)
+			checkKeys[tableName] = append(checkKeys[tableName], schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
+		default:
+			if _, ok := m[tableName]; !ok {
+				m[tableName] = make(map[string][]string)
+			}
+			m[tableName][col] = append(m[tableName][col], constraintType)
+		}
+	}
+	return primaryKeys, checkKeys, m, nil
+}
+
+func (isi InfoSchemaImpl) getConstraintsWithoutCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+	q := fmt.Sprintf(`SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
             AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
             AND t.TABLE_NAME = k.TABLE_NAME
             WHERE t.TABLE_SCHEMA = ?
-            AND t.TABLE_NAME = ?
-            ORDER BY k.ORDINAL_POSITION;`, nil
-}
+            AND t.TABLE_NAME IN (%s)
+            ORDER BY t.TABLE_NAME, k.ORDINAL_POSITION;`, strings.Join(placeholders, ","))
 
-// processRow handles scanning and processing of a database row for GetConstraints.
-func (isi InfoSchemaImpl) processRow(
-	rows *sql.Rows, conv *internal.Conv, primaryKeys *[]string,
-	checkKeys *[]schema.CheckConstraint, m map[string][]string,
-) error {
-	var col, constraintType, checkClause, constraintName, ordinal_position string
-	var err error
-	cols, err := rows.Columns()
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Failed to get columns: %v", err))
-		return err
+		return nil, nil, nil, err
 	}
+	defer rows.Close()
 
-	switch len(cols) {
-	case 2:
-		err = rows.Scan(&col, &constraintType)
-	case 5:
-		err = rows.Scan(&col, &constraintName, &constraintType, &checkClause, &ordinal_position)
-	default:
-		conv.Unexpected(fmt.Sprintf("unexpected number of columns: %d", len(cols)))
-		return fmt.Errorf("unexpected number of columns: %d", len(cols))
-	}
-	if err != nil {
-		return err
-	}
+	primaryKeys := make(map[string][]string)
+	checkKeys := make(map[string][]schema.CheckConstraint)
+	m := make(map[string]map[string][]string)
 
-	if col == "" && constraintType == "" {
-		conv.Unexpected("Got empty column or constraint type")
-		return nil
-	}
+	var tableName, col, constraintType string
 
-	switch constraintType {
-	case "PRIMARY KEY":
-		*primaryKeys = append(*primaryKeys, col)
+	for rows.Next() {
+		err = rows.Scan(&tableName, &col, &constraintType)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan constraints. error: %v", err))
+			continue
+		}
 
-	// Case added to handle check constraints
-	case "CHECK":
-		checkClause = collationRegex.ReplaceAllString(checkClause, "")
-		checkClause = checkAndAddParentheses(checkClause)
-		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
-	default:
-		m[col] = append(m[col], constraintType)
+		if col == "" && constraintType == "" {
+			conv.Unexpected("Got empty column or constraint type")
+			continue
+		}
+
+		switch constraintType {
+		case "PRIMARY KEY":
+			primaryKeys[tableName] = append(primaryKeys[tableName], col)
+		default:
+			if _, ok := m[tableName]; !ok {
+				m[tableName] = make(map[string][]string)
+			}
+			m[tableName][col] = append(m[tableName][col], constraintType)
+		}
 	}
-	return nil
+	return primaryKeys, checkKeys, m, nil
 }
 
 // checkAndAddParentheses this method will check parentheses  if found it will return same string
@@ -378,13 +450,27 @@ func checkAndAddParentheses(checkClause string) string {
 	}
 }
 
-// GetForeignKeys return list all the foreign keys constraints.
+// GetForeignKeysBatch returns list all the foreign keys constraints for a batch of tables.
 // MySQL supports cross-database foreign key constraints. We ignore
 // them because the Spanner migration tool works database at a time (a specific run
 // of the Spanner migration tool focuses on a specific database) and so we can't handle
 // them effectively.
-func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT k.REFERENCED_TABLE_NAME,
+func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]schema.ForeignKey, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	q := fmt.Sprintf(`SELECT k.TABLE_NAME,
+			k.REFERENCED_TABLE_NAME,
 			k.COLUMN_NAME,
 			k.REFERENCED_COLUMN_NAME,
 			k.CONSTRAINT_NAME,
@@ -398,95 +484,147 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			AND r.REFERENCED_TABLE_NAME = k.REFERENCED_TABLE_NAME
 			AND k.REFERENCED_TABLE_SCHEMA = k.TABLE_SCHEMA
 		WHERE k.TABLE_SCHEMA = ?
-			AND k.TABLE_NAME = ?
+			AND k.TABLE_NAME IN (%s)
 		ORDER BY
+			k.TABLE_NAME,
 			k.REFERENCED_TABLE_NAME,
-			k.ORDINAL_POSITION;` //TODO(khajanchi): Add a UT for the change of removing column name from order by clause
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+			k.ORDINAL_POSITION;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var col, refCol, refTable, fKeyName, OnDelete, OnUpdate string
-	fKeys := make(map[string]common.FkConstraint)
-	var keyNames []string
+
+	var tableName, col, refCol, refTable, fKeyName, OnDelete, OnUpdate string
+	fKeys := make(map[string]map[string]common.FkConstraint)
 
 	for rows.Next() {
-		err := rows.Scan(&refTable, &col, &refCol, &fKeyName, &OnDelete, &OnUpdate)
+		err := rows.Scan(&tableName, &refTable, &col, &refCol, &fKeyName, &OnDelete, &OnUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := fKeys[fKeyName]; found {
-			fk := fKeys[fKeyName]
+		if _, ok := fKeys[tableName]; !ok {
+			fKeys[tableName] = make(map[string]common.FkConstraint)
+		}
+		if _, found := fKeys[tableName][fKeyName]; found {
+			fk := fKeys[tableName][fKeyName]
 			fk.Cols = append(fk.Cols, col)
 			fk.Refcols = append(fk.Refcols, refCol)
-			fKeys[fKeyName] = fk
-			fk.OnDelete = OnDelete
-			fk.OnUpdate = OnUpdate
+			fKeys[tableName][fKeyName] = fk
 			continue
 		}
-		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: OnDelete, OnUpdate: OnUpdate}
-		keyNames = append(keyNames, fKeyName)
+		fKeys[tableName][fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: OnDelete, OnUpdate: OnUpdate}
 	}
-	sort.Strings(keyNames)
-	for _, k := range keyNames {
-		foreignKeys = append(foreignKeys,
-			schema.ForeignKey{
-				Id:               internal.GenerateForeignkeyId(),
-				Name:             fKeys[k].Name,
-				ColumnNames:      fKeys[k].Cols,
-				ReferTableName:   fKeys[k].Table,
-				ReferColumnNames: fKeys[k].Refcols,
-				OnDelete:         fKeys[k].OnDelete,
-				OnUpdate:         fKeys[k].OnUpdate,
-			})
-	}
-	return foreignKeys, nil
+
+	return buildForeignKeys(fKeys), nil
 }
 
-// GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
-	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
+func buildForeignKeys(fKeys map[string]map[string]common.FkConstraint) map[string][]schema.ForeignKey {
+	foreignKeys := make(map[string][]schema.ForeignKey)
+	for tName, keys := range fKeys {
+		var keyNames []string
+		for k := range keys {
+			keyNames = append(keyNames, k)
+		}
+		sort.Strings(keyNames)
+		for _, k := range keyNames {
+			foreignKeys[tName] = append(foreignKeys[tName],
+				schema.ForeignKey{
+					Id:               internal.GenerateForeignkeyId(),
+					Name:             keys[k].Name,
+					ColumnNames:      keys[k].Cols,
+					ReferTableName:   keys[k].Table,
+					ReferColumnNames: keys[k].Refcols,
+					OnDelete:         keys[k].OnDelete,
+					OnUpdate:         keys[k].OnUpdate,
+				})
+		}
+	}
+	return foreignKeys
+}
+
+// GetIndexesBatch returns a list of all indexes for the specified batch of tables.
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	placeholders := make([]string, len(tables))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	q := fmt.Sprintf(`SELECT DISTINCT TABLE_NAME, INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
-			AND TABLE_NAME = ?
+			AND TABLE_NAME IN (%s)
 			AND INDEX_NAME != 'PRIMARY' 
-		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;`, strings.Join(placeholders, ","))
+
+	args := make([]interface{}, len(tables)+1)
+	args[0] = isi.DbName
+	for i, name := range tableNames {
+		args[i+1] = name
+	}
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, nonUnique string
+
+	var tableName, name, column, sequence, nonUnique string
 	var collation sql.NullString
-	indexMap := make(map[string]schema.Index)
-	var indexNames []string
-	var indexes []schema.Index
+	indexMap := make(map[string]map[string]schema.Index)
+	indexNames := make(map[string][]string)
+
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique); err != nil {
+		if err := rows.Scan(&tableName, &name, &column, &sequence, &collation, &nonUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := indexMap[name]; !found {
-			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{
+		if _, ok := indexMap[tableName]; !ok {
+			indexMap[tableName] = make(map[string]schema.Index)
+		}
+		if _, found := indexMap[tableName][name]; !found {
+			indexNames[tableName] = append(indexNames[tableName], name)
+			indexMap[tableName][name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
 				Unique: (nonUnique == "0"),
 			}
 		}
-		index := indexMap[name]
+		index := indexMap[tableName][name]
 		index.Keys = append(index.Keys, schema.Key{
-			ColId: colNameIdMap[column],
+			ColId: colNameIdMap[tableName][column],
 			Desc:  (collation.Valid && collation.String == "D"),
 		})
-		indexMap[name] = index
+		indexMap[tableName][name] = index
 	}
-	for _, k := range indexNames {
-		indexes = append(indexes, indexMap[k])
+
+	return buildIndexes(indexNames, indexMap), nil
+}
+
+func buildIndexes(indexNames map[string][]string, indexMap map[string]map[string]schema.Index) map[string][]schema.Index {
+	indexes := make(map[string][]schema.Index)
+	for tName, names := range indexNames {
+		for _, k := range names {
+			indexes[tName] = append(indexes[tName], indexMap[tName][k])
+		}
 	}
-	return indexes, nil
+	return indexes
 }
 
 
@@ -568,3 +706,4 @@ func createSequence(conv *internal.Conv) ddl.Sequence {
 	srcSequences[id] = sequence
 	return sequence
 }
+

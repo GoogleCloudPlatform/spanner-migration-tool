@@ -43,8 +43,7 @@ type mockSpec struct {
 func TestProcessSchemaMYSQL(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
-			args:  []driver.Value{"test"},
+			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
 			cols:  []string{"table_name"},
 			rows: [][]driver.Value{
 				{"user"},
@@ -55,92 +54,47 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
-			args:  nil,
-			cols:  []string{"count"},
+			query: "(?is)SELECT c.table_name.+?FROM information_schema.COLUMNS.+?table_name IN \\(.+\\).+",
+			args:  []driver.Value{"test", "user", "cart", "product", "test", "test_ref"},
+			cols:  []string{"table_name", "column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
 			rows: [][]driver.Value{
-				{int64(0)},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "user"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows: [][]driver.Value{
-				{"user_id", "PRIMARY KEY"},
-				{"ref", "FOREIGN KEY"},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "user"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
-			rows: [][]driver.Value{
-				{"test", "ref", "id", "fk_test", constants.FK_SET_NULL, constants.FK_CASCADE},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "user"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"user_id", "text", "text", "NO", "uuid()", nil, nil, nil, nil, constants.DEFAULT_GENERATED},
-				{"name", "text", "text", "NO", "default_name", nil, nil, nil, nil, nil},
-				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil, nil}},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "user"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		},
-		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
-			args:  nil,
-			cols:  []string{"count"},
-			rows: [][]driver.Value{
-				{int64(0)},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows: [][]driver.Value{
-				{"productid", "PRIMARY KEY"},
-				{"userid", "PRIMARY KEY"},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
-			rows: [][]driver.Value{
-				{"product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_NO_ACTION},
-				{"user", "userid", "user_id", "fk_test3", constants.FK_RESTRICT, constants.FK_SET_NULL},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
-			},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-			rows: [][]driver.Value{
-				{"index1", "userid", 1, sql.NullString{Valid: false}, "0"},
-				{"index2", "userid", 1, "A", "1"},
-				{"index2", "productid", 2, "D", "1"},
-				{"index3", "productid", 1, "A", "0"},
-				{"index3", "userid", 2, "D", "0"},
+				// user
+				{"user", "user_id", "text", "text", "NO", "uuid()", nil, nil, nil, nil, constants.DEFAULT_GENERATED},
+				{"user", "name", "text", "text", "NO", "default_name", nil, nil, nil, nil, nil},
+				{"user", "ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil, nil},
+				// cart
+				{"cart", "productid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"cart", "userid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"cart", "quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
+				// product
+				{"product", "product_id", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"product", "product_name", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				// test
+				{"test", "id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
+				{"test", "s", "set", "set", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"test", "b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"test", "bl", "blob", "blob", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "c", "char", "char(1)", "YES", nil, 1, nil, nil, nil, nil},
+				{"test", "c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil, nil},
+				{"test", "d", "date", "date", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "dec", "decimal", "decimal(20,5)", "YES", nil, nil, 20, 5, nil, nil},
+				{"test", "f8", "double", "double", "YES", nil, nil, 53, nil, nil, nil},
+				{"test", "f4", "float", "float", "YES", nil, nil, 24, nil, nil, nil},
+				{"test", "i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
+				{"test", "i4", "integer", "integer", "YES", nil, nil, 32, 0, nil, "auto_increment"},
+				{"test", "i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil, nil},
+				{"test", "si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
+				{"test", "ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil, nil},
+				{"test", "vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil, nil},
+				{"test", "bu", "bigint", "bigint(20) unsigned", "YES", nil, nil, 20, 0, nil, nil},
+				// test_ref
+				{"test_ref", "ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
+				{"test_ref", "ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"test_ref", "abc", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 			},
 		},
 		{
@@ -152,127 +106,52 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "product"},
-			cols:  []string{"column_name", "constraint_type"},
+			query: "(?is)SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE FROM (.+) ORDER BY t.TABLE_NAME, k.ORDINAL_POSITION;",
+			args:  []driver.Value{"test", "user", "cart", "product", "test", "test_ref"},
+			cols:  []string{"table_name", "column_name", "constraint_type"},
 			rows: [][]driver.Value{
-				{"product_id", "PRIMARY KEY"},
+				// user
+				{"user", "user_id", "PRIMARY KEY"},
+				{"user", "ref", "FOREIGN KEY"},
+				// cart
+				{"cart", "productid", "PRIMARY KEY"},
+				{"cart", "userid", "PRIMARY KEY"},
+				// product
+				{"product", "product_id", "PRIMARY KEY"},
+				// test
+				{"test", "id", "PRIMARY KEY"},
+				{"test", "id", "FOREIGN KEY"},
+				// test_ref
+				{"test_ref", "ref_id", "PRIMARY KEY"},
+				{"test_ref", "ref_txt", "PRIMARY KEY"},
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "product"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "product"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
+			query: "(?is)SELECT k.TABLE_NAME, (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "user", "cart", "product", "test", "test_ref"},
+			cols:  []string{"table_name", "referenced_table_name", "column_name", "referenced_column_name", "constraint_name", "delete_rule", "update_rule"},
 			rows: [][]driver.Value{
-				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-			},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "product"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		},
-		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
-			args:  nil,
-			cols:  []string{"count"},
-			rows: [][]driver.Value{
-				{int64(0)},
+				// user
+				{"user", "test", "ref", "id", "fk_test", constants.FK_SET_NULL, constants.FK_CASCADE},
+				// cart
+				{"cart", "product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_NO_ACTION},
+				{"cart", "user", "userid", "user_id", "fk_test3", constants.FK_RESTRICT, constants.FK_SET_NULL},
+				// test
+				{"test", "test_ref", "id", "ref_id", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT},
+				{"test", "test_ref", "txt", "ref_txt", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT},
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}, {"id", "FOREIGN KEY"}},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
+			query: "(?is)SELECT DISTINCT TABLE_NAME, (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+) table_name IN \\(.+\\) (.+)",
+			args:  []driver.Value{"test", "user", "cart", "product", "test", "test_ref"},
+			cols:  []string{"table_name", "index_name", "column_name", "seq_in_index", "collation", "non_unique"},
 			rows: [][]driver.Value{
-				{"test_ref", "id", "ref_id", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT},
-				{"test_ref", "txt", "ref_txt", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT},
+				{"cart", "index1", "userid", 1, sql.NullString{Valid: false}, "0"},
+				{"cart", "index2", "userid", 1, "A", "1"},
+				{"cart", "index2", "productid", 2, "D", "1"},
+				{"cart", "index3", "productid", 1, "A", "0"},
+				{"cart", "index3", "userid", 2, "D", "0"},
 			},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
-				{"s", "set", "set", "YES", nil, nil, nil, nil, nil, nil},
-				{"txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil, nil},
-				{"bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
-				{"bl", "blob", "blob", "YES", nil, nil, nil, nil, nil, nil},
-				{"c", "char", "char(1)", "YES", nil, 1, nil, nil, nil, nil},
-				{"c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil, nil},
-				{"d", "date", "date", "YES", nil, nil, nil, nil, nil, nil},
-				{"dec", "decimal", "decimal(20,5)", "YES", nil, nil, 20, 5, nil, nil},
-				{"f8", "double", "double", "YES", nil, nil, 53, nil, nil, nil},
-				{"f4", "float", "float", "YES", nil, nil, 24, nil, nil, nil},
-				{"i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
-				{"i4", "integer", "integer", "YES", nil, nil, 32, 0, nil, "auto_increment"},
-				{"i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil, nil},
-				{"si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
-				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil, nil},
-				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil, nil},
-				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil, nil},
-				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil, nil},
-				{"bu", "bigint", "bigint(20) unsigned", "YES", nil, nil, 20, 0, nil, nil},
-			},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		},
-		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
-			args:  nil,
-			cols:  []string{"count"},
-			rows: [][]driver.Value{
-				{int64(0)},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows: [][]driver.Value{
-				{"ref_id", "PRIMARY KEY"},
-				{"ref_txt", "PRIMARY KEY"},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil, nil},
-				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-			},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -281,13 +160,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
-	for tName, table := range conv.SpSchema {
-		for cName, col := range table.ColDefs {
-			col.GeneratedColumn.Value.ExpressionId = ""
-			table.ColDefs[cName] = col
-		}
-		conv.SpSchema[tName] = table
-	}
+
 	expectedSchema := map[string]schema.Table{
 		"cart": {
 			Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -311,7 +184,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6", "bu"}, ColDefs: map[string]schema.Column{
 			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "e27", Statement: "nextval('test11_bs_seq'::regclass)"}}},
+			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_bs_seq'::regclass)"}}},
 			"c":   schema.Column{Name: "c", Type: schema.Type{Name: "char", Mods: []int64{1}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"c8":  schema.Column{Name: "c8", Type: schema.Type{Name: "char", Mods: []int64{8}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"d":   schema.Column{Name: "d", Type: schema.Type{Name: "date", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -323,7 +196,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "e39", Statement: "nextval('test11_s_seq'::regclass)"}}},
+			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_s_seq'::regclass)"}}},
 			"ts":  schema.Column{Name: "ts", Type: schema.Type{Name: "datetime", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -341,9 +214,9 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			ForeignKeys: []schema.ForeignKey(nil),
 			Indexes:     []schema.Index(nil), Id: ""},
 		"user": schema.Table{Name: "user", Schema: "test", ColIds: []string{"user_id", "name", "ref"}, ColDefs: map[string]schema.Column{
-			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: ddl.Expression{ExpressionId: "e6", Statement: "'default_name'"}, IsPresent: true}},
+			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: ddl.Expression{ExpressionId: "", Statement: "'default_name'"}, IsPresent: true}},
 			"ref":     schema.Column{Name: "ref", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: ddl.Expression{ExpressionId: "e4", Statement: "uuid()"}, IsPresent: true}}},
+			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: ddl.Expression{ExpressionId: "", Statement: "uuid()"}, IsPresent: true}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.FK_CASCADE, OnDelete: constants.FK_SET_NULL, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""}}
@@ -354,11 +227,20 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
+			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
 			args:  []driver.Value{"test"},
 			cols:  []string{"table_name"},
 			rows: [][]driver.Value{
 				{"pk_order"},
+			},
+		},
+		{
+			query: "(?is)SELECT c.table_name.+?FROM information_schema.COLUMNS.+?table_name IN \\(.+\\).+",
+			args:  []driver.Value{"test", "pk_order"},
+			cols:  []string{"table_name", "column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
+			rows: [][]driver.Value{
+				{"pk_order", "pk_1", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"pk_order", "pk_2", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 			},
 		},
 		{
@@ -370,32 +252,23 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "pk_order"},
-			cols:  []string{"column_name", "constraint_type", "constraint_type", "check_clause", "ordinal_position"},
+			cols:  []string{"table_name", "column_name", "constraint_name", "constraint_type", "check_clause", "ordinal_position"},
 			rows: [][]driver.Value{
-				{"pk_2", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 0},
-				{"pk_1", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 1},
+				{"pk_order", "pk_2", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 0},
+				{"pk_order", "pk_1", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 1},
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "pk_order"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
+			cols:  []string{"table_name", "referenced_table_name", "column_name", "referenced_column_name", "constraint_name", "delete_rule", "update_rule"},
 		},
 		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			query: "(?is)SELECT DISTINCT TABLE_NAME, (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+) table_name IN \\(.+\\) (.+)",
 			args:  []driver.Value{"test", "pk_order"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"pk_1", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"pk_2", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "pk_order"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+			cols:  []string{"table_name", "index_name", "column_name", "seq_in_index", "collation", "non_unique"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -404,13 +277,7 @@ func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
-	for tName, table := range conv.SpSchema {
-		for cName, col := range table.ColDefs {
-			col.GeneratedColumn.Value.ExpressionId = ""
-			table.ColDefs[cName] = col
-		}
-		conv.SpSchema[tName] = table
-	}
+
 	expectedSchema := map[string]schema.Table{
 		"pk_order": {
 			Name: "pk_order", Schema: "test", ColIds: []string{"pk_1", "pk_2"}, ColDefs: map[string]schema.Column{
@@ -501,6 +368,16 @@ func TestProcessData_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{{"test"}},
 		},
 		{
+			query: "(?is)SELECT c.table_name.+?FROM information_schema.COLUMNS.+?table_name IN \\(.+\\).+",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"table_name", "column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
+			rows: [][]driver.Value{
+				{"test", "a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"test", "b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), "STORED GENERATED"},
+				{"test", "c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), "VIRTUAL GENERATED"},
+			},
+		},
+		{
 			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
@@ -509,30 +386,20 @@ func TestProcessData_MultiCol(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+			cols:  []string{"table_name", "column_name", "constraint_name", "constraint_type", "check_clause", "ordinal_position"},
+			rows:  [][]driver.Value{},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
+			cols:  []string{"table_name", "referenced_table_name", "column_name", "referenced_column_name", "constraint_name", "delete_rule", "update_rule"},
 		},
 		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			query: "(?is)SELECT DISTINCT TABLE_NAME, (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+) table_name IN \\(.+\\) (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), "STORED GENERATED"}, // Maps to STORED
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), "VIRTUAL GENERATED"},    // Maps to VIRTUAL
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+			cols:  []string{"table_name", "index_name", "column_name", "seq_in_index", "collation", "non_unique"},
 		},
 		{
 			query: "SELECT (.+) FROM `test`.`test`",
@@ -661,6 +528,16 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			rows:  [][]driver.Value{{"test"}},
 		},
 		{
+			query: "(?is)SELECT c.table_name.+?FROM information_schema.COLUMNS.+?table_name IN \\(.+\\).+",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"table_name", "column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
+			rows: [][]driver.Value{
+				{"test", "a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"test", "b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), nil},
+				{"test", "c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), []byte("VIRTUAL GENERATED")},
+			},
+		},
+		{
 			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
@@ -669,30 +546,20 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+			cols:  []string{"table_name", "column_name", "constraint_name", "constraint_type", "check_clause", "ordinal_position"},
+			rows:  [][]driver.Value{},
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "(?is)SELECT.+?FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS.+?TABLE_NAME IN.+?",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
+			cols:  []string{"table_name", "referenced_table_name", "column_name", "referenced_column_name", "constraint_name", "delete_rule", "update_rule"},
 		},
 		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			query: "(?is)SELECT DISTINCT TABLE_NAME, (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+) table_name IN \\(.+\\) (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
-			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, []byte("a+2.0"), nil},                     // Maps to STORED
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, []byte("a+1"), []byte("VIRTUAL GENERATED")}, // Maps to VIRTUAL
-			},
-		},
-		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+			cols:  []string{"table_name", "index_name", "column_name", "seq_in_index", "collation", "non_unique"},
 		},
 		{
 			query: "SELECT (.+) FROM `test`.`test`",
@@ -834,7 +701,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
+			query: regexp.QuoteMeta(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -844,38 +711,113 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?
-			ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`),
+            AND t.TABLE_NAME IN (?) 
+            ORDER BY t.TABLE_NAME, COALESCE(k.ORDINAL_POSITION, 0);`),
 			args: []driver.Value{"test_schema", "test_table"},
-			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
-			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"column2", "check_name", "CHECK", "(column2 > 0)", 0}},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
+			rows: [][]driver.Value{{"test_table", "column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"test_table", "column2", "check_name", "CHECK", "(column2 > 0)", 0}},
 		},
 	}
 	db := mkMockDB(t, ms)
-	isi := InfoSchemaImpl{Db: db}
+	isi := InfoSchemaImpl{Db: db, DbName: "test_schema"}
 	conv := &internal.Conv{}
 
-	primaryKeys, checkKeys, m, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "test_schema", Name: "test_table"})
+	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "test_schema", Name: "test_table"}})
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"column1"}, primaryKeys)
-	assert.Equal(t, len(checkKeys), 1)
-	assert.Equal(t, checkKeys[0].Name, "check_name")
-	assert.Equal(t, checkKeys[0].Expr, "(column2 > 0)")
+	assert.Equal(t, []string{"column1"}, primaryKeys["test_table"])
+	assert.Equal(t, len(checkKeys["test_table"]), 1)
+	assert.Equal(t, checkKeys["test_table"][0].Name, "check_name")
+	assert.Equal(t, checkKeys["test_table"][0].Expr, "(column2 > 0)")
 	assert.NotNil(t, m)
 }
 
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA' ) AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{0}},
 		},
+		{
+			query: regexp.QuoteMeta(`SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            WHERE t.TABLE_SCHEMA = ?
+            AND t.TABLE_NAME IN (?)
+            ORDER BY t.TABLE_NAME, k.ORDINAL_POSITION;`),
+			args: []driver.Value{"your_schema", "your_table"},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "CONSTRAINT_TYPE"},
+			rows: [][]driver.Value{{"your_table", "column1", "PRIMARY KEY"}},
+		},
 	}
 	db := mkMockDB(t, ms)
-	isi := InfoSchemaImpl{Db: db}
+	isi := InfoSchemaImpl{Db: db, DbName: "your_schema"}
 	conv := &internal.Conv{}
 
-	_, _, _, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "your_schema", Name: "your_table"})
-	assert.Error(t, err)
+	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "your_schema", Name: "your_table"}})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"column1"}, primaryKeys["your_table"])
+	assert.Empty(t, checkKeys["your_table"])
+	assert.NotNil(t, m)
+}
+
+func TestGetColumnsBatch(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta("SELECT c.table_name, c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.generation_expression, c.extra FROM information_schema.COLUMNS c where table_schema = ? and table_name IN (?,?) ORDER BY c.table_name, c.ordinal_position;"),
+			args:  []driver.Value{"test", "user", "cart"},
+			cols:  []string{"table_name", "column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "generation_expression", "extra"},
+			rows: [][]driver.Value{
+				{"cart", "productid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"cart", "userid", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
+				{"user", "user_id", "text", "text", "NO", "uuid()", nil, nil, nil, nil, "DEFAULT_GENERATED"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	conv := internal.MakeConv()
+
+	colDefs, colIds, err := isi.GetColumnsBatch(conv, []common.SchemaAndName{{Schema: "test", Name: "user"}, {Schema: "test", Name: "cart"}})
+	assert.NoError(t, err)
+	assert.NotNil(t, colDefs)
+	assert.NotNil(t, colIds)
+
+	assert.Contains(t, colDefs, "cart")
+	assert.Contains(t, colDefs, "user")
+	assert.Len(t, colDefs["cart"], 2)
+	assert.Len(t, colDefs["user"], 1)
+}
+
+func TestBuildColumn(t *testing.T) {
+	conv := internal.MakeConv()
+	colId := "c1"
+	colName := "col1"
+
+	// Test case 1: Simple column
+	c := buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, colId, c.Id)
+	assert.Equal(t, colName, c.Name)
+	assert.Equal(t, "int", c.Type.Name)
+	assert.True(t, c.NotNull)
+
+	// Test case 2: Column with default value
+	c = buildColumn(conv, colId, colName, "varchar", "varchar(255)", "YES", sql.NullString{Valid: true, String: "default_val"}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullInt64{Valid: true, Int64: 255}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, "varchar", c.Type.Name)
+	assert.False(t, c.NotNull)
+	assert.True(t, c.DefaultValue.IsPresent)
+	assert.Equal(t, "'default_val'", c.DefaultValue.Value.Statement)
+
+	// Test case 3: Generated column (virtual)
+	c = buildColumn(conv, colId, colName, "varchar", "varchar(255)", "YES", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "VIRTUAL GENERATED"}, sql.NullString{Valid: true, String: "CONCAT(a, b)"}, sql.NullInt64{Valid: true, Int64: 255}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.True(t, c.GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColVirtual, c.GeneratedColumn.Type)
+	assert.Equal(t, "CONCAT(a, b)", c.GeneratedColumn.Value.Statement)
+
+	// Test case 4: Auto increment
+	c = buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "auto_increment"}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, constants.AUTO_INCREMENT, c.AutoGen.Name)
 }
