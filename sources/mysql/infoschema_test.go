@@ -791,3 +791,33 @@ func TestGetColumnsBatch(t *testing.T) {
 	assert.Len(t, colDefs["cart"], 2)
 	assert.Len(t, colDefs["user"], 1)
 }
+
+func TestBuildColumn(t *testing.T) {
+	conv := internal.MakeConv()
+	colId := "c1"
+	colName := "col1"
+
+	// Test case 1: Simple column
+	c := buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, colId, c.Id)
+	assert.Equal(t, colName, c.Name)
+	assert.Equal(t, "int", c.Type.Name)
+	assert.True(t, c.NotNull)
+
+	// Test case 2: Column with default value
+	c = buildColumn(conv, colId, colName, "varchar", "varchar(255)", "YES", sql.NullString{Valid: true, String: "default_val"}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, sql.NullInt64{Valid: true, Int64: 255}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, "varchar", c.Type.Name)
+	assert.False(t, c.NotNull)
+	assert.True(t, c.DefaultValue.IsPresent)
+	assert.Equal(t, "'default_val'", c.DefaultValue.Value.Statement)
+
+	// Test case 3: Generated column (virtual)
+	c = buildColumn(conv, colId, colName, "varchar", "varchar(255)", "YES", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "VIRTUAL GENERATED"}, sql.NullString{Valid: true, String: "CONCAT(a, b)"}, sql.NullInt64{Valid: true, Int64: 255}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.True(t, c.GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColVirtual, c.GeneratedColumn.Type)
+	assert.Equal(t, "CONCAT(a, b)", c.GeneratedColumn.Value.Statement)
+
+	// Test case 4: Auto increment
+	c = buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "auto_increment"}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
+	assert.Equal(t, constants.AUTO_INCREMENT, c.AutoGen.Name)
+}
