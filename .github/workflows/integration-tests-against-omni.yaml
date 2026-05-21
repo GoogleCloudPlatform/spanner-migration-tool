@@ -151,7 +151,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.25.9"
+          go-version: "1.25.10"
       - run: go version
       - run: go build
       - name: Wait for Spanner Omni to start
