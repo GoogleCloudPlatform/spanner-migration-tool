@@ -180,9 +180,9 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 
 // GetColumnsBatch returns a list of Column objects and names for a batch of tables.
-func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error) {
+func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableColumns, error) {
 	if len(tables) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 	tableNames := make([]string, len(tables))
 	for i, t := range tables {
@@ -205,7 +205,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 	cols, err := isi.Db.Query(q, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't get schema for tables: %s", err)
+		return nil, fmt.Errorf("couldn't get schema for tables: %s", err)
 	}
 	defer cols.Close()
 
@@ -231,7 +231,15 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		colDefs[tableName][colId] = c
 		colIds[tableName] = append(colIds[tableName], colId)
 	}
-	return colDefs, colIds, nil
+
+	result := make(map[string]common.TableColumns)
+	for _, t := range tables {
+		result[t.Name] = common.TableColumns{
+			ColDefs: colDefs[t.Name],
+			ColIds:  colIds[t.Name],
+		}
+	}
+	return result, nil
 }
 
 func buildColumn(conv *internal.Conv, colId, colName, dataType, columnType, isNullable string, colDefault, colExtra, colGeneratedExpression sql.NullString, charMaxLen, numericPrecision, numericScale sql.NullInt64) schema.Column {
@@ -299,9 +307,9 @@ func buildColumn(conv *internal.Conv, colId, colName, dataType, columnType, isNu
 // other constraints for a batch of tables. Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in GetForeignKeysBatch.
-func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableConstraints, error) {
 	if len(tables) == 0 {
-		return nil, nil, nil, nil
+		return nil, nil
 	}
 	tableNames := make([]string, len(tables))
 	for i, t := range tables {
@@ -318,7 +326,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	if tableExistsCount > 0 {
@@ -328,7 +336,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	}
 }
 
-func (isi InfoSchemaImpl) getConstraintsWithCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+func (isi InfoSchemaImpl) getConstraintsWithCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string]common.TableConstraints, error) {
 	q := fmt.Sprintf(`SELECT DISTINCT t.TABLE_NAME, COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME, t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -350,7 +358,7 @@ func (isi InfoSchemaImpl) getConstraintsWithCheck(conv *internal.Conv, tables []
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -386,10 +394,19 @@ func (isi InfoSchemaImpl) getConstraintsWithCheck(conv *internal.Conv, tables []
 			m[tableName][col] = append(m[tableName][col], constraintType)
 		}
 	}
-	return primaryKeys, checkKeys, m, nil
+
+	result := make(map[string]common.TableConstraints)
+	for _, t := range tables {
+		result[t.Name] = common.TableConstraints{
+			PrimaryKeys:       primaryKeys[t.Name],
+			CheckConstraints:  checkKeys[t.Name],
+			ColumnConstraints: m[t.Name],
+		}
+	}
+	return result, nil
 }
 
-func (isi InfoSchemaImpl) getConstraintsWithoutCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error) {
+func (isi InfoSchemaImpl) getConstraintsWithoutCheck(conv *internal.Conv, tables []common.SchemaAndName, placeholders []string, tableNames []string) (map[string]common.TableConstraints, error) {
 	q := fmt.Sprintf(`SELECT t.TABLE_NAME, k.COLUMN_NAME, t.CONSTRAINT_TYPE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -408,7 +425,7 @@ func (isi InfoSchemaImpl) getConstraintsWithoutCheck(conv *internal.Conv, tables
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -440,7 +457,16 @@ func (isi InfoSchemaImpl) getConstraintsWithoutCheck(conv *internal.Conv, tables
 			m[tableName][col] = append(m[tableName][col], constraintType)
 		}
 	}
-	return primaryKeys, checkKeys, m, nil
+
+	result := make(map[string]common.TableConstraints)
+	for _, t := range tables {
+		result[t.Name] = common.TableConstraints{
+			PrimaryKeys:       primaryKeys[t.Name],
+			CheckConstraints:  checkKeys[t.Name],
+			ColumnConstraints: m[t.Name],
+		}
+	}
+	return result, nil
 }
 
 // checkAndAddParentheses this method will check parentheses  if found it will return same string
@@ -458,7 +484,7 @@ func checkAndAddParentheses(checkClause string) string {
 // them because the Spanner migration tool works database at a time (a specific run
 // of the Spanner migration tool focuses on a specific database) and so we can't handle
 // them effectively.
-func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string][]schema.ForeignKey, error) {
+func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableForeignKeys, error) {
 	if len(tables) == 0 {
 		return nil, nil
 	}
@@ -530,16 +556,17 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 	return buildForeignKeys(fKeys), nil
 }
 
-func buildForeignKeys(fKeys map[string]map[string]common.FkConstraint) map[string][]schema.ForeignKey {
-	foreignKeys := make(map[string][]schema.ForeignKey)
+func buildForeignKeys(fKeys map[string]map[string]common.FkConstraint) map[string]common.TableForeignKeys {
+	foreignKeys := make(map[string]common.TableForeignKeys)
 	for tName, keys := range fKeys {
 		var keyNames []string
 		for k := range keys {
 			keyNames = append(keyNames, k)
 		}
 		sort.Strings(keyNames)
+		var fks []schema.ForeignKey
 		for _, k := range keyNames {
-			foreignKeys[tName] = append(foreignKeys[tName],
+			fks = append(fks,
 				schema.ForeignKey{
 					Id:               internal.GenerateForeignkeyId(),
 					Name:             keys[k].Name,
@@ -550,15 +577,25 @@ func buildForeignKeys(fKeys map[string]map[string]common.FkConstraint) map[strin
 					OnUpdate:         keys[k].OnUpdate,
 				})
 		}
+		foreignKeys[tName] = common.TableForeignKeys{ForeignKeys: fks}
 	}
 	return foreignKeys
 }
 
 // GetIndexesBatch returns a list of all indexes for the specified batch of tables.
-func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string][]schema.Index, error) {
 	if len(tables) == 0 {
 		return nil, nil
 	}
+
+	colNameIdMap := make(map[string]map[string]string)
+	for tableName, tableCols := range colDefs {
+		colNameIdMap[tableName] = make(map[string]string)
+		for colId, col := range tableCols.ColDefs {
+			colNameIdMap[tableName][col.Name] = colId
+		}
+	}
+
 	tableNames := make([]string, len(tables))
 	for i, t := range tables {
 		tableNames[i] = t.Name

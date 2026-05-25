@@ -60,21 +60,35 @@ type StandardInfoSchema interface {
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 }
 
+// TableColumns contains column definitions and IDs for a table.
+type TableColumns struct {
+	ColDefs map[string]schema.Column
+	ColIds  []string
+}
+
+// TableConstraints contains constraints for a table.
+type TableConstraints struct {
+	PrimaryKeys       []string
+	CheckConstraints  []schema.CheckConstraint
+	ColumnConstraints map[string][]string // colName -> constraintTypes
+}
+
+// TableForeignKeys contains foreign keys for a table.
+type TableForeignKeys struct {
+	ForeignKeys []schema.ForeignKey
+}
+
 // BatchedInfoSchema supports bulk fetching of metadata for multiple tables.
 type BatchedInfoSchema interface {
 	InfoSchema
 	// GetColumnsBatch fetches column definitions for a batch of tables.
-	// Returns a map of table name to (map of column ID to schema.Column), a map of table name to list of column IDs, and any error.
-	GetColumnsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]map[string]schema.Column, map[string][]string, error)
+	GetColumnsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]TableColumns, error)
 	// GetConstraintsBatch fetches constraints for a batch of tables.
-	// Returns a map of table name to list of primary key column names, a map of table name to list of check constraints, a map of table name to (map of column name to list of constraint types), and any error.
-	GetConstraintsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string][]string, map[string][]schema.CheckConstraint, map[string]map[string][]string, error)
+	GetConstraintsBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]TableConstraints, error)
 	// GetForeignKeysBatch fetches foreign key constraints for a batch of tables.
-	// Returns a map of table name to list of schema.ForeignKey and any error.
-	GetForeignKeysBatch(conv *internal.Conv, tables []SchemaAndName) (map[string][]schema.ForeignKey, error)
+	GetForeignKeysBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]TableForeignKeys, error)
 	// GetIndexesBatch fetches indexes for a batch of tables.
-	// Returns a map of table name to list of schema.Index and any error.
-	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colNameIdMap map[string]map[string]string) (map[string][]schema.Index, error)
+	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colDefs map[string]TableColumns) (map[string][]schema.Index, error)
 }
 
 // SchemaAndName contains the schema and name for a table
@@ -174,26 +188,19 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 	}
 
 	asyncProcessBatch := func(batch []SchemaAndName, mutex *sync.Mutex) task.TaskResult[[]SchemaAndName] {
-		colDefs, colIds, err := bis.GetColumnsBatch(conv, batch)
+		tableCols, err := bis.GetColumnsBatch(conv, batch)
 		if err != nil {
 			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
 		}
-		primaryKeys, checkConstraints, _, err := bis.GetConstraintsBatch(conv, batch)
+		tableConstraints, err := bis.GetConstraintsBatch(conv, batch)
 		if err != nil {
 			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
 		}
-		foreignKeys, err := bis.GetForeignKeysBatch(conv, batch)
+		tableForeignKeys, err := bis.GetForeignKeysBatch(conv, batch)
 		if err != nil {
 			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
 		}
-		colNameIdMap := make(map[string]map[string]string)
-		for _, t := range batch {
-			colNameIdMap[t.Name] = make(map[string]string)
-			for k, v := range colDefs[t.Name] {
-				colNameIdMap[t.Name][v.Name] = k
-			}
-		}
-		indexes, err := bis.GetIndexesBatch(conv, batch, colNameIdMap)
+		indexes, err := bis.GetIndexesBatch(conv, batch, tableCols)
 		if err != nil {
 			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
 		}
@@ -201,7 +208,11 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 		mutex.Lock()
 		for _, t := range batch {
 			name := bis.GetTableName(t.Schema, t.Name)
-			tableObj := BuildSchemaTable(t, name, colDefs[t.Name], colIds[t.Name], primaryKeys[t.Name], checkConstraints[t.Name], indexes[t.Name], foreignKeys[t.Name])
+			cols := tableCols[t.Name]
+			constraints := tableConstraints[t.Name]
+			fks := tableForeignKeys[t.Name]
+			
+			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys)
 			conv.SrcSchema[tableObj.Id] = tableObj
 		}
 		mutex.Unlock()

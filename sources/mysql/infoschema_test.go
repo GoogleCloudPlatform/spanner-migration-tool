@@ -722,13 +722,14 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 	isi := InfoSchemaImpl{Db: db, DbName: "test_schema"}
 	conv := &internal.Conv{}
 
-	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "test_schema", Name: "test_table"}})
+	constraintsMap, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "test_schema", Name: "test_table"}})
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"column1"}, primaryKeys["test_table"])
-	assert.Equal(t, len(checkKeys["test_table"]), 1)
-	assert.Equal(t, checkKeys["test_table"][0].Name, "check_name")
-	assert.Equal(t, checkKeys["test_table"][0].Expr, "(column2 > 0)")
-	assert.NotNil(t, m)
+	constraints := constraintsMap["test_table"]
+	assert.Equal(t, []string{"column1"}, constraints.PrimaryKeys)
+	assert.Equal(t, len(constraints.CheckConstraints), 1)
+	assert.Equal(t, constraints.CheckConstraints[0].Name, "check_name")
+	assert.Equal(t, constraints.CheckConstraints[0].Expr, "(column2 > 0)")
+	assert.Empty(t, constraints.ColumnConstraints)
 }
 
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
@@ -757,11 +758,12 @@ func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
 	isi := InfoSchemaImpl{Db: db, DbName: "your_schema"}
 	conv := &internal.Conv{}
 
-	primaryKeys, checkKeys, m, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "your_schema", Name: "your_table"}})
+	constraintsMap, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "your_schema", Name: "your_table"}})
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"column1"}, primaryKeys["your_table"])
-	assert.Empty(t, checkKeys["your_table"])
-	assert.NotNil(t, m)
+	constraints := constraintsMap["your_table"]
+	assert.Equal(t, []string{"column1"}, constraints.PrimaryKeys)
+	assert.Empty(t, constraints.CheckConstraints)
+	assert.Empty(t, constraints.ColumnConstraints)
 }
 
 func TestGetColumnsBatch(t *testing.T) {
@@ -781,15 +783,14 @@ func TestGetColumnsBatch(t *testing.T) {
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	conv := internal.MakeConv()
 
-	colDefs, colIds, err := isi.GetColumnsBatch(conv, []common.SchemaAndName{{Schema: "test", Name: "user"}, {Schema: "test", Name: "cart"}})
+	columnsMap, err := isi.GetColumnsBatch(conv, []common.SchemaAndName{{Schema: "test", Name: "user"}, {Schema: "test", Name: "cart"}})
 	assert.NoError(t, err)
-	assert.NotNil(t, colDefs)
-	assert.NotNil(t, colIds)
+	assert.NotNil(t, columnsMap)
 
-	assert.Contains(t, colDefs, "cart")
-	assert.Contains(t, colDefs, "user")
-	assert.Len(t, colDefs["cart"], 2)
-	assert.Len(t, colDefs["user"], 1)
+	assert.Contains(t, columnsMap, "cart")
+	assert.Contains(t, columnsMap, "user")
+	assert.Len(t, columnsMap["cart"].ColDefs, 2)
+	assert.Len(t, columnsMap["user"].ColDefs, 1)
 }
 
 func TestBuildColumn(t *testing.T) {
