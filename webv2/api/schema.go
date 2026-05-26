@@ -184,7 +184,6 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.Config.FilePath), http.StatusNotFound)
 		return
 	}
-	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	n := profiles.NewSourceProfileImpl{}
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver

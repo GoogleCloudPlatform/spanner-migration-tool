@@ -15,7 +15,6 @@
 package postgres
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"math/bits"
@@ -27,7 +26,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	sp "cloud.google.com/go/spanner"
 	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -36,7 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -60,54 +57,9 @@ func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaA
 	}
 }
 
-// StartChangeDataCapture is used for automatic triggering of Datastream job when
-// performing a streaming migration.
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	mp := make(map[string]interface{})
-	var (
-		schemaDetails map[string]internal.SchemaDetails
-		err           error
-	)
-	commonInfoSchema := common.InfoSchemaImpl{}
-	schemaDetails, err = commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
-	if err != nil {
-		err = fmt.Errorf("error fetching the tableList to setup datastream migration, defaulting to all tables: %v", err)
-	}
-	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Pg.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, schemaDetails)
-	if err != nil {
-		return nil, fmt.Errorf("error reading streaming config: %v", err)
-	}
-	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.TargetProfile.Conn.Sp.Dbname, constants.REGULAR_GCS)
-	if err != nil {
-		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
-	}
-	streamingCfg.PubsubCfg = *pubsubCfg
-	dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.TargetProfile.Conn.Sp.Dbname, constants.DLQ_GCS)
-	if err != nil {
-		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
-	}
-	streamingCfg.DlqPubsubCfg = *dlqPubsubCfg
-	streamingCfg, err = streaming.StartDatastream(ctx, isi.MigrationProjectId, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
-	if err != nil {
-		err = fmt.Errorf("error starting datastream: %v", err)
-		return nil, err
-	}
-	mp["streamingCfg"] = streamingCfg
-	return mp, err
-}
 
-// StartStreamingMigration is used for automatic triggering of Dataflow job when
-// performing a streaming migration.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 
-	dfOutput, err := streaming.StartDataflow(ctx, migrationProjectId, isi.TargetProfile, streamingCfg, conv)
-	if err != nil {
-		err = fmt.Errorf("error starting dataflow: %v", err)
-		return internal.DataflowOutput{}, err
-	}
-	return dfOutput, nil
-}
+
 
 // GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {

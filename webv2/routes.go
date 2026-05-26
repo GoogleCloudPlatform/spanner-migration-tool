@@ -19,18 +19,13 @@ import (
 	"io/fs"
 	"net/http"
 
-	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
-	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/summary"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
@@ -50,14 +45,7 @@ func getRoutes() *mux.Router {
 	tableHandler := api.TableAPIHandler{
 		DDLVerifier: ddlVerifier,
 	}
-	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
-	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
-	validateResourceImpl := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
-		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-	profileAPIHandler := profile.ProfileAPIHandler{
-		ValidateResources: validateResourceImpl,
-	}
+
 
 	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, session.GetSessionState().SpannerProjectId, session.GetSessionState().SpannerInstanceID)
 
@@ -139,24 +127,14 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetLatestSessionDetails", fetchLastLoadedSessionDetails).Methods("GET")
 	router.HandleFunc("/GetGeneratedResources", getGeneratedResources).Methods("GET")
 
-	// Connection profiles
-	router.HandleFunc("/GetConnectionProfiles", profile.ListConnectionProfiles).Methods("GET")
-	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
-	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
 
-	// Verify JSON Configuration
-	router.HandleFunc("/VerifyJsonConfiguration", profileAPIHandler.VerifyJsonConfiguration).Methods("POST")
 
-	// Clean up datastream and data flow jobs
-	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
+
 
 	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
 	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
 	router.HandleFunc("/SetShardsSourceDBDetailsForBulk", setShardsSourceDBDetailsForBulk).Methods("POST")
-	router.HandleFunc("/SetShardsSourceDBDetailsForDataflow", setShardsSourceDBDetailsForDataflow).Methods("POST")
-	router.HandleFunc("/SetDatastreamDetailsForShardedMigrations", setDatastreamDetailsForShardedMigrations).Methods("POST")
-	router.HandleFunc("/SetGcsDetailsForShardedMigrations", setGcsDetailsForShardedMigrations).Methods("POST")
-	router.HandleFunc("/SetDataflowDetailsForShardedMigrations", setDataflowDetailsForShardedMigrations).Methods("POST")
+
 	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 

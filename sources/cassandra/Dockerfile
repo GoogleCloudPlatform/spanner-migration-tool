@@ -31,7 +31,7 @@ WORKDIR /app/java-spanner-cassandra
 RUN mvn clean install -DskipTests
 
 # --- Final Image ---
-FROM alpine:3.22
+FROM alpine:3.23
 
 # Install bash, ca-certificates, openssl, gettext (for envsubst), and Java 17 JRE
 RUN apk update && \

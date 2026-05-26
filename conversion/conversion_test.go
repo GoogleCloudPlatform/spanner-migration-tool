@@ -51,13 +51,6 @@ func TestSchemaConv(t *testing.T) {
 			errorExpected: 			false,
 		},
 		{
-			name: 					"dynamodb driver",
-			sourceProfileDriver: 	"dynamodb",
-			output: 				&internal.Conv{},
-			function: 				"schemaFromDatabase",
-			errorExpected: 			false,
-		},
-		{
 			name: 					"sqlserver driver",
 			sourceProfileDriver: 	"sqlserver",
 			output: 				&internal.Conv{},
@@ -125,13 +118,6 @@ func TestDataConv(t *testing.T) {
 		{
 			name: 					"mysql driver",
 			sourceProfileDriver: 	"mysql",
-			output: 				&writer.BatchWriter{},
-			function: 				"dataFromDatabase",
-			errorExpected: 			false,
-		},
-		{
-			name: 					"dynamodb driver",
-			sourceProfileDriver: 	"dynamodb",
 			output: 				&writer.BatchWriter{},
 			function: 				"dataFromDatabase",
 			errorExpected: 			false,
