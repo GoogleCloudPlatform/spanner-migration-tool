@@ -81,14 +81,14 @@ func initIntegrationTests() (cleanup func()) {
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }
 
 func TestCSVImportFromGCS(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	tests := []struct {
 		name      string
 		sourceUri string
@@ -198,7 +198,7 @@ func TestCSVImportFromGCS(t *testing.T) {
 }
 
 func TestExampleImportDumpFile(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	tests := []testStruct{
 		//{
 		//	name:         "sakila dump file",
@@ -287,7 +287,7 @@ func executeImportDump(t *testing.T, dialect string, testData testStruct) {
 }
 
 func TestLocalImportMysqlDumpFile(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	log.Printf("projectID %s, instanceID %s", projectID, instanceID)

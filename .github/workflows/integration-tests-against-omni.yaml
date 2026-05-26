@@ -19,7 +19,7 @@ on:
     branches:
       - master
   pull_request:
-name: integration-tests-against-emulator
+name: integration-tests-against-omni
 jobs:
   integration-tests:
     runs-on: self-hosted
@@ -42,22 +42,18 @@ jobs:
       MYSQLDB_DATA_TYPES: test_mysql_data_types
       MYSQLPWD: root
 
-      # set DynamoDB related environment variables
-      AWS_ACCESS_KEY_ID: dummyId
-      AWS_SECRET_ACCESS_KEY: dummyKey
-      AWS_REGION: dummyRegion
-      DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
-
       # sql server envs
       # Password for connection as SA
       MSSQL_SA_PASSWORD: tCUE9c1&Ucp0
 
     services:
-      spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.40
+      spanner_omni:
+        image: us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta
+        command: start-single-server
+        options: --tmpfs /spanner
         ports:
-          - 9010:9010
-          - 9020:9020
+          - 9010:15000
+          - 9020:15026
       postgres:
         image: postgres:9.6
         env:
@@ -77,11 +73,6 @@ jobs:
           - 3306:3306
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-      dynamodb_emulator:
-        image: amazon/dynamodb-local:1.16.0
-        ports:
-          - 8000:8000
-        options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
@@ -128,19 +119,6 @@ jobs:
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
         run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
-      # create a spanner instance
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.14'
-      - uses: google-github-actions/setup-gcloud@v0
-        with:
-          version: "410.0.0"
-      - run: gcloud info
-      - run: gcloud config list
-      - run: gcloud config set auth/disable_credentials true
-      - run: gcloud config set project emulator-test-project
-      - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
-      - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
       - name: Setup cypress dependency
         run: |
@@ -173,12 +151,14 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.25.9"
+          go-version: "1.25.10"
       - run: go version
       - run: go build
+      - name: Wait for Spanner Omni to start
+        run: npx wait-on tcp:localhost:9010 -t 60000
       - run: go test -v ./...
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
-          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
-          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: default
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: default
           IMPORT_CMD_SKIP_DIALECT_VALIDATION: true

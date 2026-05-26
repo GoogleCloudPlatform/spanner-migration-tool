@@ -89,13 +89,6 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return nil, nil
 }
 
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *spanner.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	return internal.DataflowOutput{}, nil
-}
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
@@ -167,7 +160,7 @@ func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *inter
 	if err != nil {
 		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
 		// We raise an unexpected error for now to make it compatible with the integration tests.
-		// In the emulator, the interleave_type column in not supported hence the query fails.
+		// In Spanner Omni, the interleave_type column in not supported hence the query fails.
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.

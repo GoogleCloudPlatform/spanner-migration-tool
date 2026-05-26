@@ -52,9 +52,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
-var (
-	dataflowTemplatePath = constants.DEFAULT_TEMPLATE_PATH
-)
+
 
 // IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
@@ -416,7 +414,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	if err != nil {
 		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
 		// We raise an unexpected error for now to make it compatible with the integration tests.
-		// In the emulator, the interleave_type column in not supported hence the query fails.
+		// In Spanner Omni, the interleave_type column in not supported hence the query fails.
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
@@ -551,10 +549,4 @@ func FindInPrimaryKey(id string, primaryKeys []ddl.IndexKey) bool {
 	return false
 }
 
-func SetDataflowTemplatePath(path string) {
-	dataflowTemplatePath = path
-}
 
-func GetDataflowTemplatePath() string {
-	return dataflowTemplatePath
-}

@@ -18,7 +18,6 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +41,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
@@ -60,7 +58,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
@@ -78,7 +75,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
@@ -96,7 +92,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
@@ -114,7 +109,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "INFO",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
@@ -132,13 +126,12 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  true,
 				validate:         true,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 				sessionFileName:  "",
 			},
 		},
 		{
-			testName: "Custom Dataflow Template and Proper Session File Name with Extension",
-			flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template", "--session-file-name=migration_session.json"},
+			testName: "Proper Session File Name with Extension",
+			flagArgs: []string{"--session-file-name=migration_session.json"},
 			expectedValues: SchemaAndDataCmd{
 				source:           "",
 				sourceProfile:    "",
@@ -150,7 +143,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "DEBUG",
 				SkipForeignKeys:  false,
 				validate:         false,
-				dataflowTemplate: "gs://my-bucket/my-template",
 				sessionFileName:  "migration_session.json",
 			},
 		},
@@ -167,7 +159,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				"--log-level=WARN",
 				"--skip-foreign-keys",
 				"--validate",
-				"--dataflow-template=gs://custom/template",
 				"--session-file-name=my_session_file",
 			},
 			expectedValues: SchemaAndDataCmd{
@@ -181,7 +172,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				logLevel:         "WARN",
 				SkipForeignKeys:  true,
 				validate:         true,
-				dataflowTemplate: "gs://custom/template",
 				sessionFileName:  "my_session_file",
 			},
 		},

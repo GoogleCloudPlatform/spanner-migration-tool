@@ -307,11 +307,7 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
-		if migrationType == constants.DATAFLOW_MIGRATION {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
-		} else {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
-		}
+		req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 
 	}
 
@@ -408,9 +404,6 @@ func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, dbURI
 		conv.DatabaseOptions.DefaultTimezone = ""
 	}
 	if dbExists {
-		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
-			return fmt.Errorf("spanner migration tool does not support minimal downtime schema/schema-and-data migrations to an existing database")
-		}
 		err := sp.UpdateDatabase(ctx, dbURI, conv, driver)
 		if err != nil {
 			return fmt.Errorf("can't update database schema: %v", err)
@@ -497,10 +490,7 @@ func extractTableNamesFromSpSchema(schema map[string]ddl.CreateTable) []string {
 // constraints using ALTER TABLE statements.
 func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
 
-	if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
-		//foreign keys were applied as part of CreateDatabase
-		return
-	}
+
 
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names

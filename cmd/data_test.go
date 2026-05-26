@@ -18,7 +18,6 @@ import (
         "flag"
         "testing"
 
-        "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
         "github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +41,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "DEBUG",
                                 SkipForeignKeys:  false,
                                 validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
                 {
@@ -59,7 +57,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "DEBUG",
                                 SkipForeignKeys:  false,
                                 validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
                 {
@@ -76,7 +73,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "DEBUG",
                                 SkipForeignKeys:  false,
                                 validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
                 {
@@ -93,7 +89,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "DEBUG",
                                 SkipForeignKeys:  false,
                                 validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
                 {
@@ -110,7 +105,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "INFO",
                                 SkipForeignKeys:  false,
                                 validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
                 {
@@ -127,24 +121,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "DEBUG",
                                 SkipForeignKeys:  true,
                                 validate:         true,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-                        },
-                },
-                {
-                        testName: "Custom Dataflow Template",
-                        flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template"},
-                        expectedValues: DataCmd{
-                                source:           "",
-                                sourceProfile:    "",
-                                target:           "Spanner",
-                                targetProfile:    "",
-                                filePrefix:       "",
-                                WriteLimit:       DefaultWritersLimit,
-                                dryRun:           false,
-                                logLevel:         "DEBUG",
-                                SkipForeignKeys:  false,
-                                validate:         false,
-                                dataflowTemplate: "gs://my-bucket/my-template",
                         },
                 },
                 {
@@ -160,7 +136,6 @@ func TestDataSetFlags(t *testing.T) {
                                 "--log-level=WARN",
                                 "--skip-foreign-keys",
                                 "--validate",
-                                "--dataflow-template=gs://custom/template",
                         },
                         expectedValues: DataCmd{
                                 source:           "MySQL",
@@ -173,7 +148,6 @@ func TestDataSetFlags(t *testing.T) {
                                 logLevel:         "WARN",
                                 SkipForeignKeys:  true,
                                 validate:         true,
-                                dataflowTemplate: "gs://custom/template",
                         },
                 },
         }

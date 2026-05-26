@@ -91,7 +91,7 @@ Detailed instructions on how to install a new component in gCloud can be found [
 Building from source is only supported for MacOS and Linux based platforms.
 
 1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the [GOPATH](https://pkg.go.dev/cmd/go@master#hdr-GOPATH_environment_variable) environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing). <br/>
-    Required go version: 1.25.9+
+    Required go version: 1.25.10+
 2. Install nodejs ([download](https://nodejs.org/en/download)). <br/>
     Required node version: v18.20.6+
 3. Install angular-cli ([instructions](https://angular.dev/tools/cli/setup-local#install-the-angular-cli))
@@ -109,15 +109,14 @@ make build
 ./spanner-migration-tool help
 ```
 
-## Setting up the emulator
+## Setting up Spanner Omni
 
-To run migrations against a local instance without having to connect to Cloud
-spanner each time follow the following steps:
+To run migrations against a local instance without having to connect to Cloud Spanner each time, follow these steps:
 
-- **Start the emulator:**
+- **Start Spanner Omni:**
 
     ```sh
-    gcloud emulators spanner start
+    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta start-single-server
     ```
 
 - **Set the SPANNER_EMULATOR_HOST:**

@@ -28,15 +28,10 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/dynamodb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -202,19 +197,6 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			SourceProfile:      sourceProfile,
 			TargetProfile:      targetProfile,
 			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
-		}, nil
-	case constants.DYNAMODB:
-		mySession := session.Must(session.NewSession())
-		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
-		if sourceProfile.Conn.Streaming {
-			newSession := session.Must(session.NewSession())
-			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
-		}
-		return dynamodb.InfoSchemaImpl{
-			DynamoClient:        dydbClient,
-			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
-			DynamoStreamsClient: dydbStreamsClient,
 		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))

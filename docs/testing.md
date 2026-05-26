@@ -7,17 +7,12 @@ resources required for running the integration tests.
 ## Setup Source Databases
 
 The following integration tests expect an actually running database to use as the source:
-- `testing/dynamodb/streaming`
 - `testing/mysql`
 - `testing/oracle`
 - `testing/postgres`
 - `testing/sqlserver`
 
 The schema and data for these source databases can be found in the `test_data` directory, as described below.
-
-### DynamoDB
-
-TODO
 
 ### MySQL
 
@@ -79,29 +74,22 @@ In the terminal from which you'll be running the tests, set the following enviro
 ```
 
 
-## Setup the Spanner emulator
+## Setup Spanner Omni
 
-Install and setup the spanner emulator as described
-[here](https://docs.cloud.google.com/spanner/docs/emulator#emulator-for-gcloud).
+Spanner Omni can be used for local testing instead of the legacy emulator. It runs as a Docker container.
 
-Start the emulator:
+Start Spanner Omni:
 ```sh
-    gcloud emulators spanner start
+    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta start-single-server
 ```
 
-In another terminal, create a Spanner instance to use for testing (here we use the name test-instance, but this may be
-changed to any other name):
-```sh
-    gcloud spanner instances create <instance name> --config=emulator-config --description=<brief instance description> --nodes=1
-```
-
-In the terminal from which you'll be running the tests, set the following environment variables (note, the instance name
-is the same as the one created above):
+Set the following environment variables in the terminal from which you'll be running the tests:
 ```sh
     export SPANNER_EMULATOR_HOST=localhost:9010
-    export SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID=<instance name>
-    export SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID=<project id>
+    export SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID=default
+    export SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID=default
 ```
+Note: Spanner Omni in this mode automatically creates a default instance, so you can use `default` as the instance ID and project ID.
 
 ## Running the Tests
 

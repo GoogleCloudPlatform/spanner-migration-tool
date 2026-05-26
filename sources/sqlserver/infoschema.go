@@ -15,13 +15,10 @@
 package sqlserver
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
-
-	sp "cloud.google.com/go/spanner"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -53,14 +50,6 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// We leave the 2 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	return internal.DataflowOutput{}, nil
-}
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {

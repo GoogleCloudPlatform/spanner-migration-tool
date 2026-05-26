@@ -97,11 +97,6 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
 			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
-		case SourceProfileConnectionTypeDynamoDB:
-			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
-			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
-			// programmatically if not set.
-			return ""
 		case SourceProfileConnectionTypeSqlServer:
 			connParams := sourceProfile.Conn.SqlServer
 			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
@@ -160,15 +155,7 @@ func getSQLSERVERConnectionStr(server, port, user, password, dbName string) stri
 }
 
 func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
-	schemaSampleSize := int64(100000)
-	if sourceProfile.Ty == SourceProfileTypeConnection {
-		if sourceProfile.Conn.Ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.Conn.Dydb.SchemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.Conn.Dydb.SchemaSampleSize
-			}
-		}
-	}
-	return schemaSampleSize
+	return int64(100000)
 }
 
 func getORACLEConnectionStr(server, port, user, password, dbName string) string {

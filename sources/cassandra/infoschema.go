@@ -15,10 +15,8 @@
 package cassandra
 
 import (
-	"context"
 	"fmt"
 
-	sp "cloud.google.com/go/spanner"
 	cc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -249,10 +247,3 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	return errNotSupported
 }
 
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, errNotSupported
-}
-
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	return internal.DataflowOutput{}, errNotSupported
-}
