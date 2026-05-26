@@ -11,7 +11,8 @@ envsubst < /app/spanner-cassandra-config.yaml > /app/generated-config.yaml
 
 # Start Java Spanner Cassandra Proxy and store PID
 # We use the generated config file.
-java -DconfigFilePath=/app/generated-config.yaml -jar /app/spanner-cassandra-proxy.jar &
+mkdir -p /app/logs
+java -DconfigFilePath=/app/generated-config.yaml -Dorg.slf4j.simpleLogger.logFile=/app/logs/adapter.log -jar /app/spanner-cassandra-proxy.jar &
 cass_pid=$!
 
 sleep 5

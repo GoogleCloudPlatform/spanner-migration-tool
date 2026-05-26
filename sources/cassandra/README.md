@@ -95,12 +95,18 @@ docker build -t zdm-proxy:latest .
 
 2. Create a `zdm-config.yaml` file with your configuration. See [sample-zdm-config.yaml](./sample-zdm-config.yaml) for an example.
 
-3.  Run the container with the following command:
+3. Create a log directory on your host machine to store Java proxy logs:
+```bash
+mkdir -p ./host-logs
+```
+
+4. Run the container with the following command:
 
 ```bash
 docker run -d -p 14002:14002 \
 -v $(pwd)/zdm-config.yaml:/zdm-config.yaml \
 -v $(pwd)/keys.json:/var/run/secret/keys.json \
+-v $(pwd)/host-logs:/app/logs \
 -e SPANNER_PROJECT=your-project-id \
 -e SPANNER_INSTANCE=your-instance-id \
 -e SPANNER_DATABASE=your-database-id \
@@ -121,12 +127,17 @@ Replace the following values:
 docker ps
 ```
 
-2. View the container logs:
+2. View the container logs (captures ZDM Proxy logs and initial JVM startup messages):
 ```bash
 docker logs <container-id>
 ```
 
-3. Test the connection using cqlsh:
+3. View the detailed Java Spanner Cassandra Proxy logs:
+```bash
+tail -f ./host-logs/adapter.log
+```
+
+4. Test the connection using cqlsh:
 ```bash
 cqlsh localhost 14002
 ```
