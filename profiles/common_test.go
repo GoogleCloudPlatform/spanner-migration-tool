@@ -140,11 +140,6 @@ func TestGetSQLConnectionStr(t *testing.T) {
 			expectedOutput:         "host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
 		},
 		{
-			name:                   "source profile connection type dynamodb",
-			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB},
-			expectedOutput:         "",
-		},
-		{
 			name:                   "source profile connection type sql server",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeSqlServer, SqlServer: SourceProfileConnectionSqlServer{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
 			expectedOutput:         "sqlserver://user:password@0.0.0.0:3306?database=database",
@@ -208,11 +203,6 @@ func TestGetSchemaSampleSize(t *testing.T) {
 			name:               "mysql source profile type",
 			inputSourceProfile: SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeMySQL}},
 			expectedOutput:     int64(100000),
-		},
-		{
-			name:               "dynamo db source profile type",
-			inputSourceProfile: SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB, Dydb: SourceProfileConnectionDynamoDB{SchemaSampleSize: int64(5000)}}},
-			expectedOutput:     int64(5000),
 		},
 	}
 

@@ -30,7 +30,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
@@ -50,7 +49,7 @@ type SchemaAndDataCmd struct {
 	dryRun           bool
 	logLevel         string
 	validate         bool
-	dataflowTemplate string
+
 	sessionFileName  string
 }
 
@@ -77,7 +76,7 @@ by setting appropriate params in source-profile. The schema-and-data flags are:
 
 // SetFlags sets the flags.
 func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`, `DynamoDB`)")
+	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`)")
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
@@ -88,7 +87,7 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
-	f.StringVar(&cmd.dataflowTemplate, "dataflow-template", constants.DEFAULT_TEMPLATE_PATH, "GCS path of the Dataflow template")
+
 	f.StringVar(&cmd.sessionFileName, "session-file-name", "", "Optional. Specifies the name of the file we store session state in.")
 }
 
@@ -107,7 +106,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
+
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
@@ -189,14 +188,6 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		conv.Audit.DryRun = true
 		schemaCoversionEndTime := time.Now()
 		conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-		// If migration type is Minimal Downtime, validate if required resources can be generated
-		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			err = ValidateResourceGenerationHelper(ctx, cmd.project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
-			if err != nil {
-				logger.Log.Error(err.Error())
-				return subcommands.ExitFailure
-			}
-		}
 
 		bw, err = convImpl.DataConv(ctx, cmd.project, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
 		if err != nil {

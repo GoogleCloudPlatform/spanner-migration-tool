@@ -23,7 +23,6 @@ import (
 // Pass in unit tests where StorageAccessor is an input parameter.
 type StorageAccessorMock struct {
 	CreateGCSBucketMock                	func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
-	ApplyBucketLifecycleDeleteRuleMock 	func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 	UploadLocalFileToGCSMock           	func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
 	WriteDataToGCSMock                 	func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error
 	ReadGcsFileMock                    	func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
@@ -35,9 +34,6 @@ func (sam *StorageAccessorMock) CreateGCSBucket(ctx context.Context, sc storagec
 	return sam.CreateGCSBucketMock(ctx, sc, req)
 }
 
-func (sam *StorageAccessorMock) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
-	return sam.ApplyBucketLifecycleDeleteRuleMock(ctx, sc, req)
-}
 
 func (sam *StorageAccessorMock) UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error {
 	return sam.UploadLocalFileToGCSMock(ctx, sc, filePath, fileName, localFilePath)

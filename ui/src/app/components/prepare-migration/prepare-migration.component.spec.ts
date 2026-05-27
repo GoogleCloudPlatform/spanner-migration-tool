@@ -58,10 +58,6 @@ describe('PrepareMigrationComponent', () => {
   it('should open the dialog and set values after closed', () => {
     const mockValues: { [key: string]: string } = {
       [TargetDetails.TargetDB]: 'mockTargetDB',
-      [TargetDetails.SourceConnProfile]: 'mockSourceConnProfile',
-      [TargetDetails.TargetConnProfile]: 'mockTargetConnProfile',
-      [TargetDetails.ReplicationSlot]: 'mockReplicationSlot',
-      [TargetDetails.Publication]: 'mockPublication',
       [TargetDetails.GcsMetadataName]: 'mockGcsMetadataName',
       [TargetDetails.GcsMetadataRootPath]: 'mockGcsMetadataRootPath',
       [TargetDetails.DefaultTimezone]: 'mockDefaultTimezone',
@@ -83,10 +79,6 @@ describe('PrepareMigrationComponent', () => {
       expect(component.isGcsMetadataDetailSet).toBeTrue();
       expect(component.targetDetails).toEqual({
         TargetDB: 'mockTargetDB',
-        SourceConnProfile: 'mockSourceConnProfile',
-        TargetConnProfile: 'mockTargetConnProfile',
-        ReplicationSlot: 'mockReplicationSlot',
-        Publication: 'mockPublication',
         GcsMetadataPath: {
           GcsBucketName: 'mockGcsMetadataName',
           GcsBucketRootPath: 'mockGcsMetadataRootPath',

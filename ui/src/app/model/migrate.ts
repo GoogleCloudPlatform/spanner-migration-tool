@@ -1,11 +1,9 @@
-import { IDatastreamConfig, IGcsConfig, IDataflowConfig } from "./profile";
+import { IGcsConfig } from "./profile";
 import ITargetDetails from "./target-details";
 
 export default interface IMigrationDetails {
     TargetDetails: ITargetDetails
-    DatastreamConfig: IDatastreamConfig
     GcsConfig: IGcsConfig
-    DataflowConfig: IDataflowConfig
     MigrationType: string
     MigrationMode: string
     IsSharded: boolean
@@ -24,23 +22,10 @@ export interface IGeneratedResources {
     DatabaseUrl: string
     BucketName: string
     BucketUrl: string
-    DataStreamJobName: string
-    DataStreamJobUrl: string
-    DataflowJobName: string
-    DataflowJobUrl: string
-    PubsubTopicName: string
-    PubsubTopicUrl: string
-    PubsubSubscriptionName: string
-    PubsubSubscriptionUrl: string
-    DlqPubsubTopicName: string
-    DlqPubsubTopicUrl: string
-    DlqPubsubSubscriptionName: string
-    DlqPubsubSubscriptionUrl: string
     MonitoringDashboardName: string
     MonitoringDashboardUrl: string
     AggMonitoringDashboardName: string
     AggMonitoringDashboardUrl: string
-    DataflowGcloudCmd: string
     ShardToShardResourcesMap: Map<string, ResourceDetails[]>
 }
 

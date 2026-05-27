@@ -43,12 +43,6 @@ jobs:
       MYSQLDB_5000_TABLES: test_mysql_5000_tables
       MYSQLPWD: root
 
-      # set DynamoDB related environment variables
-      AWS_ACCESS_KEY_ID: dummyId
-      AWS_SECRET_ACCESS_KEY: dummyKey
-      AWS_REGION: dummyRegion
-      DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
-
       # sql server envs
       # Password for connection as SA
       MSSQL_SA_PASSWORD: tCUE9c1&Ucp0
@@ -80,11 +74,6 @@ jobs:
           - 3306:3306
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-      dynamodb_emulator:
-        image: amazon/dynamodb-local:1.16.0
-        ports:
-          - 8000:8000
-        options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
@@ -165,7 +154,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.25.9"
+          go-version: "1.25.10"
       - run: go version
       - run: go build
       - name: Wait for Spanner Omni to start
@@ -176,5 +165,3 @@ jobs:
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: default
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: default
           IMPORT_CMD_SKIP_DIALECT_VALIDATION: true
-
-

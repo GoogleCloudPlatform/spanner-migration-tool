@@ -15,12 +15,10 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
 
-	sp "cloud.google.com/go/spanner"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -39,8 +37,7 @@ type InfoSchema interface {
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
-	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
-	StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) (internal.DataflowOutput, error)
+
 }
 
 // StandardInfoSchema supports per-table fetching of metadata.

@@ -12,7 +12,6 @@ message MigrationData {
     SOURCE_UNSPECIFIED = 0;
     MYSQL = 1;
     POSTGRESQL = 2;
-    DYNAMODB = 3;
     SQL_SERVER = 4;
     ORACLE = 5;
     CSV = 6;

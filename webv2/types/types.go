@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
 // TODO:(searce) organize this file according to go style guidelines: generally
@@ -29,10 +28,6 @@ type DriverConfig struct {
 type DriverConfigs struct {
 	DbConfigs         []DriverConfig `json:"DbConfigs"`
 	IsRestoredSession string         `json:"IsRestoredSession"`
-}
-
-type ShardedDataflowConfig struct {
-	MigrationProfile profiles.SourceProfileConfig
 }
 
 type SessionSummary struct {
@@ -60,9 +55,6 @@ type ProgressDetails struct {
 
 type MigrationDetails struct {
 	TargetDetails    TargetDetails             `json:"TargetDetails"`
-	DatastreamConfig profiles.DatastreamConfig `json:"DatastreamConfig"`
-	GcsConfig        profiles.GcsConfig        `json:"GcsConfig"`
-	DataflowConfig   profiles.DataflowConfig   `json:"DataflowConfig"`
 	MigrationMode    string                    `json:"MigrationMode"`
 	MigrationType    string                    `json:"MigrationType"`
 	IsSharded        bool                      `json:"IsSharded"`
@@ -142,30 +134,11 @@ type ResourceDetails struct {
 	GcloudCmd    string `json:"GcloudCmd"`
 }
 type GeneratedResources struct {
-	MigrationJobId string `json:"MigrationJobId"`
-	DatabaseName   string `json:"DatabaseName"`
-	DatabaseUrl    string `json:"DatabaseUrl"`
-	BucketName     string `json:"BucketName"`
-	BucketUrl      string `json:"BucketUrl"`
-	//Used for single instance migration flow
-	DataStreamJobName          string `json:"DataStreamJobName"`
-	DataStreamJobUrl           string `json:"DataStreamJobUrl"`
-	DataflowJobName            string `json:"DataflowJobName"`
-	DataflowJobUrl             string `json:"DataflowJobUrl"`
-	DataflowGcloudCmd          string `json:"DataflowGcloudCmd"`
-	PubsubTopicName            string `json:"PubsubTopicName"`
-	PubsubTopicUrl             string `json:"PubsubTopicUrl"`
-	PubsubSubscriptionName     string `json:"PubsubSubscriptionName"`
-	PubsubSubscriptionUrl      string `json:"PubsubSubscriptionUrl"`
-	DlqPubsubTopicName         string `json:"DlqPubsubTopicName"`
-	DlqPubsubTopicUrl          string `json:"DlqPubsubTopicUrl"`
-	DlqPubsubSubscriptionName  string `json:"DlqPubsubSubscriptionName"`
-	DlqPubsubSubscriptionUrl   string `json:"DlqPubsubSubscriptionUrl"`
-	MonitoringDashboardName    string `json:"MonitoringDashboardName"`
-	MonitoringDashboardUrl     string `json:"MonitoringDashboardUrl"`
-	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`
-	AggMonitoringDashboardUrl  string `json:"AggMonitoringDashboardUrl"`
-	//Used for sharded migration flow
+	MigrationJobId           string                       `json:"MigrationJobId"`
+	DatabaseName             string                       `json:"DatabaseName"`
+	DatabaseUrl              string                       `json:"DatabaseUrl"`
+	BucketName               string                       `json:"BucketName"`
+	BucketUrl                string                       `json:"BucketUrl"`
 	ShardToShardResourcesMap map[string][]ResourceDetails `json:"ShardToShardResourcesMap"`
 }
 

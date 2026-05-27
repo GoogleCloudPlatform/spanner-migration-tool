@@ -8,8 +8,7 @@ nav_order: 3
 # Schema-and-data subcommand
 {: .no_toc }
 
-This subcommand will generate a schema as well as perform data migration This subcommand can be used to do both POC and minimal downtime migrations. In practice, we have seen this command used
-more frequently for POC migrations, in order to get started quickly.
+This subcommand will generate a schema as well as perform data migration. In practice, we have seen this command used for POC migrations, in order to get started quickly.
 
 {: .highlight }
 The command below assumes that the open-source version of SMT is being used. For the CLI
@@ -48,28 +47,12 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
         $ ./spanner-migration-tool schema-and-data --source=postgresql \
             < ~/cart.pg_dump --target-profile='instance=spanner-instance'
 
-    To run a minimal downtime schema and data migration:
 
-        $ ./spanner-migration-tool schema-and-data --source=MySQL \
-            --source-profile='host=host,port=3306,user=user,password=pwd,dbN\
-        ame=db,streamingCfg=streaming.json' \
-            --target-profile='project=spanner-project,instance=spanner-insta\
-        nce' --project='migration-project'
-
-    To run a minimal downtime schema and data migration for a sharded source:
-
-        $ ./spanner-migration-tool schema-and-data --source=MySQL \
-            --source-profile='config=shard-config.json' \
-            --target-profile='project=spanner-project,instance=spanner-insta\
-        nce' --project='migration-project'
-
-For sharded migrations, you can refer to the example `source-config.json` passed in the source-profile option [here](./config-json.md#config-for-sharded-minimal-downtime-migrations).
 
 ## REQUIRED FLAGS
 
      --source=SOURCE
-        Flag for specifying source database (e.g., PostgreSQL, MySQL,
-        DynamoDB).
+        Flag for specifying source database (e.g., PostgreSQL, MySQL).
 
 ## OPTIONAL FLAGS
 
@@ -110,9 +93,6 @@ Detailed description of optional flags can be found [here](./flags.md).
         can create resources required for migration. If the project is not specified, Spanner migration 
         tool will try to fetch the configured project in the gCloud CLI.
 
-     --dataflow-template=DATAFLOW_TEMPLATE
-        The google cloud storage path of the minimal downtime migration
-        template to use to run the migration job. Default value is the latest dataflow template.
 
      --session-file-name=SESSION_FILENAME
         Optional. Specifies the name of the file we store session state in.
