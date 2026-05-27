@@ -23,8 +23,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.9.0
 	github.com/pganalyze/pg_query_go/v6 v6.1.0
-	github.com/pingcap/tidb v1.1.0-beta.0.20251126154744-e4e814fdc0af
-	github.com/pingcap/tidb/pkg/parser v0.0.0-20251126154744-e4e814fdc0af
+	github.com/pingcap/tidb v1.1.0-beta.0.20240705091134-821e491a20fb
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20240705091134-821e491a20fb
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
@@ -52,12 +52,17 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/cloudfoundry/gosigar v1.3.6 // indirect
+	github.com/cockroachdb/errors v1.11.1 // indirect
+	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
+	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
 	github.com/datastax/go-cassandra-native-protocol v0.0.0-20240903140133-605a850e203b // indirect
 	github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0 // indirect
+	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -69,12 +74,12 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pingcap/sysutil v1.0.1-0.20240311050922-ae81ee01f3a5 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/shoenig/go-m1cpu v0.2.1 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
