@@ -153,6 +153,10 @@ type SourceProfileConnectionMySQL struct {
 	User            string // Same as MYSQLUSER environment variable
 	Db              string // Same as MYSQLDATABASE environment variable
 	Pwd             string // Same as MYSQLPWD environment variable
+	Sslmode         string
+	Sslrootcert     string
+	Sslcert         string
+	Sslkey          string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error) {
@@ -203,6 +207,27 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 	}
 	if mysql.Pwd == "" {
 		mysql.Pwd = g.GetPassword()
+	}
+
+	if sslmode, ok := params["sslmode"]; ok {
+		mysql.Sslmode = sslmode
+	} else {
+		mysql.Sslmode = os.Getenv("MYSQL_SSL_MODE")
+	}
+	if sslrootcert, ok := params["sslrootcert"]; ok {
+		mysql.Sslrootcert = sslrootcert
+	} else {
+		mysql.Sslrootcert = os.Getenv("MYSQL_SSL_ROOT_CERT")
+	}
+	if sslcert, ok := params["sslcert"]; ok {
+		mysql.Sslcert = sslcert
+	} else {
+		mysql.Sslcert = os.Getenv("MYSQL_SSL_CERT")
+	}
+	if sslkey, ok := params["sslkey"]; ok {
+		mysql.Sslkey = sslkey
+	} else {
+		mysql.Sslkey = os.Getenv("MYSQL_SSL_KEY")
 	}
 
 	return mysql, nil
@@ -260,6 +285,10 @@ type SourceProfileConnectionPostgreSQL struct {
 	User            string // Same as PGUSER environment variable
 	Db              string // Same as PGDATABASE environment variable
 	Pwd             string // Same as PGPASSWORD environment variable
+	Sslmode         string
+	Sslrootcert     string
+	Sslcert         string
+	Sslkey          string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error) {
@@ -303,6 +332,27 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params
 	}
 	if pg.Pwd == "" {
 		pg.Pwd = g.GetPassword()
+	}
+
+	if sslmode, ok := params["sslmode"]; ok {
+		pg.Sslmode = sslmode
+	} else {
+		pg.Sslmode = os.Getenv("PGSSLMODE")
+	}
+	if sslrootcert, ok := params["sslrootcert"]; ok {
+		pg.Sslrootcert = sslrootcert
+	} else {
+		pg.Sslrootcert = os.Getenv("PGSSLROOTCERT")
+	}
+	if sslcert, ok := params["sslcert"]; ok {
+		pg.Sslcert = sslcert
+	} else {
+		pg.Sslcert = os.Getenv("PGSSLCERT")
+	}
+	if sslkey, ok := params["sslkey"]; ok {
+		pg.Sslkey = sslkey
+	} else {
+		pg.Sslkey = os.Getenv("PGSSLKEY")
 	}
 
 	return pg, nil
@@ -421,6 +471,10 @@ type SourceProfileConnectionCassandra struct {
 	Pwd             string
 	Keyspace        string 
 	DataCenter      string  // Cassandra 4.x requires data center information for connection
+	Sslmode         string
+	Sslrootcert     string
+	Sslcert         string
+	Sslkey          string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error) {
@@ -450,6 +504,27 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params 
 	}
 	if cs.Pwd == "" {
 		cs.Pwd = g.GetPassword()
+	}
+
+	if sslmode, ok := params["sslmode"]; ok {
+		cs.Sslmode = sslmode
+	} else {
+		cs.Sslmode = os.Getenv("CASSANDRA_SSL_MODE")
+	}
+	if sslrootcert, ok := params["sslrootcert"]; ok {
+		cs.Sslrootcert = sslrootcert
+	} else {
+		cs.Sslrootcert = os.Getenv("CASSANDRA_SSL_ROOT_CERT")
+	}
+	if sslcert, ok := params["sslcert"]; ok {
+		cs.Sslcert = sslcert
+	} else {
+		cs.Sslcert = os.Getenv("CASSANDRA_SSL_CERT")
+	}
+	if sslkey, ok := params["sslkey"]; ok {
+		cs.Sslkey = sslkey
+	} else {
+		cs.Sslkey = os.Getenv("CASSANDRA_SSL_KEY")
 	}
 
 	return cs, nil

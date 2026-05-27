@@ -53,7 +53,7 @@ func TestGetOrCreateCassandraClusterClient(t *testing.T) {
 			return mockSession, nil
 		}
 
-		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 0, "test_keyspace", "", "", "")
+		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 0, "test_keyspace", "", "", "", "", "", "", "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
@@ -80,7 +80,7 @@ func TestGetOrCreateCassandraClusterClient(t *testing.T) {
 			return mockSession, nil
 		}
 
-		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "ks", "dc1", "user", "pass")
+		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "ks", "dc1", "user", "pass", "", "", "", "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
@@ -98,7 +98,7 @@ func TestGetOrCreateCassandraClusterClient(t *testing.T) {
 			return nil, expectedErr
 		}
 
-		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "ks", "", "", "")
+		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "ks", "", "", "", "", "", "", "")
 
 		assert.Nil(t, client)
 		assert.Error(t, err)
@@ -123,13 +123,37 @@ func TestGetOrCreateCassandraClusterClient(t *testing.T) {
 		for i := 0; i < numGoroutines; i++ {
 			go func(i int) {
 				defer wg.Done()
-				_, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, fmt.Sprintf("keyspace%d", i), "", "", "")
+				_, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, fmt.Sprintf("keyspace%d", i), "", "", "", "", "", "", "")
 				assert.NoError(t, err)
 			}(i)
 		}
 
 		wg.Wait()
 		assert.NotNil(t, globalClusterConfig, "globalClusterConfig should be set after concurrent calls")
+	})
+	t.Run("Success with SSL/TLS config", func(t *testing.T) {
+		resetGlobals()
+		var capturedClusterConfig *gocql.ClusterConfig
+
+		newCluster = func(contactPoints ...string) *gocql.ClusterConfig {
+			cfg := gocql.NewCluster(contactPoints...)
+			capturedClusterConfig = cfg
+			return cfg
+		}
+		mockSession := &MockGocqlSession{}
+		createSessionFromCluster = func(c *gocql.ClusterConfig) (GocqlSessionInterface, error) {
+			return mockSession, nil
+		}
+
+		client, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "ks", "dc1", "user", "pass", "verify-full", "ca.pem", "cert.pem", "key.pem")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.NotNil(t, capturedClusterConfig.SslOpts)
+		assert.Equal(t, "ca.pem", capturedClusterConfig.SslOpts.CaPath)
+		assert.Equal(t, "cert.pem", capturedClusterConfig.SslOpts.CertPath)
+		assert.Equal(t, "key.pem", capturedClusterConfig.SslOpts.KeyPath)
+		assert.True(t, capturedClusterConfig.SslOpts.EnableHostVerification)
 	})
 }
 
@@ -142,6 +166,6 @@ func TestCreateSessionFromCluster(t *testing.T) {
 	}
 	t.Cleanup(func() { newCluster = originalNewCluster })
 
-	_, _ = GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "keyspace", "dc", "user", "pass")
+	_, _ = GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "keyspace", "dc", "user", "pass", "", "", "", "")
 	assert.NotNil(t, globalClusterConfig)
 }
