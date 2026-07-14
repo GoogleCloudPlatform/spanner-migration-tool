@@ -144,6 +144,13 @@ func TestDataConv(t *testing.T) {
 			errorExpected:       false,
 		},
 		{
+			name:                "neo4j driver",
+			sourceProfileDriver: "neo4j",
+			output:              &writer.BatchWriter{},
+			function:            "dataFromDatabase",
+			errorExpected:       false,
+		},
+		{
 			name:                "pg dump driver",
 			sourceProfileDriver: "pg_dump",
 			output:              &writer.BatchWriter{},

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -185,15 +184,6 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	return fmt.Errorf("not implemented for Neo4j yet")
 }
 
-// StartChangeDataCapture is used for automatic triggering of Datastream job.
-func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("CDC not supported for Neo4j")
-}
-
-// StartStreamingMigration is used for automatic triggering of Dataflow job.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, migrationProjectId string, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) (internal.DataflowOutput, error) {
-	return internal.DataflowOutput{}, fmt.Errorf("streaming migration not supported for Neo4j")
-}
 
 // Close closes the Neo4j driver connection.
 func (isi *InfoSchemaImpl) Close(ctx context.Context) {
