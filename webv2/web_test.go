@@ -16,6 +16,9 @@ import (
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	neo4jauth "github.com/neo4j/neo4j-go-driver/v6/neo4j/auth"
+	neo4jconfig "github.com/neo4j/neo4j-go-driver/v6/neo4j/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -295,4 +298,94 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockNeo4jDriver struct {
+	neo4j.Driver
+	mockVerifyConnectivity func(ctx context.Context) error
+	mockClose              func(ctx context.Context) error
+}
+
+func (m *mockNeo4jDriver) VerifyConnectivity(ctx context.Context) error {
+	if m.mockVerifyConnectivity != nil {
+		return m.mockVerifyConnectivity(ctx)
+	}
+	return nil
+}
+
+func (m *mockNeo4jDriver) Close(ctx context.Context) error {
+	if m.mockClose != nil {
+		return m.mockClose(ctx)
+	}
+	return nil
+}
+
+func TestDatabaseConnectionNeo4j(t *testing.T) {
+	originalNewNeo4jDriver := newNeo4jDriver
+	defer func() {
+		newNeo4jDriver = originalNewNeo4jDriver
+	}()
+
+	config := types.DriverConfig{
+		Driver:   constants.NEO4J,
+		Host:     "127.0.0.1",
+		Port:     "7687",
+		User:     "neo4j",
+		Password: "password",
+	}
+	configJSON, _ := json.Marshal(config)
+
+	t.Run("Success", func(t *testing.T) {
+		mockDriver := &mockNeo4jDriver{}
+		newNeo4jDriver = func(target string, token neo4jauth.TokenManager, configurers ...func(*neo4jconfig.Config)) (neo4j.Driver, error) {
+			assert.Equal(t, "bolt://127.0.0.1:7687", target)
+			return mockDriver, nil
+		}
+
+		req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer(configJSON))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(databaseConnection)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		sessionState := session.GetSessionState()
+		assert.Equal(t, constants.NEO4J, sessionState.Driver)
+		assert.Nil(t, sessionState.SourceDB)
+	})
+
+	t.Run("Driver Creation Failure", func(t *testing.T) {
+		expectedErr := errors.New("driver creation failed")
+		newNeo4jDriver = func(target string, token neo4jauth.TokenManager, configurers ...func(*neo4jconfig.Config)) (neo4j.Driver, error) {
+			return nil, expectedErr
+		}
+
+		req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer(configJSON))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(databaseConnection)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Neo4j driver creation error")
+	})
+
+	t.Run("Connectivity Verification Failure", func(t *testing.T) {
+		expectedErr := errors.New("verification failed")
+		mockDriver := &mockNeo4jDriver{
+			mockVerifyConnectivity: func(ctx context.Context) error {
+				return expectedErr
+			},
+		}
+		newNeo4jDriver = func(target string, token neo4jauth.TokenManager, configurers ...func(*neo4jconfig.Config)) (neo4j.Driver, error) {
+			return mockDriver, nil
+		}
+
+		req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer(configJSON))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(databaseConnection)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Neo4j connection error")
+	})
 }

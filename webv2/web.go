@@ -53,6 +53,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 	"github.com/pkg/browser"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -142,6 +143,29 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 			User:           config.User,
 			Password:       config.Password,
 			DataCenter:     config.DataCenter,
+			ConnectionType: helpers.DIRECT_CONNECT_MODE,
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	case constants.NEO4J:
+		// Neo4j does not use sql.Open. We validate connectivity using neo4j-go-driver.
+		err := validateNeo4jConnection(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		sessionState := session.GetSessionState()
+		sessionState.SourceDB = nil
+		sessionState.DbName = config.Database
+		sessionState.Driver = config.Driver
+		sessionState.SessionFile = ""
+		sessionState.Dialect = config.Dialect
+		sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+			Host:           config.Host,
+			Port:           config.Port,
+			User:           config.User,
+			Password:       config.Password,
 			ConnectionType: helpers.DIRECT_CONNECT_MODE,
 		}
 		w.WriteHeader(http.StatusOK)
@@ -377,6 +401,23 @@ func validateCassandraConnection(config types.DriverConfig) (cc.KeyspaceMetadata
 	}
 	accessor.Close()
 	return keyspaceMetadata, nil
+}
+
+var newNeo4jDriver = neo4j.NewDriver
+
+func validateNeo4jConnection(config types.DriverConfig) error {
+	uri := fmt.Sprintf("bolt://%s:%s", config.Host, config.Port)
+	auth := neo4j.BasicAuth(config.User, config.Password, "")
+	driver, err := newNeo4jDriver(uri, auth)
+	if err != nil {
+		return fmt.Errorf("Neo4j driver creation error: %w", err)
+	}
+	defer driver.Close(context.Background())
+	err = driver.VerifyConnectivity(context.Background())
+	if err != nil {
+		return fmt.Errorf("Neo4j connection error: %w", err)
+	}
+	return nil
 }
 
 // loadSession load seesion file to Spanner migration tool.
