@@ -81,7 +81,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			IsArray bool
 		}{
 			{"id", "STRING", false},
-			{"label", "STRING", true},
+			{"label", "STRING", false},
 			{"properties", "JSON", false},
 		}
 		for _, c := range cols {

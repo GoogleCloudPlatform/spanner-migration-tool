@@ -36,7 +36,7 @@ func TestNeo4jInfoSchema(t *testing.T) {
 	assert.Contains(t, nodeColNames, "id")
 	assert.Contains(t, nodeColNames, "label")
 	assert.Contains(t, nodeColNames, "properties")
-	assert.True(t, len(labelCol.Type.ArrayBounds) > 0, "GraphNode label should be an array")
+	assert.Empty(t, labelCol.Type.ArrayBounds, "GraphNode label should not be an array")
 
 	// 3. Test GetColumns for GraphEdge
 	edgeCols, _, err := ns.GetColumns(conv, tables[1], nil, nil)
