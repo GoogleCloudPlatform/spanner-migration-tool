@@ -22,21 +22,16 @@ import (
 	"strings"
 
 	"cloud.google.com/go/cloudsqlconn"
-	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra" 
+	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/dynamodb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -80,7 +75,13 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		var d *cloudsqlconn.Dialer
+		var err error
+		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
+			d, err = cloudsqlconn.NewDialer(context.Background())
+		} else {
+			d, err = cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
 		}
@@ -91,12 +92,19 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 				return d.Dial(ctx, instanceName, opts...)
 			})
 
-		dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-			sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+		password := "empty"
+		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
+			password = sourceProfile.ConnCloudSQL.Mysql.Pwd
+		}
+		dbURI := fmt.Sprintf("%s:%s@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, password, sourceProfile.ConnCloudSQL.Mysql.Db)
 
 		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
 			DbName:             sourceProfile.ConnCloudSQL.Mysql.Db,
@@ -106,13 +114,22 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 			TargetProfile:      targetProfile,
 		}, nil
 	case constants.POSTGRES:
-		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		var d *cloudsqlconn.Dialer
+		var err error
+		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
+			d, err = cloudsqlconn.NewDialer(context.Background())
+		} else {
+			d, err = cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
 		}
 		var opts []cloudsqlconn.DialOption
 
 		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
+			dsn = fmt.Sprintf("user=%s password=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Pwd, sourceProfile.ConnCloudSQL.Pg.Db)
+		}
 		config, err := pgx.ParseConfig(dsn)
 		if err != nil {
 			return nil, err
@@ -125,6 +142,9 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		db, err := sql.Open("pgx", dbURI)
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
@@ -152,6 +172,9 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err != nil {
 			return nil, err
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		return mysql.InfoSchemaImpl{
 			DbName:             dbName,
 			Db:                 db,
@@ -164,6 +187,9 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err != nil {
 			return nil, err
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
@@ -172,24 +198,14 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			TargetProfile:      targetProfile,
 			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
-	case constants.DYNAMODB:
-		mySession := session.Must(session.NewSession())
-		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
-		if sourceProfile.Conn.Streaming {
-			newSession := session.Must(session.NewSession())
-			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
-		}
-		return dynamodb.InfoSchemaImpl{
-			DynamoClient:        dydbClient,
-			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
-			DynamoStreamsClient: dydbStreamsClient,
-		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
 			return nil, err
+		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.ORACLE:
@@ -198,6 +214,9 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err != nil {
 			return nil, err
 		}
+		if err = db.Ping(); err != nil {
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	case constants.CASSANDRA:
 		_, ksMetadata, err := ca.NewCassandraAccessor(sourceProfile)
@@ -205,7 +224,7 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		return cassandra.InfoSchemaImpl{
-			KeyspaceMetadata: ksMetadata, 
+			KeyspaceMetadata: ksMetadata,
 			SourceProfile:    sourceProfile,
 			TargetProfile:    targetProfile,
 		}, nil

@@ -102,36 +102,36 @@ func (p *Progress) Done() {
 
 func (p *Progress) reportPct(firstCall bool) {
 	if p.verbose {
-		fmt.Printf("%s: %2d%%\n", p.message, p.pct)
+		logger.Log.Info(fmt.Sprintf("%s: %2d%%\n", p.message, p.pct))
 		return
 	}
 	logger.Log.Debug(p.message, zap.Int("Progress", p.pct))
 	if firstCall {
-		fmt.Printf("%s: %2d%%", p.message, p.pct)
+		logger.Log.Info(fmt.Sprintf("%s: %2d%%", p.message, p.pct))
 	} else {
-		fmt.Printf("\b\b\b%2d%%", p.pct)
+		logger.Log.Info(fmt.Sprintf("\b\b\b%2d%%", p.pct))
 	}
 	if p.pct == 100 {
-		fmt.Printf("\n")
+		logger.Log.Info(fmt.Sprintf("\n"))
 	}
 }
 
 func (p *Progress) reportFraction(firstCall bool) {
 	if p.verbose {
-		fmt.Printf("%s: %d/%d\n", p.message, p.progress, p.total)
+		logger.Log.Info(fmt.Sprintf("%s: %d/%d\n", p.message, p.progress, p.total))
 		return
 	}
 	logger.Log.Debug(p.message, zap.Float32("Progress", float32(p.progress/p.total)))
 	if firstCall {
-		fmt.Printf("%s: %d/%d", p.message, p.progress, p.total)
+		logger.Log.Info(fmt.Sprintf("%s: %d/%d", p.message, p.progress, p.total))
 	} else {
 		// We delete the previous outputted fraction hence, adding backspace that many number of times.
 		// The length of the previous outputted fraction would be len(p.progress-1) +len(total) and 1 for the "/".
 		delStr := strings.Repeat("\b", len(strconv.Itoa(int(p.progress-1)))+1+len(strconv.Itoa(int(p.total))))
-		fmt.Printf(delStr+"%d/%d", p.progress, p.total)
+		logger.Log.Info(fmt.Sprintf(delStr+"%d/%d", p.progress, p.total))
 	}
 	if p.progress == p.total {
-		fmt.Printf("\n")
+		logger.Log.Info(fmt.Sprintf("\n"))
 	}
 }
 

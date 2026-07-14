@@ -29,6 +29,12 @@ export interface IDefaultValue {
   Value: IExpression
 }
 
+export interface IGeneratedColumn {
+  IsPresent: boolean
+  Value: IExpression
+  Type: string
+}
+
 export interface IExpression {
   Statement: string
   ExpressionId: string
@@ -74,6 +80,7 @@ export interface IColumn {
   Id: string
   AutoGen: AutoGen
   DefaultValue: IDefaultValue
+  GeneratedColumn: IGeneratedColumn
 }
 
 export interface IIgnored {
@@ -165,6 +172,7 @@ export interface IColumnDef {
   Opts: { [key: string]: string }
   AutoGen: IAutoGen
   DefaultValue: IDefaultValue
+  GeneratedColumn: IGeneratedColumn
 }
 
 export interface IType {

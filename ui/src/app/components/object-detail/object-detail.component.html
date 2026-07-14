@@ -102,7 +102,7 @@
     </button>
   </div>
 
-  <mat-tab-group [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
+  <mat-tab-group [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode || isCcEditMode }"
     *ngIf="currentObject!.type === 'tableName'" (selectedTabChange)="tabChanged($event)">
     <mat-tab>
       <ng-template mat-tab-label>
@@ -147,6 +147,25 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcGeneratedColExp" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Generated-Col (GC)</th>
+              <td mat-cell *matCellDef="let element">
+                <div
+                  class="trimmed-text"
+                  matTooltip="{{ element.get('srcGeneratedColExp').value }}"
+                  matTooltipPosition="above">
+                  {{ element.get('srcGeneratedColExp').value }}
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcGeneratedColExpType" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>GC Type</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcGeneratedColExpType').value }}
               </td>
             </ng-container>
 
@@ -375,18 +394,50 @@
               </ng-container>
             </ng-container>
 
+            <ng-container matColumnDef="spGeneratedColumn" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Generated-Col</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="!isEditMode" class="trimmed-text"
+                     matTooltip="{{ element.get('spGeneratedColumn').value }}" matTooltipPosition="above">
+                  {{ element.get('spGeneratedColumn').value }}
+                </div>
+
+                <div *ngIf="isEditMode">
+                  <input matInput class="name_input" type="text"
+                         [formControl]="element.get('spGeneratedColumn')"
+                         matTooltip="Specify the generated column"/>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spGeneratedColumnType" *ngIf="supportsGeneratedColumn">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>GC Type</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode">
+                  <mat-form-field appearance="outline" class="w-100">
+                    <mat-select [formControl]="element.get('spGeneratedColumnType')">
+                      <mat-option value="STORED">STORED</mat-option>
+                      <mat-option value="VIRTUAL">VIRTUAL</mat-option>
+                      <mat-option value="N/A">N/A</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spGeneratedColumnType').value }}</p>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="!isEditMode" class="trimmed-text"
                      matTooltip="{{ element.get('spDefaultValue').value }}" matTooltipPosition="above">
-                  {{ element.get('spDefaultValue').value }} 
+                  {{ element.get('spDefaultValue').value }}
                 </div>
-            
+
                 <div *ngIf="isEditMode">
-                  <input matInput class="name_input" type="text" 
-                         [formControl]="element.get('spDefaultValue')" 
-                         matTooltip="Specify the default value"/> 
+                  <input matInput class="name_input" type="text"
+                         [formControl]="element.get('spDefaultValue')"
+                         matTooltip="Specify the default value"/>
                 </div>
               </td>
             </ng-container>
@@ -1174,7 +1225,7 @@
   </div>
 
   <div class="save-edits">
-    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
+    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode || isCcEditMode"></mat-divider>
 
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="saveColumnTable()" [disabled]="!spRowArray.valid">
@@ -1194,7 +1245,7 @@
         CANCEL
       </button>
     </div>
-    <div class="save-button" *ngIf="isCcEditMode && (interleaveParentId !== null ? currentTabIndex === 4:currentTabIndex === 3)">
+    <div class="save-button" *ngIf="isCcEditMode && currentTabIndex === getTabIndex('checkConstraints')">
       <button mat-raised-button color="primary" (click)="saveCc()" [disabled]="!ccArray.valid" >
         SAVE & CONVERT
       </button>

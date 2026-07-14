@@ -21,11 +21,15 @@ import (
 	"testing"
 	"time"
 
+	secretmanagerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/secretmanager"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
+
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	googleapis "github.com/googleapis/gax-go/v2"
 )
 
 type MockSourceProfileDialect struct {
@@ -57,10 +61,6 @@ func (m *MockSourceProfileDialect) NewSourceProfileConnectionSqlServer(params ma
 	return args.Get(0).(SourceProfileConnectionSqlServer), args.Error(1)
 }
 
-func (m *MockSourceProfileDialect) NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error) {
-	args := m.Called(params, g)
-	return args.Get(0).(SourceProfileConnectionDynamoDB), args.Error(1)
-}
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error) {
 	args := m.Called(params, g)
@@ -177,6 +177,20 @@ func (nspm *MockNewSourceProfile) NewSourceProfileConnection(source string, para
 	return args.Get(0).(SourceProfileConnection), args.Error(1)
 }
 
+type MockSecretManagerClient struct {
+	mock.Mock
+}
+
+func (m *MockSecretManagerClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...googleapis.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
+	args := m.Called(ctx, req, opts)
+	return args.Get(0).(*secretmanagerpb.AccessSecretVersionResponse), args.Error(1)
+}
+
+func (m *MockSecretManagerClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 func TestNewSourceProfileFile(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -254,28 +268,6 @@ func TestNewSourceProfileConfigFile(t *testing.T) {
 				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].User)
 				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].Password)
 				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].Port)
-			},
-		},
-		{
-			name:          "streaming config for mysql",
-			source:        "mysql",
-			path:          filepath.Join("..", "test_data", "mysql_shard_streaming.cfg"),
-			errorExpected: false,
-			validationFn: func(spc SourceProfileConfig) {
-				assert.NotNil(t, spc.ShardConfigurationDataflow)
-				assert.NotNil(t, spc.ShardConfigurationDataflow.SchemaSource)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.DbName)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Host)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Password)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Port)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.User)
-				assert.NotNil(t, spc.ShardConfigurationDataflow.DataShards)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataShardId)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].TmpDir)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].StreamLocation)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataflowConfig)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DstConnectionProfile)
-				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].SrcConnectionProfile)
 			},
 		},
 		{
@@ -381,11 +373,7 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e"},
 			errorExpected: false,
 		},
-		{
-			name:          "mandatory params provided",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e", "streamingCfg": ""},
-			errorExpected: true,
-		},
+
 		{
 			name:          "mandatory params provided",
 			params:        map[string]string{},
@@ -419,66 +407,6 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 	}
 }
 
-func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
-	// Avoid getting/settinng env variables in the unit tests.
-	testCases := []struct {
-		name          string
-		params        map[string]string
-		errorExpected bool
-	}{
-		{
-			name:          "no params",
-			params:        map[string]string{},
-			errorExpected: false,
-		},
-		{
-			name:          "valid schema sample size",
-			params:        map[string]string{"schema-sample-size": "15"},
-			errorExpected: false,
-		},
-		{
-			name:          "invalid schema sample size",
-			params:        map[string]string{"schema-sample-size": "a"},
-			errorExpected: true,
-		},
-		{
-			name:          "valid aws access key id ",
-			params:        map[string]string{"aws-access-key-id": "hdsjg"},
-			errorExpected: false,
-		},
-		{
-			name:          "valid aws region",
-			params:        map[string]string{"aws-region": "us-central"},
-			errorExpected: false,
-		},
-		{
-			name:          "valid dydb endpoint",
-			params:        map[string]string{"dydb-endpoint": "0.0.0.0"},
-			errorExpected: false,
-		},
-		{
-			name:          "enable streaming true",
-			params:        map[string]string{"enableStreaming": "true"},
-			errorExpected: false,
-		},
-		{
-			name:          "enable streaming false",
-			params:        map[string]string{"enableStreaming": "false"},
-			errorExpected: false,
-		},
-		{
-			name:          "invalid enable streaming",
-			params:        map[string]string{"enableStreaming": "ujeh"},
-			errorExpected: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		sourceProfileDialect := SourceProfileDialectImpl{}
-		_, err := sourceProfileDialect.NewSourceProfileConnectionDynamoDB(tc.params, &GetUtilInfoMock{})
-		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
-	}
-}
 
 func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
@@ -571,49 +499,45 @@ func TestNewSourceProfileConnectionOracle(t *testing.T) {
 		params        map[string]string
 		errorExpected bool
 	}{
-		{
-			name:          "streamingCfg is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": ""},
-			errorExpected: true,
-		},
+
 		{
 			name:          "host is blank",
-			params:        map[string]string{"host": "", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "", "user": "b", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "user is blank",
-			params:        map[string]string{"host": "a", "user": "", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "dbname is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "host is not specified",
-			params:        map[string]string{"user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"user": "b", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "user is not specified",
-			params:        map[string]string{"host": "a", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "dbname is not specified",
-			params:        map[string]string{"host": "a", "user": "b", "port": "d", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "port": "d", "password": "e"},
 			errorExpected: true,
 		},
 		{
 			name:          "port is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e"},
 			errorExpected: false,
 		},
 		{
 			name:          "password is blank",
-			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "", "streamingCfg": "f"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": ""},
 			errorExpected: false,
 		},
 	}
@@ -748,6 +672,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -759,8 +688,11 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
@@ -807,6 +739,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e"},
 			errorExpected: false,
 		},
+		{
+			name:          "test runs successfully with password",
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d", "project": "e", "password": "password"},
+			errorExpected: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -818,8 +755,11 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
+		mysql, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
+		if !tc.errorExpected && tc.params["password"] != "" {
+			assert.Equal(t, tc.params["password"], mysql.Pwd)
+		}
 	}
 }
 
@@ -856,14 +796,6 @@ func TestNewSourceProfileConnection(t *testing.T) {
 			params:            map[string]string{},
 			function:          "NewSourceProfileConnectionNeo4j",
 			returnConnProfile: SourceProfileConnectionNeo4j{},
-			errorExpected:     false,
-		},
-		{
-			name:              "source dynamodb",
-			source:            "dynamodb",
-			params:            map[string]string{},
-			function:          "NewSourceProfileConnectionDynamoDB",
-			returnConnProfile: SourceProfileConnectionDynamoDB{},
 			errorExpected:     false,
 		},
 		{
@@ -1077,13 +1009,6 @@ func TestToLegacyDriver(t *testing.T) {
 			errorExpected:  false,
 		},
 		{
-			name:           "source profile type FILE and source dynamodb",
-			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
-			source:         "dynamodb",
-			returnConstant: "",
-			errorExpected:  true,
-		},
-		{
 			name:           "source profile type FILE and source cassandra",
 			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
 			source:         "cassandra",
@@ -1109,13 +1034,6 @@ func TestToLegacyDriver(t *testing.T) {
 			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
 			source:         "postgresql",
 			returnConstant: constants.POSTGRES,
-			errorExpected:  false,
-		},
-		{
-			name:           "source profile type CONNECTION and source dynamodb",
-			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
-			source:         "dynamodb",
-			returnConstant: constants.DYNAMODB,
 			errorExpected:  false,
 		},
 		{
@@ -1296,4 +1214,168 @@ func TestNewSourceProfile(t *testing.T) {
 		assert.Equal(t, SourceProfileType(tc.returnTy), res.Ty, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
+}
+
+func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password"
+	secretId := "projects/p/secrets/s/versions/1"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == secretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri": secretId,
+	}
+
+	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, mysql.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLMySQL_SecretManager_ImplicitLatest(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password"
+	// User provides ID without version
+	userInputSecretId := "projects/p/secrets/s"
+	// Expect tool to append /versions/latest
+	expectedSecretId := userInputSecretId + "/versions/latest"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == expectedSecretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri":   userInputSecretId,
+	}
+
+	mysql, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, mysql.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password-pg"
+	secretId := "projects/p/secrets/s/versions/2"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == secretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri": secretId,
+	}
+
+	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, pg.Pwd)
+
+	mockClient.AssertExpectations(t)
+}
+
+func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLatest(t *testing.T) {
+	origNewClient := secretmanagerclient.NewSecretManagerClient
+	defer func() { secretmanagerclient.NewSecretManagerClient = origNewClient }()
+
+	mockClient := new(MockSecretManagerClient)
+	expectedPwd := "secret-password-pg"
+	userInputSecretId := "projects/p/secrets/s"
+	expectedSecretId := userInputSecretId + "/versions/latest"
+
+	mockClient.On("AccessSecretVersion", mock.Anything, mock.MatchedBy(func(req *secretmanagerpb.AccessSecretVersionRequest) bool {
+		return req.Name == expectedSecretId
+	}), mock.Anything).Return(&secretmanagerpb.AccessSecretVersionResponse{
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: []byte(expectedPwd),
+		},
+	}, nil)
+
+	secretmanagerclient.NewSecretManagerClient = func(ctx context.Context) (secretmanagerclient.SecretManagerClient, error) {
+		return mockClient, nil
+	}
+
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	params := map[string]string{
+		"user":               "a",
+		"dbName":             "b",
+		"instance":           "c",
+		"region":             "d",
+		"project":            "e",
+		"secretManagerUri":   userInputSecretId,
+	}
+
+	pg, err := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &g)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedPwd, pg.Pwd)
+
+	mockClient.AssertExpectations(t)
 }

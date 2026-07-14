@@ -109,7 +109,7 @@ func parseSchema(schemaFile []byte) ([]ColumnDefinition, error) {
 	var schema []ColumnDefinition
 	err := json.Unmarshal(schemaFile, &schema)
 	if err != nil {
-		fmt.Println("Error parsing schema file:", err)
+		logger.Log.Info(fmt.Sprint("Error parsing schema file:", err))
 		return nil, err
 	}
 

@@ -35,7 +35,7 @@ func (mis *MockInfoSchema) GenerateSrcSchema(conv *internal.Conv, infoSchema Inf
 func (mis *MockInfoSchema) ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
 }
 func (mis *MockInfoSchema) SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {}
-func (mis *MockInfoSchema) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+func (mis *MockInfoSchema) ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema StandardInfoSchema) (schema.Table, error) {
 	args := mis.Called(conv, table, infoSchema)
 	return args.Get(0).(schema.Table), args.Error(1)
 }

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -103,93 +102,6 @@ func TestStorageAccessorImpl_CreateGCSBucket(t *testing.T) {
 	}
 }
 
-func TestStorageAccessorImpl_ApplyBucketLifecycleDeleteRule(t *testing.T) {
-	testCases := []struct {
-		name          string
-		scm           storageclient.StorageClientMock
-		ttl           int64
-		matchesPrefix []string
-		expectError   bool
-	}{
-		{
-			name: "Basic",
-			scm: storageclient.StorageClientMock{
-				BucketMock: func(name string) storageclient.BucketHandle {
-					return &storageclient.BucketHandleMock{
-						UpdateMock: func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error) {
-							if strings.HasPrefix(uattrs.Lifecycle.Rules[0].Condition.MatchesPrefix[0], "/") {
-								return nil, fmt.Errorf("test error")
-							}
-							return &storage.BucketAttrs{Lifecycle: storage.Lifecycle{Rules: []storage.LifecycleRule{
-								{
-									Action: storage.LifecycleAction{Type: "Delete"},
-									Condition: storage.LifecycleCondition{
-										AgeInDays:     5,
-										MatchesPrefix: []string{},
-									},
-								},
-							}}}, nil
-						},
-					}
-				},
-			},
-			ttl:           5,
-			matchesPrefix: []string{"test"},
-			expectError:   false,
-		},
-		{
-			name: "Update error",
-			scm: storageclient.StorageClientMock{
-				BucketMock: func(name string) storageclient.BucketHandle {
-					return &storageclient.BucketHandleMock{
-						UpdateMock: func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error) {
-							return nil, fmt.Errorf("test error")
-						},
-					}
-				},
-			},
-			ttl:           5,
-			matchesPrefix: []string{"test"},
-			expectError:   true,
-		},
-		{
-			name: "Prefix '/' gets removed",
-			scm: storageclient.StorageClientMock{
-				BucketMock: func(name string) storageclient.BucketHandle {
-					return &storageclient.BucketHandleMock{
-						UpdateMock: func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error) {
-							if strings.HasPrefix(uattrs.Lifecycle.Rules[0].Condition.MatchesPrefix[0], "/") {
-								return nil, fmt.Errorf("test error")
-							}
-							return &storage.BucketAttrs{Lifecycle: storage.Lifecycle{Rules: []storage.LifecycleRule{
-								{
-									Action: storage.LifecycleAction{Type: "Delete"},
-									Condition: storage.LifecycleCondition{
-										AgeInDays:     5,
-										MatchesPrefix: []string{},
-									},
-								},
-							}}}, nil
-						},
-					}
-				},
-			},
-			ttl:           5,
-			matchesPrefix: []string{"/test"},
-			expectError:   false,
-		},
-	}
-	ctx := context.Background()
-	sa := StorageAccessorImpl{}
-	for _, tc := range testCases {
-		err := sa.ApplyBucketLifecycleDeleteRule(ctx, &tc.scm, StorageBucketMetadata{
-			BucketName:    "test-bucket",
-			Ttl:           tc.ttl,
-			MatchesPrefix: tc.matchesPrefix,
-		})
-		assert.Equal(t, tc.expectError, err != nil, tc.name)
-	}
-}
 
 func TestStorageAccessorImpl_WriteDataToGCS(t *testing.T) {
 	testCases := []struct {

@@ -24,11 +24,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
-	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
@@ -41,6 +37,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 var (
@@ -90,8 +87,8 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	if err != nil {
 		return nil, nil, "", err
 	}
-	fmt.Println("Using Google Cloud project:", project)
-	fmt.Println("Using Cloud Spanner instance:", instance)
+	logger.Log.Info(fmt.Sprint("Using Google Cloud project:", project))
+	logger.Log.Info(fmt.Sprint("Using Cloud Spanner instance:", instance))
 	utils.PrintPermissionsWarning(driver, ioHelper.Out)
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
@@ -109,8 +106,8 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 }
 
 // PrepareMigrationPrerequisites creates source and target profiles, opens a new IOStream and generates the database name.
-func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source string) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
-	targetProfile, err := profiles.NewTargetProfile(targetProfileString)
+func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source string, dryRun bool) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
+	targetProfile, err := profiles.NewTargetProfile(targetProfileString, dryRun)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
 	}
@@ -215,16 +212,10 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err
 		}
-		fmt.Printf("Schema validated successfully for data migration for db %s\n", dbURI)
+		logger.Log.Info(fmt.Sprintf("Schema validated successfully for data migration for db %s\n", dbURI))
 	}
 
-	// If migration type is Minimal Downtime, validate if required resources can be generated
-	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 
 	c := &conversion.ConvImpl{}
 	bw, err = c.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
@@ -262,13 +253,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 
-	// If migration type is Minimal Downtime, validate if required resources can be generated
-	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 
 	convImpl := &conversion.ConvImpl{}
 	bw, err := convImpl.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
@@ -285,24 +270,4 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	return bw, nil
 }
 
-func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spanneraccessor, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-	if err != nil {
-		return err
-	}
-	dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
-	if err != nil {
-		return err
-	}
-	storageclient, err := storageclient.NewStorageClientImpl(ctx)
-	if err != nil {
-		return err
-	}
-	validateResource := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
-		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, instanceId, sourceProfile, conv)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+

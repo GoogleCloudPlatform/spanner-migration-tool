@@ -16,7 +16,7 @@ import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
+import IConnectionProfile, { ICreateConnectionProfileV2, IGcsConfig } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
 import ICreateSequence from 'src/app/model/auto-gen'
@@ -95,27 +95,7 @@ export class FetchService {
     })
   }
 
-  setShardsSourceDBDetailsForDataflow(payload: IMigrationProfile) {
-    return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
-      MigrationProfile: payload
-    })
-  }
 
-  setDatastreamDetailsForShardedMigrations(payload: IDatastreamConfig) {
-    return this.http.post(`${this.url}/SetDatastreamDetailsForShardedMigrations`, payload)
-  }
-
-  setGcsDetailsForShardedMigrations(payload: IGcsConfig) {
-    return this.http.post(`${this.url}/SetGcsDetailsForShardedMigrations`, payload)
-  }
-
-  setDataflowDetailsForShardedMigrations(payload: IDataflowConfig) {
-    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, payload)
-  }
-
-  getSourceProfile() {
-    return this.http.get<IMigrationProfile>(`${this.url}/GetSourceProfileConfig`)
-  }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
@@ -145,29 +125,13 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
-  getConnectionProfiles(isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(
-      `${this.url}/GetConnectionProfiles?source=${isSource}`
-    )
-  }
+
 
   getGeneratedResources() {
     return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
   }
 
-  getStaticIps() {
-    return this.http.get<string[]>(`${this.url}/GetStaticIps`)
-  }
 
-  createConnectionProfile(payload: ICreateConnectionProfileV2) {
-    return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
-  }
-
-  verifyJsonConfiguration(payload : IMigrationProfile):any {
-    return this.http.post(`${this.url}/VerifyJsonConfiguration`, {
-      MigrationProfile: payload
-    })
-  }
 
   getSummary() {
     return this.http.get(`${this.url}/summary`)
@@ -340,9 +304,6 @@ export class FetchService {
   }
   uploadFile(payload: FormData) {
     return this.http.post(`${this.url}/uploadFile`, payload)
-  }
-  cleanUpStreamingJobs() {
-    return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
   }
 
   applyRule(payload: IRule) {

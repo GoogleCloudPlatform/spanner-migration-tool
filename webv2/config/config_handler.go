@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
@@ -47,7 +47,7 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 	content, err := GetSpannerConfig()
 	if err != nil {
 		http.Error(w, "Data access error", http.StatusBadRequest)
-		log.Println(err)
+		logger.Log.Debug(fmt.Sprint(err))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -57,7 +57,7 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug(fmt.Sprint(err))
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -65,7 +65,7 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 	var c Config
 	err = json.Unmarshal(reqBody, &c)
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug(fmt.Sprint(err))
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -82,7 +82,7 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		log.Println(err)
+		logger.Log.Debug(fmt.Sprint(err))
 		http.Error(w, "Data access error", http.StatusBadRequest)
 		return
 	}

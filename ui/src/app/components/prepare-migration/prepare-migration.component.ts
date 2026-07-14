@@ -6,21 +6,14 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import IConv, { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Datastream, Gcs, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails, dialogDefault } from 'src/app/app.constants'
+import { Gcs, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails, dialogDefault } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
-import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
-import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDatastreamConfig, IGcsConfig, IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
-import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
-import { TuneDatastreamFormComponent } from '../tune-datastream-form/tune-datastream-form.component'
-import { TuneGcsFormComponent } from '../tune-gcs-form/tune-gcs-form.component'
-import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
+import { IGcsConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
-import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { downloadSession, downloadOverrides } from 'src/app/utils/utils'
 import {MatPaginator} from '@angular/material/paginator';
@@ -49,23 +42,19 @@ export class PrepareMigrationComponent implements OnInit {
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
-  isDatastreamConfigurationSet: boolean = false
   isGcsConfigurationSet: boolean = false
-  isDataflowConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isForeignKeySkipped: boolean = false
   isMigrationDetailSet: boolean = false
-  isStreamingSupported: boolean = false
   isGcsMetadataDetailSet: boolean = false
   hasDataMigrationStarted: boolean = false
   hasSchemaMigrationStarted: boolean = false
   hasForeignKeyUpdateStarted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaAndData
   connectionType: string = InputType.DirectConnect
-  selectedMigrationType: string = MigrationTypes.lowDowntimeMigration
+  selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
-  isLowDtMigrationRunning: boolean = false
   isResourceGenerated: boolean = false
   generatingResources: boolean = false
   errorMessage: string = ''
@@ -83,23 +72,10 @@ export class PrepareMigrationComponent implements OnInit {
     DatabaseUrl: '',
     BucketName: '',
     BucketUrl: '',
-    DataStreamJobName: '',
-    DataStreamJobUrl: '',
-    DataflowJobName: '',
-    DataflowJobUrl: '',
-    PubsubTopicName: '',
-    PubsubTopicUrl: '',
-    PubsubSubscriptionName: '',
-    PubsubSubscriptionUrl: '',
-    DlqPubsubTopicName: '',
-    DlqPubsubTopicUrl: '',
-    DlqPubsubSubscriptionName: '',
-    DlqPubsubSubscriptionUrl: '',
     MonitoringDashboardName:'',
     MonitoringDashboardUrl:'',
     AggMonitoringDashboardName:'',
     AggMonitoringDashboardUrl:'',
-    DataflowGcloudCmd: '',
     ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
   }
   generatedResourcesColumns = ['shardId', 'resourceType', 'resourceName', 'resourceUrl']
@@ -109,7 +85,6 @@ export class PrepareMigrationComponent implements OnInit {
   
   displayedResources: ResourceDetails[] = []
   displayedResourcesDataSource: MatTableDataSource<ResourceDetails> = new MatTableDataSource<ResourceDetails>(this.displayedResources)
-  configuredMigrationProfile!: IMigrationProfile
   region: string = ''
   instance: string = ''
   dialect: string = ''
@@ -121,10 +96,6 @@ export class PrepareMigrationComponent implements OnInit {
 
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-    SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-    TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
-    ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
-    Publication: localStorage.getItem(TargetDetails.Publication) as string,
     GcsMetadataPath: {
       GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
       GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) || '',
@@ -132,32 +103,9 @@ export class PrepareMigrationComponent implements OnInit {
     DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
   }
 
-  datastreamConfig: IDatastreamConfig = {
-    maxConcurrentBackfillTasks: localStorage.getItem(Datastream.MaxConcurrentBackfillTasks) as string,
-    maxConcurrentCdcTasks: localStorage.getItem(Datastream.MaxConcurrentCdcTasks) as string
-  }
-
   gcsConfig: IGcsConfig = {
     ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
     ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')
-  }
-  
-  dataflowConfig: IDataflowConfig = {
-    network: localStorage.getItem(Dataflow.Network) as string,
-    subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
-    maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
-    numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
-    serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
-    machineType: localStorage.getItem(Dataflow.MachineType) as string,
-    additionalUserLabels: localStorage.getItem(Dataflow.AdditionalUserLabels) as string,
-    kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
-    projectId: localStorage.getItem(Dataflow.ProjectId) as string,
-    location: localStorage.getItem(Dataflow.Location) as string,
-    gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string,
-    customJarPath: localStorage.getItem(Dataflow.CustomJarPath) as string,
-    customClassName: localStorage.getItem(Dataflow.CustomClassName) as string,
-    customParameter: localStorage.getItem(Dataflow.CustomParameter) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -178,54 +126,28 @@ export class PrepareMigrationComponent implements OnInit {
 
   migrationTypesHelpText = new Map<string, string>([
     ["bulk", "Use the POC migration option when you want to migrate a sample of your data (<100GB) to do a Proof of Concept. It uses this machine's resources to copy data from the source database to Spanner"],
-    ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
   ]);
 
   resourceTypeToDisplayTest = new Map<string, string>([
     ["gcs", "Cloud Storage Bucket"],
-    ["pubsub_sub", "Pub/Sub subscription"],
-    ["pubsub_topic", "Pub/Sub topic"],
-    ["dlq_pubsub_sub", "Dlq Pub/Sub subscription"],
-    ["dlq_pubsub_topic", "Dlq Pub/Sub topic"],
-    ["datastream", "Datastream Stream"],
-    ["dataflow", "Dataflow Job"],
     ["monitoring", "Monitoring Dashboard"],
   ]);
 
   refreshMigrationMode() {
-    if (
-      !(this.selectedMigrationMode === MigrationModes.schemaOnly) &&
-      this.isStreamingSupported &&
-      !(this.connectionType === InputType.DumpFile)
-    ) {
-      this.migrationTypes = [
-        {
-          name: 'POC Migration',
-          value: MigrationTypes.bulkMigration,
-        },
-        {
-          name: 'Minimal downtime Migration',
-          value: MigrationTypes.lowDowntimeMigration,
-        },
-      ]
-    } else {
-      this.selectedMigrationType = MigrationTypes.bulkMigration
-      this.migrationTypes = [
-        {
-          name: 'POC Migration',
-          value: MigrationTypes.bulkMigration,
-        },
-      ]
-    }
+    this.selectedMigrationType = MigrationTypes.bulkMigration
+    this.migrationTypes = [
+      {
+        name: 'POC Migration',
+        value: MigrationTypes.bulkMigration,
+      },
+    ]
   }
 
   refreshPrerequisites() {
     this.isSourceConnectionProfileSet = false
     this.isTargetConnectionProfileSet = false
     this.isTargetDetailSet = false
-    this.isDatastreamConfigurationSet = false
     this.isGcsConfigurationSet = false
-    this.isDataflowConfigurationSet = false
     this.isGcsMetadataDetailSet = false
     this.refreshMigrationMode()
   }
@@ -238,7 +160,6 @@ export class PrepareMigrationComponent implements OnInit {
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
     })
-    localStorage.setItem(Dataflow.VpcHostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.connectionType = res.ConnectionType
@@ -267,29 +188,14 @@ export class PrepareMigrationComponent implements OnInit {
           res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
           res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
         ) {
-          this.isStreamingSupported = true
         }
-        if (this.isStreamingSupported) {
-          this.migrationTypes = [
-            {
-              name: 'POC Migration',
-              value: MigrationTypes.bulkMigration,
-            },
-            {
-              name: 'Minimal downtime Migration',
-              value: MigrationTypes.lowDowntimeMigration,
-            },
-          ]
-        }
-        else {
-          this.selectedMigrationType = MigrationTypes.bulkMigration
-          this.migrationTypes = [
-            {
-              name: 'POC Migration',
-              value: MigrationTypes.bulkMigration,
-            },
-          ]
-        }
+        this.selectedMigrationType = MigrationTypes.bulkMigration
+        this.migrationTypes = [
+          {
+            name: 'POC Migration',
+            value: MigrationTypes.bulkMigration,
+          },
+        ]
         this.sourceDatabaseName = res.SourceDatabaseName
         this.migrationModes = [
           MigrationModes.schemaOnly,
@@ -330,14 +236,8 @@ export class PrepareMigrationComponent implements OnInit {
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
     }
-    if (localStorage.getItem(Datastream.IsDatastreamConfigSet) != null) {
-      this.isDatastreamConfigurationSet = (localStorage.getItem(Datastream.IsDatastreamConfigSet) as string === 'true')
-    }
     if (localStorage.getItem(Gcs.IsGcsConfigSet) != null) {
       this.isGcsConfigurationSet = (localStorage.getItem(Gcs.IsGcsConfigSet) as string === 'true')
-    }
-    if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
-      this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) != null) {
       this.isGcsMetadataDetailSet = (localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) as string) === 'true'
@@ -417,25 +317,9 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
-    localStorage.removeItem(Datastream.IsDatastreamConfigSet)
-    localStorage.removeItem(Datastream.MaxConcurrentBackfillTasks)
-    localStorage.removeItem(Datastream.MaxConcurrentCdcTasks)
     localStorage.removeItem(Gcs.IsGcsConfigSet)
     localStorage.removeItem(Gcs.TtlInDays)
     localStorage.removeItem(Gcs.TtlInDaysSet)
-    localStorage.removeItem(Dataflow.IsDataflowConfigSet)
-    localStorage.removeItem(Dataflow.Network)
-    localStorage.removeItem(Dataflow.Subnetwork)
-    localStorage.removeItem(Dataflow.MaxWorkers)
-    localStorage.removeItem(Dataflow.NumWorkers)
-    localStorage.removeItem(Dataflow.ServiceAccountEmail)
-    localStorage.removeItem(Dataflow.VpcHostProjectId)
-    localStorage.removeItem(Dataflow.MachineType)
-    localStorage.removeItem(Dataflow.AdditionalUserLabels)
-    localStorage.removeItem(Dataflow.KmsKeyName)
-    localStorage.removeItem(Dataflow.ProjectId)
-    localStorage.removeItem(Dataflow.Location)
-    localStorage.removeItem(Dataflow.GcsTemplatePath)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -451,211 +335,12 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.NumberOfInstances)
   }
   
-  openConnectionProfileForm(isSource: boolean) {
-    let payload: ISetUpConnectionProfile = {
-      IsSource: isSource,
-      SourceDatabaseType: this.sourceDatabaseType,
-    }
-    let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
-      width: '30vw',
-      minWidth: '400px',
-      maxWidth: '500px',
-      data: payload,
-    })
-    dialogRef.afterClosed().subscribe(() => {
-      this.targetDetails = {
-        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
-        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
-        Publication: localStorage.getItem(TargetDetails.Publication) as string,
-        GcsMetadataPath: {
-          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
-          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
-        },
-        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
-      }
-      this.isSourceConnectionProfileSet =
-        (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
-      this.isTargetConnectionProfileSet =
-        (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string) === 'true'
-      if (
-        this.isTargetDetailSet &&
-        this.isSourceConnectionProfileSet &&
-        this.isTargetConnectionProfileSet
-      ) {
-        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, 'true')
-        this.isMigrationDetailSet = true
-      }
-    })
-  }
 
-  openMigrationProfileForm() {
-    let payload: IShardedDataflowMigration = {
-      IsSource: false,
-      SourceDatabaseType: this.sourceDatabaseType,
-      Region: this.region
-    }
-    let dialogRef = this.dialog.open(ShardedDataflowMigrationDetailsFormComponent, {
-      width: '30vw',
-      minWidth: '1200px',
-      maxWidth: '1600px',
-      data: payload,
-    })
-    dialogRef.afterClosed().subscribe(() => {
-      this.targetDetails = {
-        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
-        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
-        Publication: localStorage.getItem(TargetDetails.Publication) as string,
-        GcsMetadataPath: {
-          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
-          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
-        },
-        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
-      }
-      if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
-        this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
-      }
-      if (localStorage.getItem(MigrationDetails.NumberOfInstances) != null) {
-        this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
-      }
-      this.isSourceConnectionProfileSet =
-        (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
-      this.isTargetConnectionProfileSet =
-        (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string) === 'true'
-      if (
-        this.isTargetDetailSet &&
-        this.isSourceConnectionProfileSet &&
-        this.isTargetConnectionProfileSet
-      ) {
-        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, 'true')
-        this.isMigrationDetailSet = true
-      }
-    }
-    )
-  }
 
-  openGcloudPopup(cmd: string){
-    let dialogRef = this.dialog.open(EquivalentGcloudCommandComponent, {
-          width: '30vw',
-          minWidth: '400px',
-          maxWidth: '500px',
-          data: cmd,
-        })
-  }
 
-  openTuneDatastreamForm(){
-    let dialogRef = this.dialog.open(TuneDatastreamFormComponent, {
-      width: '4000px',
-      minWidth: '400px',
-      maxWidth: '500px',
-      data: { sourceType : this.sourceDatabaseType },
-    })
-    dialogRef.afterClosed().subscribe(() => {
-      this.datastreamConfig = {
-        maxConcurrentBackfillTasks: localStorage.getItem(Datastream.MaxConcurrentBackfillTasks) as string,
-        maxConcurrentCdcTasks: localStorage.getItem(Datastream.MaxConcurrentCdcTasks) as string
-      }
-      this.isDatastreamConfigurationSet = localStorage.getItem(Datastream.IsDatastreamConfigSet) as string === 'true'
-      // We only call setDatastreamDetailsForShardedMigrations for sharded flows which is fetched later to create sharding configs for the shards. 
-      // Non-sharded flows write a streaming config file during the migrate() operation using data passed in the payload on the fly.
-      // This should be refactored to keep the flow same for both sharded and non-sharded.
-      if (this.isSharded) {
-        this.fetch.setDatastreamDetailsForShardedMigrations(this.datastreamConfig).subscribe({
-          next: () => { },
-          error: (err: any) => {
-            this.snack.openSnackBar(err.error, 'Close')
-          }
-        })
-      }
-    }
-    )
-  }
 
-  openTuneGcsForm(){
-    let dialogRef = this.dialog.open(TuneGcsFormComponent, {
-      width: '4000px',
-      minWidth: '400px',
-      maxWidth: '500px',
-    })
-    dialogRef.afterClosed().subscribe(() => {
-      this.gcsConfig = {
-        ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
-        ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')    
-      }
-      this.isGcsConfigurationSet = localStorage.getItem(Gcs.IsGcsConfigSet) as string === 'true'
-      // We only call setGcsDetailsForShardedMigrations for sharded flows which is fetched later to create sharding configs for the shards. 
-      // Non-sharded flows write a streaming config file during the migrate() operation using data passed in the payload on the fly.
-      // This should be refactored to keep the flow same for both sharded and non-sharded.
-      if (this.isSharded) {
-        this.fetch.setGcsDetailsForShardedMigrations(this.gcsConfig).subscribe({
-          next: () => { },
-          error: (err: any) => {
-            this.snack.openSnackBar(err.error, 'Close')
-          }
-        })
-      }
-    }
-    )
-  }
 
-  openDataflowForm() {
-    let dialogRef = this.dialog.open(DataflowFormComponent, {
-      width: '4000px',
-      minWidth: '400px',
-      maxWidth: '500px',
-      data: this.spannerConfig,
-    })
-    dialogRef.afterClosed().subscribe(() => {
-      this.dataflowConfig = {
-        network: localStorage.getItem(Dataflow.Network) as string,
-        subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
-        maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
-        numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
-        serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
-        machineType: localStorage.getItem(Dataflow.MachineType) as string,
-        additionalUserLabels: localStorage.getItem(Dataflow.AdditionalUserLabels) as string,
-        kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
-        projectId: localStorage.getItem(Dataflow.ProjectId) as string,
-        location: localStorage.getItem(Dataflow.Location) as string,
-        gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string,
-        customJarPath: localStorage.getItem(Dataflow.CustomJarPath) as string,
-        customClassName: localStorage.getItem(Dataflow.CustomClassName) as string,
-        customParameter: localStorage.getItem(Dataflow.CustomParameter) as string
-      }
-      this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
-      // We only call setDataflowDetailsForShardedMigrations for sharded flows. Non-sharded flows write a streaming config file
-      // to GCS, which is fetched by the backend.
-      if (this.isSharded) {
-        this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
-          next: () => { },
-          error: (err: any) => {
-            this.snack.openSnackBar(err.error, 'Close')
-          }
-        })
-      }
-    }
-    )
-  }
 
-  endMigration() {
-    let payload: ISourceAndTargetDetails = {
-      SpannerDatabaseName: this.resourcesGenerated.DatabaseName,
-      SpannerDatabaseUrl: this.resourcesGenerated.DatabaseUrl,
-      SourceDatabaseType: this.sourceDatabaseType,
-      SourceDatabaseName: this.sourceDatabaseName,
-    }
-    let dialogRef = this.dialog.open(EndMigrationComponent, {
-      width: '30vw',
-      minWidth: '400px',
-      maxWidth: '500px',
-      data: payload,
-    })
-    dialogRef.afterClosed().subscribe()
-  }
 
   openSourceDetailsForm() {
     let dialogRef = this.dialog.open(SourceDetailsFormComponent, {
@@ -707,10 +392,6 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
-        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
-        Publication: localStorage.getItem(TargetDetails.Publication) as string,
         GcsMetadataPath: {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
@@ -752,10 +433,6 @@ export class PrepareMigrationComponent implements OnInit {
       this.isGcsMetadataDetailSet = localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) as string === 'true'
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
-        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
-        Publication: localStorage.getItem(TargetDetails.Publication) as string,
         GcsMetadataPath: {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
@@ -769,9 +446,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
-      DatastreamConfig: this.datastreamConfig,
       GcsConfig: this.gcsConfig,
-      DataflowConfig: this.dataflowConfig,
       IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
@@ -786,13 +461,6 @@ export class PrepareMigrationComponent implements OnInit {
               MigrationDetails.HasDataMigrationStarted,
               this.hasDataMigrationStarted.toString()
             )
-          } else {
-            this.generatingResources = true
-            localStorage.setItem(
-              MigrationDetails.GeneratingResources,
-              this.generatingResources.toString()
-            )
-            this.snack.openSnackBar('Setting up dataflow and datastream jobs', 'Close')
           }
         } else {
           this.hasSchemaMigrationStarted = true
@@ -815,7 +483,7 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   subscribeMigrationProgress() {
-    var displayStreamingMsg = false
+
     this.subscription = interval(5000).subscribe((x) => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
@@ -828,17 +496,6 @@ export class PrepareMigrationComponent implements OnInit {
               )
               if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
                 this.markMigrationComplete()
-              } else if (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
-                this.markSchemaMigrationComplete()
-                this.generatingResources = true
-                localStorage.setItem(
-                  MigrationDetails.GeneratingResources,
-                  this.generatingResources.toString()
-                )
-                if (!displayStreamingMsg) {
-                  this.snack.openSnackBar('Setting up dataflow and datastream jobs', 'Close')
-                  displayStreamingMsg = true
-                }
               } else {
                 this.markSchemaMigrationComplete()
                 this.hasDataMigrationStarted = true
@@ -848,13 +505,11 @@ export class PrepareMigrationComponent implements OnInit {
                 )
               }
             } else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
-              if (this.selectedMigrationType != MigrationTypes.lowDowntimeMigration) {
-                this.hasDataMigrationStarted = true
-                localStorage.setItem(
-                  MigrationDetails.HasDataMigrationStarted,
-                  this.hasDataMigrationStarted.toString()
-                )
-              }
+              this.hasDataMigrationStarted = true
+              localStorage.setItem(
+                MigrationDetails.HasDataMigrationStarted,
+                this.hasDataMigrationStarted.toString()
+              )
               this.generatingResources = false
               localStorage.setItem(
                 MigrationDetails.GeneratingResources,
@@ -916,7 +571,6 @@ export class PrepareMigrationComponent implements OnInit {
             this.dataProgressMessage = 'Data migration cancelled!'
             this.foreignKeyProgressMessage = 'Foreign key update cancelled!'
             this.generatingResources = false
-            this.isLowDtMigrationRunning = false
             this.clearLocalStorage()
           }
         },
@@ -955,25 +609,6 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
   }
 
-  downloadConfiguration() {
-    this.fetch.getSourceProfile().subscribe({
-      next: (res: IMigrationProfile) => {
-        this.configuredMigrationProfile = res
-        var a = document.createElement('a')
-        // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-        // However the max value received from server is '9223372036854775807'
-        // Therefore an explicit replacement is necessary in the JSON content in the file.
-        let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
-        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-        a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
-        a.click()
-      },
-      error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
-      },
-    })
-
-  }
 
   fetchGeneratedResources() {
     this.fetch.getGeneratedResources().subscribe({
@@ -988,9 +623,6 @@ export class PrepareMigrationComponent implements OnInit {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
-    if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
-      this.isLowDtMigrationRunning = true
-    }
   }
 
   markMigrationComplete() {
@@ -1025,23 +657,10 @@ export class PrepareMigrationComponent implements OnInit {
       DatabaseUrl: '',
       BucketName: '',
       BucketUrl: '',
-      DataStreamJobName: '',
-      DataStreamJobUrl: '',
-      DataflowJobName: '',
-      DataflowJobUrl: '',
-      PubsubTopicName: '',
-      PubsubTopicUrl: '',
-      PubsubSubscriptionName: '',
-      PubsubSubscriptionUrl: '',
-      DlqPubsubTopicName: '',
-      DlqPubsubTopicUrl: '',
-      DlqPubsubSubscriptionName: '',
-      DlqPubsubSubscriptionUrl: '',
       MonitoringDashboardName:'',
       MonitoringDashboardUrl:'',
       AggMonitoringDashboardName:'',
       AggMonitoringDashboardUrl:'',
-      DataflowGcloudCmd: '',
       ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
     }
     this.initializeLocalStorage()

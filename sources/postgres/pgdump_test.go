@@ -35,6 +35,7 @@ import (
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type spannerData struct {
@@ -1858,9 +1859,9 @@ func bitReverse(i int64) int64 {
 func printJSON(s string) {
 	json, err := pg_query.ParseToJSON(s)
 	if err == nil {
-		fmt.Printf("JSON for: %s\n %s\n", s, json)
+		logger.Log.Info(fmt.Sprintf("JSON for: %s\n %s\n", s, json))
 	} else {
-		fmt.Printf("Can't parse %s\n", s)
+		logger.Log.Info(fmt.Sprintf("Can't parse %s\n", s))
 	}
 }
 

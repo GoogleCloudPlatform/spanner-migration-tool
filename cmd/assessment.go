@@ -73,7 +73,7 @@ The assessment flags are:
 
 // SetFlags sets the flags.
 func (cmd *AssessmentCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`, `DynamoDB`)")
+	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`)")
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
@@ -96,7 +96,7 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 	}()
 	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
@@ -142,7 +142,7 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 }
 
 func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
-	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source, cmd.dryRun)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return nil, profiles.SourceProfile{}, subcommands.ExitUsageError

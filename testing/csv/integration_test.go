@@ -154,7 +154,7 @@ func createSpannerSchema(t *testing.T, project, instance, dbName string) {
 }
 
 func TestIntegration_CSV_Command(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -300,9 +300,9 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 	}
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }
 

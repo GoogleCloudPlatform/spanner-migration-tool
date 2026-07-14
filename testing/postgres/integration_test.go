@@ -107,7 +107,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -136,7 +136,7 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 	for _, d := range []string{"google_standard_sql", "postgresql"} {
 		dialect := d
 		t.Run(dialect, func(t *testing.T) {
-			onlyRunForEmulatorTest(t)
+			onlyRunForOmniTest(t)
 			t.Parallel()
 
 			tmpdir := prepareIntegrationTest(t)
@@ -162,7 +162,7 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 }
 
 func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -186,7 +186,7 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -198,7 +198,7 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	args := fmt.Sprintf("schema -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, instanceID, dbName, projectID)
-	err := common.RunCommand(args, "emulator-test-project")
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 }
 
 func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -223,8 +223,8 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=test-instance,dbName=%s,project=%s' < %s", filePrefix, dbName, projectID, dataFilepath)
-	err := common.RunCommand(args, "emulator-test-project")
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dataFilepath)
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 }
 
 func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -248,7 +248,7 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, instanceID, dbName, projectID)
-	err := common.RunCommand(args, "emulator-test-project")
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestIntegration_POSTGRES_DefaultIdentityOptions(t *testing.T) {
 	for _, d := range []string{"google_standard_sql", "postgresql"} {
 		dialect := d
 		t.Run(dialect, func(t *testing.T) {
-			onlyRunForEmulatorTest(t)
+			onlyRunForOmniTest(t)
 			t.Parallel()
 
 			tmpdir := prepareIntegrationTest(t)
@@ -273,7 +273,7 @@ func TestIntegration_POSTGRES_DefaultIdentityOptions(t *testing.T) {
 			filePrefix := filepath.Join(tmpdir, dbName)
 
 			args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s,defaultIdentitySkipRange=100-1000,defaultIdentityStartCounterWith=10'", filePrefix, instanceID, dbName, projectID, dialect)
-			err := common.RunCommand(args, "emulator-test-project")
+			err := common.RunCommand(args, projectID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -480,8 +480,8 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	assert.NotNil(t, row, "Expected rows in table 'cart' with productid '1YMWWN1N4O' to still exist")
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }

@@ -71,7 +71,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	err := logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		logger.Log.Info(fmt.Sprint("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err))
 		return subcommands.ExitFailure
 	}
 	logger.Log.Debug(fmt.Sprintf("instance %s, dbName %s, schemaUri %s\n", cmd.instance, cmd.database, cmd.schemaUri))
@@ -133,8 +133,8 @@ func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAcc
 
 		skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
 
-		// Only used for Emulator integration testing.
-		// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
+		// Only used for Spanner Omni integration testing.
+		// TODO(b/406423609): Remove once Cl for fix within Spanner Omni is release.
 		if skipDialectValidation == "true" {
 			return nil
 		}

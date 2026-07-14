@@ -1,5 +1,5 @@
 # --- Go Builder Stage ---
-FROM golang:1.24-bullseye AS go-builder
+FROM golang:1.25-bullseye AS go-builder
 
 # Disable cgo to remove gcc dependency
 ENV CGO_ENABLED=0
@@ -31,7 +31,7 @@ WORKDIR /app/java-spanner-cassandra
 RUN mvn clean install -DskipTests
 
 # --- Final Image ---
-FROM alpine:3.22
+FROM alpine:3.23
 
 # Install bash, ca-certificates, openssl, gettext (for envsubst), and Java 17 JRE
 RUN apk update && \

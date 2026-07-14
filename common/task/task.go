@@ -52,6 +52,7 @@ type TaskResult[O any] struct {
 // 6. No matter the result, once the processing is complete, the task is acknowledged to be completed using wg.Done()
 // 7a. [If no fastExit] No matter if it passes or fails, the results are added to the TaskResult[0] array.
 // 7b. [If fastExit] Our goal here is to stop the worker pool prematurely and exit the processing. For this to happen, we need to prematurely ack the remaining tasks
+//
 //     that are not yet done, so that wg.Wait() does not keep on definitely waiting for all the tasks to complete. Hence, we cycle through the inputChannel where we sent the
 //     work to be done and force ack all the remaining tasks. Note that all completed tasks would have already exited the inputChannel. This ensures that the waitGroup can how gracefully exit.
 func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],

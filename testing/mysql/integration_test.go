@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
@@ -111,7 +113,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -166,7 +168,8 @@ func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFil
 }
 
 func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -195,7 +198,8 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -211,7 +215,8 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -227,7 +232,7 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -249,11 +254,12 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-schema-and-data"
+	dbName := "test-fk-action-dump"
 	dumpFilePath := "../../test_data/mysql_foreignkeyaction_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
@@ -265,7 +271,8 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -279,11 +286,12 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 }
 
 func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-check-constraint"
+	dbName := "test-reserved-keyword"
 	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -293,7 +301,8 @@ func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 }
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
+	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
@@ -569,9 +578,106 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	_, err = iter.Next()
 	assert.Equal(t, iterator.Done, err, "Expected rows in table 'cart' with productid 'zxi-631' to be deleted")
 }
+func TestIntegration_MySQLDUMP_GeneratedColumns(t *testing.T) {
+	onlyRunForOmniTest(t)
+	t.Parallel()
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
 
-func onlyRunForEmulatorTest(t *testing.T) {
+	dbName := fmt.Sprintf("test_gc_%d", time.Now().Unix())
+	dumpFilePath := "../../test_data/mysql_generated_column.sql"
+	filePrefix := filepath.Join(tmpdir, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
+
+	defer dropDatabase(t, dbURI)
+
+	// Verify the generated DDL
+	ddlFile := fmt.Sprintf("%s.schema.ddl.txt", filePrefix)
+	content, err := ioutil.ReadFile(ddlFile)
+	if err != nil {
+		t.Fatalf("Failed to read DDL file: %v", err)
+	}
+	ddlContent := string(content)
+
+	// Case 1: A generated column where the expression is valid for spanner
+	assert.True(t, strings.Contains(ddlContent, "`valid_gc` INT64 AS (((col1+col2))) STORED"), fmt.Sprintf("Generated column valid_gc found in DDL: %s", ddlContent))
+
+	// Case 2: A generated column where the expression is invalid for spanner and is removed
+	assert.True(t, strings.Contains(ddlContent, "`invalid_gc` STRING(50),"), fmt.Sprintf("Generated column invalid_gc should have been removed from DDL: %s", ddlContent))
+
+	// Case 3: A generated column where the expression is valid but invalid for primary key
+	// TODO: Integration tests executes in Spanner Omni where this scenario is valid.
+	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_a` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_a not found in DDL: %s", ddlContent))
+	//assert.True(t, strings.Contains(ddlContent, "`invalid_gc_b` INT64 NOT NULL ,"), fmt.Sprintf("Generated column invalid_gc_b not found in DDL: %s", ddlContent))
+
+	// Case 4: A generated column where the expression is valid for primary key
+	assert.True(t, strings.Contains(ddlContent, "`valid_pk_gc` INT64 NOT NULL  AS (((col1+1))) STORED,"), fmt.Sprintf("Generated column valid_pk_gc found in DDL: %s", ddlContent))
+	assert.True(t, strings.Contains(ddlContent, "`valid_pk` INT64 NOT NULL ,"), fmt.Sprintf("Generated column valid_pk not found in DDL: %s", ddlContent))
+}
+
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
+	}
+}
+
+func TestIntegration_MYSQL_DirectConnect_5000Tables(t *testing.T) {
+	onlyRunForOmniTest(t)
+	t.Parallel()
+
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_5000_TABLES"), os.Getenv("MYSQLPWD")
+	if host == "" || user == "" || srcDb == "" {
+		t.Skip("Skipping test: MySQL environment variables not set.")
+	}
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-schema-5000-tables"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	defer dropDatabase(t, dbURI)
+
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -log-level=INFO -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify generated files
+	if _, err := os.Stat(fmt.Sprintf("%s.report.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("report file not generated during schema-only 5000 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.ddl.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("legal ddl file not generated during schema-only 5000 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("readable schema file not generated during schema-only 5000 tables direct connect test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s.session.json", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("session file not generated during schema-only 5000 tables direct connect test")
+	}
+
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatalf("failed to create spanner client: %v", err)
+	}
+	defer client.Close()
+
+	query := spanner.Statement{SQL: `SELECT count(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'`}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var numberOfTablesCreated int64
+	row, err := iter.Next()
+	if err != nil {
+		t.Fatalf("failed to read table count row: %v", err)
+	}
+	if err := row.Columns(&numberOfTablesCreated); err != nil {
+		t.Fatalf("failed to scan table count: %v", err)
+	}
+	if got, want := numberOfTablesCreated, int64(5000); got != want {
+		t.Fatalf("number of tables created in spanner is incorrect: got %v, want %v", got, want)
 	}
 }

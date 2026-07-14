@@ -43,7 +43,7 @@ func initTestSetup() func() error {
 			log.Fatalf("could not record: %v", err)
 		}
 		newTestClient = func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error) {
-			fmt.Printf("ctx: %v", ctx)
+			logger.Log.Info(fmt.Sprintf("ctx: %v", ctx))
 			hc, err := recorder.Client(ctx)
 			if err != nil {
 				return nil, err

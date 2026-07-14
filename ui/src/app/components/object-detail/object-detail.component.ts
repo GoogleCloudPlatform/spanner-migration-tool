@@ -7,7 +7,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/'
@@ -29,7 +29,7 @@ import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.co
 import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
-import { defaultAndSequenceSupportedDbs, identitySupportedDbs } from 'src/app/app.constants'
+import { defaultAndSequenceSupportedDbs, identitySupportedDbs, generatedColSupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
 import { title } from 'process'
 @Component({
@@ -79,6 +79,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   supportsDefaultAndSequence: boolean = false
+  supportsGeneratedColumn: boolean = false
   supportsAutoGen: boolean = false
   foreignKeyActionsSupported: boolean = false
   spTablesForInterleaving: { id: string; name: string }[] = [];
@@ -93,6 +94,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
           }
           this.supportsDefaultAndSequence = defaultAndSequenceSupportedDbs.includes(this.srcDbName)
+          this.supportsGeneratedColumn = generatedColSupportedDbs.includes(this.srcDbName)
           this.supportsAutoGen = identitySupportedDbs.includes(this.srcDbName)
           if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
             this.foreignKeyActionsSupported = true
@@ -187,6 +189,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   ccArray: FormArray = this.fb.array([])
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
+  ccTabIndex: number = 4
   currentTabIndex: number = 0
   addedColumnName: string = ''
   droppedColumns: IColumnTabData[] = []
@@ -207,8 +210,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
   dataTypesWithColLen: string[] = ColLength.DataTypes
-  spColspan : number = 6
-  srcColspan : number = 6
+  spColspan: number = 6
+  srcColspan: number = 6
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -218,7 +221,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.indexData = changes['indexData']?.currentValue || this.indexData
     this.sequenceData = changes['sequenceData']?.currentValue || this.sequenceData
     this.currentDatabase = changes['currentDatabase']?.currentValue || this.currentDatabase
-    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence? -1 : 0
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence ? -1 : 0
     this.isObjectSelected = this.currentObject ? true : false
     this.pkData = this.conversion.getPkMapping(this.tableData)
 
@@ -227,7 +230,16 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.interleaveType = this.getInterleaveTypeFromConv()
     this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
 
-  
+    let tabIndex = 2
+    if (this.srcDbName !== 'cassandra') {
+      tabIndex++
+    }
+    if (this.currentObject?.isSpannerNode) {
+      tabIndex++
+    }
+    this.ccTabIndex = tabIndex
+
+
     this.isEditMode = false
     this.isFkEditMode = false
     this.isIndexEditMode = false
@@ -253,16 +265,22 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(3, 0, "srcAutoGen");
       this.displayedPkColumns.splice(3, 0, "srcAutoGen");
-      this.spColspan+=1;
-      this.srcColspan+=1;
+      this.spColspan += 1;
+      this.srcColspan += 1;
+    }
+    if (this.supportsGeneratedColumn && !this.spDisplayedColumns.includes("spGeneratedColumn")) {
+      this.srcDisplayedColumns.push("srcGeneratedColExp");
+      this.srcDisplayedColumns.push("srcGeneratedColExpType");
+      this.spDisplayedColumns.splice(3, 0, "spGeneratedColumn");
+      this.spDisplayedColumns.splice(4, 0, "spGeneratedColumnType");
     }
     if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spAutoGen")) {
-      this.srcDisplayedColumns.push("srcDefaultValue");;
-      this.spDisplayedColumns.splice(7, 0,"spDefaultValue");
-      this.spColspan+=1;
-      this.srcColspan+=1;
+      this.srcDisplayedColumns.push("srcDefaultValue");
+      this.spDisplayedColumns.splice(7, 0, "spDefaultValue");
+      this.spColspan += 1;
+      this.srcColspan += 1;
     }
-    if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
+    if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete')) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
       this.displayedFkColumns.splice(10, 0, 'spOnDelete', 'spOnUpdate');
     }
@@ -306,6 +324,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
           srcDefaultValue: new FormControl(row.srcDefaultValue),
+          srcGeneratedColExp: new FormControl(row.srcGeneratedColExp),
+          srcGeneratedColExpType: new FormControl(row.srcGeneratedColExpType),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
           srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
@@ -325,8 +345,10 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spSkipRangeMax: new FormControl(row.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
           spStartCounterWith: new FormControl(row.spStartCounterWith, Validators.pattern('^[0-9]+$')),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
+          spGeneratedColumn: new FormControl(row.spGeneratedColumnType && row.spGeneratedColumnType != 'N/A' ? row.spGeneratedColumn : ''),
+          spGeneratedColumnType: new FormControl(row.spGeneratedColumnType && row.spGeneratedColumnType != 'N/A' ? row.spGeneratedColumnType : ''),
         }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
-        // Disable spDefaultValue if spAutoGen is set
+        // Disable spDefaultValue and spGeneratedColumn if spAutoGen is set
         if (row.spAutoGen.Name !== '') {
           fb.get('spDefaultValue')?.disable();
         }
@@ -378,6 +400,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcDefaultValue: new FormControl(col.srcDefaultValue),
+            srcGeneratedColExp: new FormControl(col.srcGeneratedColExp),
+            srcGeneratedColExpType: new FormControl(col.srcGeneratedColExpType),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
@@ -391,6 +415,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumn : ''),
+            spGeneratedColumnType: new FormControl(col.spGeneratedColumn && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumnType : ''),
           })
         )
       } else {
@@ -417,6 +443,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcDefaultValue: new FormControl(col.srcDefaultValue),
+            srcGeneratedColExp: new FormControl(col.srcGeneratedColExp),
+            srcGeneratedColExpType: new FormControl(col.srcGeneratedColExpType),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),
@@ -430,6 +458,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumn : ''),
+            spGeneratedColumnType: new FormControl(col.spGeneratedColumn && col.spGeneratedColumnType != 'N/A' ? col.spGeneratedColumnType : ''),
           })
         )
       }
@@ -502,6 +532,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         if (col.spDataType != 'STRING' && col.spDataType != 'BYTES' && col.spDataType != 'VARCHAR') {
           col.spColMaxLength = ""
         }
+
         if (col.srcId == this.tableData[j].srcId && this.tableData[j].srcId != '') {
           updateData.UpdateCols[this.tableData[j].srcId] = {
             Add: this.tableData[j].spId == '',
@@ -512,11 +543,19 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             MaxColLength: col.spColMaxLength,
             AutoGen: autoGen,
             DefaultValue: {
-              IsPresent: col.spDefaultValue ? true : false,
+              IsPresent: col.spDefaultValue ? col.spDefaultValue.IsPresent : false,
               Value: {
                 ExpressionId: '',
-                Statement: String(col.spDefaultValue)
+                Statement: col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''
               }
+            },
+            GeneratedColumn: {
+              IsPresent: !!(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A'),
+              Value: {
+                ExpressionId: '',
+                Statement: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumn : ''
+              },
+              Type: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumnType : ''
             }
           }
           break
@@ -531,11 +570,19 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             MaxColLength: col.spColMaxLength,
             AutoGen: autoGen,
             DefaultValue: {
-              IsPresent: col.spDefaultValue ? true : false,
+              IsPresent: col.spDefaultValue ? col.spDefaultValue.IsPresent : false,
               Value: {
                 ExpressionId: '',
-                Statement:  col.spDefaultValue? col.spDefaultValue.Value.Statement: ''
+                Statement: col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''
               }
+            },
+            GeneratedColumn: {
+              IsPresent: !!(col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A'),
+              Value: {
+                ExpressionId: '',
+                Statement: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumn : ''
+              },
+              Type: (col.spGeneratedColumnType && col.spGeneratedColumnType != 'N/A') ? col.spGeneratedColumnType : ''
             }
           }
         }
@@ -551,8 +598,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         ToType: '',
         MaxColLength: '',
         AutoGen: {
-          Name : '',
-          GenerationType : '',
+          Name: '',
+          GenerationType: '',
           IdentityOptions: {
             SkipRangeMin: '',
             SkipRangeMax: '',
@@ -565,6 +612,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             ExpressionId: '',
             Statement: ''
           }
+        },
+        GeneratedColumn: {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          Type: ''
         }
       }
     })
@@ -627,6 +682,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.localTableData[index].spCassandraOption = this.droppedColumns[addedRowIndex].spCassandraOption
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
+    this.localTableData[index].spGeneratedColumn = this.droppedColumns[addedRowIndex].spGeneratedColumn
+    this.localTableData[index].spGeneratedColumnType = this.droppedColumns[addedRowIndex].spGeneratedColumnType
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -671,7 +728,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         },
         maxWidth: '500px',
       });
-    }else if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
+    } else if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
       let pkWarning: string = ''
       let indexWaring: string = ''
       let connectingString: string = ''
@@ -718,10 +775,10 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   checkIfCcColumn(colId: string): boolean {
     let isCcColumn = false
     const columnName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name;
-    if(
+    if (
       this.conv.SpSchema[this.currentObject!.id].CheckConstraints != null &&
       this.conv.SpSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
-      new RegExp(`\\b${columnName}\\b`).test(cc.Expr))
+        new RegExp(`\\b${columnName}\\b`).test(cc.Expr))
     ) {
       isCcColumn = true
     }
@@ -771,21 +828,23 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         col.spColMaxLength = ''
         col.spCassandraOption = ''
         col.spAutoGen = {
-          Name : '',
-          GenerationType : '',
+          Name: '',
+          GenerationType: '',
           IdentityOptions: {
             SkipRangeMin: '',
             SkipRangeMax: '',
             StartCounterWith: '',
           }
         },
-        col.spDefaultValue = {
-          Value: {
-            ExpressionId: '',
-            Statement: ''
+          col.spDefaultValue = {
+            Value: {
+              ExpressionId: '',
+              Statement: ''
+            },
+            IsPresent: false
           },
-          IsPresent: false
-        }
+          col.spGeneratedColumn = ""
+        col.spGeneratedColumnType = ""
       }
     })
     this.setSpTableRows()
@@ -845,7 +904,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spOrder: row.spOrder,
           spId: row.spId,
           spAutoGen: row.spAutoGen,
-          spDefaultValue: row.spDefaultValue
+          spDefaultValue: row.spDefaultValue,
+          spGeneratedColumn: row.spGeneratedColumn,
         })
       }
     })
@@ -876,6 +936,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spId: new FormControl(spArr[i].spId),
           spAutoGen: new FormControl(spArr[i].spAutoGen),
           spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+          spGeneratedColumn: new FormControl(spArr[i].spGeneratedColumn),
         })
       )
     }
@@ -944,14 +1005,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
-      spExprId:this.generateExpressionId(),
+      spExprId: this.generateExpressionId(),
       deleteIndex: `cc${index + 1}`,
     });
 
     this.setCCRows();
   }
 
-   generateExpressionId(): string {
+  generateExpressionId(): string {
     const min = 0;
     const max = 999;
 
@@ -989,14 +1050,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     const spArr: ICcTabData[] = [];
     // Populate srcArr and spArr
     this.ccData.forEach((cc, index) => {
-      const baseObject : ICcTabData = {
+      const baseObject: ICcTabData = {
         srcSno: cc.srcSno,
         srcConstraintName: cc.srcConstraintName,
         srcCondition: cc.srcCondition,
         spSno: `${index + 1}`,
         spConstraintName: cc.spConstraintName,
         spConstraintCondition: cc.spConstraintCondition,
-        spExprId:cc.spExprId,
+        spExprId: cc.spExprId,
         deleteIndex: cc.deleteIndex,
       };
       srcArr.push(baseObject);
@@ -1005,7 +1066,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         spArr.push(baseObject);
       }
     });
-    const createFormGroup = (data : ICcTabData) => new FormGroup({
+    const createFormGroup = (data: ICcTabData) => new FormGroup({
       srcSno: new FormControl(data.srcSno || ''),
       srcConstraintName: new FormControl(data.srcConstraintName || ''),
       srcCondition: new FormControl(data.srcCondition || ''),
@@ -1016,7 +1077,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       spConstraintCondition: new FormControl(data.spConstraintCondition || '', [
         Validators.required,
       ]),
-      spExprId:new FormControl(data.spExprId),
+      spExprId: new FormControl(data.spExprId),
       deleteIndex: new FormControl(data.deleteIndex),
     });
 
@@ -1035,7 +1096,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   }
 
   toggleCcEdit() {
-    this.currentTabIndex = 4;
+    this.currentTabIndex = this.ccTabIndex;
 
     if (this.isCcEditMode) {
       this.setCCRows();
@@ -1157,30 +1218,30 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
 
   setPkOrder() {
     if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
-        return; // Early exit if there's no current object or primary key data
+      return; // Early exit if there's no current object or primary key data
     }
-      this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        let index = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.map(
-          (item) => item.ColId
-        ).indexOf(pk.spId)
-        if (index !== -1) {
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
-        }
-      })
+    this.pkData.forEach((pk: IColumnTabData, i: number) => {
+      let index = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.map(
+        (item) => item.ColId
+      ).indexOf(pk.spId)
+      if (index !== -1) {
+        pk.spOrder = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
+      }
+    })
   }
 
   setSrcPkOrder() {
     if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
-        return; // Early exit if there's no current object or primary key data
+      return; // Early exit if there's no current object or primary key data
     }
     const srcPrimaryKeys = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys;
     this.pkData.forEach((pk: IColumnTabData) => {
-        let index = srcPrimaryKeys.map(item => item.ColId).indexOf(pk.srcId);
-        if (index !== -1) {
-            pk.srcOrder = srcPrimaryKeys[index].Order;
-        }
+      let index = srcPrimaryKeys.map(item => item.ColId).indexOf(pk.srcId);
+      if (index !== -1) {
+        pk.srcOrder = srcPrimaryKeys[index].Order;
+      }
     });
-}
+  }
 
   pkOrderValidation() {
     let arr = this.pkData
@@ -1354,7 +1415,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     })
 
     this.pkData.forEach((column: IColumnTabData, ind: number) => {
-      if ( typeof column.spOrder === "number" && column.spOrder > removedOrder) {
+      if (typeof column.spOrder === "number" && column.spOrder > removedOrder) {
         column.spOrder = Number(column.spOrder) - 1
       }
     })
@@ -1537,29 +1598,29 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   }
 
   setInterleave(interleaveParentId: string, interleaveType: string | null, onDeleteAction: string) {
-      if (!interleaveType) {
-        console.error('Interleave type cannot be empty');
-        return;
-      }
-      
-      let tableId = this.currentObject!.id;
+    if (!interleaveType) {
+      console.error('Interleave type cannot be empty');
+      return;
+    }
 
-      this.data
-        .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
-        .pipe(take(1))
-        .subscribe((error: string) => {
-          if (error) {
-            this.dialog.open(InfodialogComponent, {
-              data: { message: error, type: 'error', title: 'Error' },
-              maxWidth: '500px',
-            });
-          } else {
-            this.dialog.open(InfodialogComponent, {
-              data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
-              maxWidth: '500px',
-            });
-          }
-        });
+    let tableId = this.currentObject!.id;
+
+    this.data
+      .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
+      .pipe(take(1))
+      .subscribe((error: string) => {
+        if (error) {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: error, type: 'error', title: 'Error' },
+            maxWidth: '500px',
+          });
+        } else {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
+            maxWidth: '500px',
+          });
+        }
+      });
   }
 
   getInterleaveParentIdFromConv() {
@@ -1676,14 +1737,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.spRowArray.push(
       new FormGroup({
         spSeqName: new FormControl(this.localSequenceData.spSeqName, [
-            Validators.required,
-            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?')
+          Validators.required,
+          Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?')
         ]),
         spSequenceKind: new FormControl(this.localSequenceData.spSequenceKind, Validators.required),
         spSkipRangeMin: new FormControl(this.localSequenceData.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
         spSkipRangeMax: new FormControl(this.localSequenceData.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
         spStartWithCounter: new FormControl(this.localSequenceData.spStartWithCounter, Validators.pattern('^[0-9]+$'))
-    }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
+      }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
     )
     this.spDataSource = this.spRowArray.controls
   }
@@ -1757,8 +1818,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
 
   saveSequence() {
     this.spRowArray.value.forEach((seqData: ISequenceData) => {
-      let payload : ICreateSequence = {
-        Name: seqData.spSeqName ? seqData.spSeqName: '',
+      let payload: ICreateSequence = {
+        Name: seqData.spSeqName ? seqData.spSeqName : '',
         Id: this.currentObject!.id,
         SequenceKind: seqData.spSequenceKind ? seqData.spSequenceKind : '',
         SkipRangeMax: seqData.spSkipRangeMax ? seqData.spSkipRangeMax : '',
@@ -1766,7 +1827,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         StartWithCounter: seqData.spStartWithCounter ? seqData.spStartWithCounter : ''
       }
       this.data.updateSequence(payload).pipe(take(1))
-      .subscribe(() => {})
+        .subscribe(() => { })
     })
     this.isSequenceEditMode = false
   }
@@ -1845,22 +1906,22 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.localIndexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-      this.localIndexData.push({
-        spColName: this.addIndexKeyForm.value.columnName!,
-        spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-        spOrder: spIndexCount + 1,
-        srcColName: '',
-        srcDesc: undefined,
-        srcOrder: '',
-        srcColId: undefined,
-        spColId: this.currentObject
-          ? this.conversion.getColIdFromSpannerColName(
-            this.addIndexKeyForm.value.columnName!,
-            this.currentObject.parentId,
-            this.conv
-          )
-          : '',
-      })
+    this.localIndexData.push({
+      spColName: this.addIndexKeyForm.value.columnName!,
+      spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+      spOrder: spIndexCount + 1,
+      srcColName: '',
+      srcDesc: undefined,
+      srcOrder: '',
+      srcColId: undefined,
+      spColId: this.currentObject
+        ? this.conversion.getColIdFromSpannerColName(
+          this.addIndexKeyForm.value.columnName!,
+          this.currentObject.parentId,
+          this.conv
+        )
+        : '',
+    })
     this.setIndexRows()
   }
 
@@ -1887,8 +1948,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           message: `Cannot drop the table as it has interleaving with ${interleaveTableIds
             .map((item) => this.conv.SpSchema[item].Name)
             .join(
-            ', '
-          )}. Remove the interleaving first to continue.`,
+              ', '
+            )}. Remove the interleaving first to continue.`,
           title: 'Error',
           type: 'error',
         },
@@ -1947,7 +2008,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   }
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
-    let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    let parentPrimaryKey, childPrimaryKey: IIndexKey[]
     let parentTableId = '', childTableId = ''
     if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
       parentTableId = tableId
@@ -1978,6 +2039,15 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       }
     }
     return false
+  }
+
+  getTabIndex(tabName: string): number {
+    switch (tabName) {
+      case 'checkConstraints':
+        return this.ccTabIndex;
+      default:
+        return -1;
+    }
   }
 
   customSearchFn(term: string, item: { id: string; name: string }) {

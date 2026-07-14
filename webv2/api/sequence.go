@@ -12,19 +12,20 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 func AddNewSequence(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("request started", "method", r.Method, "path", r.URL.Path)
+	logger.Log.Info(fmt.Sprint("request started", "method", r.Method, "path", r.URL.Path))
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("request's body Read Error")
+		logger.Log.Info(fmt.Sprint("request's body Read Error"))
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 	seq := ddl.Sequence{}
 	err = json.Unmarshal(reqBody, &seq)
 	if err != nil {
-		fmt.Println("request's Body parse error")
+		logger.Log.Info(fmt.Sprint("request's Body parse error"))
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -61,16 +62,16 @@ func AddNewSequence(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateSequence(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("request started", "method", r.Method, "path", r.URL.Path)
+	logger.Log.Info(fmt.Sprint("request started", "method", r.Method, "path", r.URL.Path))
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("request's body Read Error")
+		logger.Log.Info(fmt.Sprint("request's body Read Error"))
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 	newSeq := ddl.Sequence{}
 	err = json.Unmarshal(reqBody, &newSeq)
 	if err != nil {
-		fmt.Println("request's Body parse error")
+		logger.Log.Info(fmt.Sprint("request's Body parse error"))
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}

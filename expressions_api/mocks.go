@@ -21,12 +21,17 @@ import (
 )
 
 type MockExpressionVerificationAccessor struct {
-	VerifyExpressionsMock    func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
-	RefreshSpannerClientMock func(ctx context.Context, project string, instance string) error
+	VerifyExpressionsMock                            func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
+	RefreshSpannerClientMock                         func(ctx context.Context, project string, instance string) error
+	VerifyPrimaryKeysExpressionsUsingCreateTableMock func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
 }
 
 func (mev *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
 	return mev.VerifyExpressionsMock(ctx, verifyExpressionsInput)
+}
+
+func (mev *MockExpressionVerificationAccessor) VerifyPrimaryKeysExpressionsUsingCreateTable(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+	return mev.VerifyPrimaryKeysExpressionsUsingCreateTableMock(ctx, verifyExpressionsInput)
 }
 
 func (mev *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
@@ -34,15 +39,23 @@ func (mev *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.
 }
 
 type MockDDLVerifier struct {
-	VerifySpannerDDLMock            func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
-	GetSpannerExpressionDetailsMock func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
-	GetSourceExpressionDetailsMock  func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
-	RefreshSpannerClientMock        func(ctx context.Context, project string, instance string) error
+	VerifySpannerDDLMock                             func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
+	VerifyPrimaryKeysExpressionsUsingCreateTableMock func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
+	GetSpannerExpressionDetailsMock                  func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	GetSourceExpressionDetailsMock                   func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	RefreshSpannerClientMock                         func(ctx context.Context, project string, instance string) error
 }
 
 func (m *MockDDLVerifier) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
 	if m.VerifySpannerDDLMock != nil {
 		return m.VerifySpannerDDLMock(conv, expressionDetails)
+	}
+	return internal.VerifyExpressionsOutput{}, nil
+}
+
+func (m *MockDDLVerifier) VerifyPrimaryKeysExpressionsUsingCreateTable(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+	if m.VerifyPrimaryKeysExpressionsUsingCreateTableMock != nil {
+		return m.VerifyPrimaryKeysExpressionsUsingCreateTableMock(conv, expressionDetails)
 	}
 	return internal.VerifyExpressionsOutput{}, nil
 }

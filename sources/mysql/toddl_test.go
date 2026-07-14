@@ -191,7 +191,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	assert.Equal(t, "BYTES", mediumBlobToBytes.Name)
 	assert.Equal(t, int64(42), mediumBlobToBytes.Len)
 	mediumBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "mediumblob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
-	if errCheck != nil {
+	if errCheck == nil || len(errCheck) != 1 || errCheck[0] != internal.PossibleOverflow {
 		t.Errorf("Error in mediumBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", mediumBlobToBytesWithoutMods.Name)
@@ -204,7 +204,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	assert.Equal(t, "BYTES", longBlobToBytes.Name)
 	assert.Equal(t, int64(42), longBlobToBytes.Len)
 	longBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{Name: "longblob", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
-	if errCheck != nil {
+	if errCheck == nil || len(errCheck) != 1 || errCheck[0] != internal.PossibleOverflow {
 		t.Errorf("Error in longBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", longBlobToBytesWithoutMods.Name)
@@ -428,13 +428,13 @@ func dropComments(t *ddl.CreateTable) {
 func Test_GetColumnAutoGen(t *testing.T) {
 	conv := internal.MakeConv()
 	tc := []struct {
-		conv               *internal.Conv
-		autoGenCol         ddl.AutoGenCol
+		conv                   *internal.Conv
+		autoGenCol             ddl.AutoGenCol
 		defaultIdentityOptions ddl.IdentityOptions
-		expectedAutoGenCol ddl.AutoGenCol
-		expectErr          bool
-		colId              string
-		tableId            string
+		expectedAutoGenCol     ddl.AutoGenCol
+		expectErr              bool
+		colId                  string
+		tableId                string
 	}{
 		{
 			conv: conv,
@@ -447,8 +447,8 @@ func Test_GetColumnAutoGen(t *testing.T) {
 				GenerationType: constants.IDENTITY,
 			},
 			expectErr: false,
-			colId:   "c1",
-			tableId: "t1",
+			colId:     "c1",
+			tableId:   "t1",
 		},
 		{
 			conv: conv,
@@ -457,22 +457,22 @@ func Test_GetColumnAutoGen(t *testing.T) {
 				GenerationType: constants.AUTO_INCREMENT,
 			},
 			defaultIdentityOptions: ddl.IdentityOptions{
-				SkipRangeMin: "100",
-				SkipRangeMax: "1000",
+				SkipRangeMin:     "100",
+				SkipRangeMax:     "1000",
 				StartCounterWith: "10",
 			},
 			expectedAutoGenCol: ddl.AutoGenCol{
 				Name:           constants.IDENTITY,
 				GenerationType: constants.IDENTITY,
 				IdentityOptions: ddl.IdentityOptions{
-					SkipRangeMin: "100",
-					SkipRangeMax: "1000",
+					SkipRangeMin:     "100",
+					SkipRangeMax:     "1000",
 					StartCounterWith: "10",
 				},
 			},
 			expectErr: false,
-			colId:   "c1",
-			tableId: "t1",
+			colId:     "c1",
+			tableId:   "t1",
 		},
 		{
 			conv: conv,
@@ -481,17 +481,17 @@ func Test_GetColumnAutoGen(t *testing.T) {
 				GenerationType: constants.SEQUENCE,
 			},
 			expectedAutoGenCol: ddl.AutoGenCol{},
-			expectErr: true,
-			colId:   "c1",
-			tableId: "t1",
+			expectErr:          true,
+			colId:              "c1",
+			tableId:            "t1",
 		},
 		{
-			conv: conv,
-			autoGenCol: ddl.AutoGenCol{},
+			conv:               conv,
+			autoGenCol:         ddl.AutoGenCol{},
 			expectedAutoGenCol: ddl.AutoGenCol{},
-			expectErr: true,
-			colId:   "c1",
-			tableId: "t1",
+			expectErr:          true,
+			colId:              "c1",
+			tableId:            "t1",
 		},
 	}
 
@@ -512,39 +512,46 @@ func Test_GetColumnAutoGen(t *testing.T) {
 func TestGetMaxSize(t *testing.T) {
 	// testCases defines the table for our tests.
 	testCases := []struct {
-		name      string // The name of the test case for clear output.
-		mysqlType string // The input to the getMaxSize function.
-		want      int64  // The expected result.
+		name       string // The name of the test case for clear output.
+		mysqlType  string // The input to the getMaxSize function.
+		want       int64  // The expected result.
+		wantIssues []internal.SchemaIssue
 	}{
 		{
-			name:      "tinyblob size is correctly returned",
-			mysqlType: "tinyblob",
-			want:      255, // Expected: 255, since 255 < MaxLength
+			name:       "tinyblob size is correctly returned",
+			mysqlType:  "tinyblob",
+			want:       255, // Expected: 255, since 255 < MaxLength
+			wantIssues: nil,
 		},
 		{
-			name:      "blob size is correctly returned",
-			mysqlType: "blob",
-			want:      65535, // Expected: 65535, since 65535 < MaxLength
+			name:       "blob size is correctly returned",
+			mysqlType:  "blob",
+			want:       65535, // Expected: 65535, since 65535 < MaxLength
+			wantIssues: nil,
 		},
 		{
-			name:      "mediumblob size is capped by MaxLength",
-			mysqlType: "mediumblob",
-			want:      10_485_760, // Expected: MaxLength, since 16,777,215 > MaxLength
+			name:       "mediumblob size is capped by MaxLength",
+			mysqlType:  "mediumblob",
+			want:       10_485_760, // Expected: MaxLength, since 16,777,215 > MaxLength
+			wantIssues: []internal.SchemaIssue{internal.PossibleOverflow},
 		},
 		{
-			name:      "longblob size is capped by MaxLength",
-			mysqlType: "longblob",
-			want:      10_485_760, // Expected: MaxLength, since 4,294,967,295 > MaxLength
+			name:       "longblob size is capped by MaxLength",
+			mysqlType:  "longblob",
+			want:       10_485_760, // Expected: MaxLength, since 4,294,967,295 > MaxLength
+			wantIssues: []internal.SchemaIssue{internal.PossibleOverflow},
 		},
 		{
-			name:      "unmapped type returns MaxLength",
-			mysqlType: "varchar", // A type not present in our map.
-			want:      10_485_760,
+			name:       "unmapped type returns MaxLength",
+			mysqlType:  "varchar", // A type not present in our map.
+			want:       10_485_760,
+			wantIssues: []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow},
 		},
 		{
-			name:      "empty string type returns MaxLength",
-			mysqlType: "", // Edge case: empty input string.
-			want:      10_485_760,
+			name:       "empty string type returns MaxLength",
+			mysqlType:  "", // Edge case: empty input string.
+			want:       10_485_760,
+			wantIssues: []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow},
 		},
 	}
 
@@ -553,11 +560,28 @@ func TestGetMaxSize(t *testing.T) {
 		// t.Run enables running sub-tests, one for each case.
 		// This provides clearer test output and allows for running specific tests.
 		t.Run(tc.name, func(t *testing.T) {
-			got := getMaxSize(tc.mysqlType)
+			got, issues := getMaxSize(tc.mysqlType)
 
 			if got != tc.want {
 				// t.Errorf logs the error without stopping the test execution.
 				t.Errorf("getMaxSize(%q) = %d; want %d", tc.mysqlType, got, tc.want)
+			}
+			if len(issues) != len(tc.wantIssues) {
+				t.Errorf("getMaxSize(%q) returned unexpected issues: %v", tc.mysqlType, issues)
+			}
+			if len(issues) > 0 {
+				for _, issue := range issues {
+					found := false
+					for _, wantIssue := range tc.wantIssues {
+						if issue == wantIssue {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("getMaxSize(%q) returned unexpected issue: %v", tc.mysqlType, issue)
+					}
+				}
 			}
 		})
 	}

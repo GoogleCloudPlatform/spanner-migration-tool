@@ -30,12 +30,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
-	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -47,26 +44,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
 
-var (
-	once             sync.Once
-	datastreamClient *datastream.Client
-)
-
-type CreateMigrationResources interface {
-	multiError(errorMessages []error) error
-	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq]
-	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client)
-}
-
-func GetDatastreamClient(ctx context.Context) *datastream.Client {
-	if datastreamClient == nil {
-		once.Do(func() {
-			datastreamClient, _ = datastream.NewClient(ctx)
-		})
-		return datastreamClient
-	}
-	return datastreamClient
-}
 
 type ConvInterface interface {
 	SchemaConv(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, schemaFromSource SchemaFromSourceInterface) (*internal.Conv, error)
@@ -80,11 +57,14 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 	var conv *internal.Conv
 	var err error
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA, constants.NEO4J:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA, constants.NEO4J:
 		conv, err = schemaFromSource.schemaFromDatabase(migrationProjectId, sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
-		conv, err = schemaFromSource.SchemaFromDump(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationAccessor}, targetProfile.DefaultIdentityOptions)
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+		if err != nil {
+			fmt.Printf("Warning: failed to initialize expression verifier: %v\n", err)
+		}
+		conv, err = schemaFromSource.SchemaFromDump(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{ExpressionVerificationAccessor: ddlVerifier.Expressions, DdlVerifier: ddlVerifier}, targetProfile.DefaultIdentityOptions)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -104,7 +84,7 @@ func (ci *ConvImpl) DataConv(ctx context.Context, migrationProjectId string, sou
 		Verbose:    internal.Verbose(),
 	}
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE:
 		return dataFromSource.dataFromDatabase(ctx, migrationProjectId, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{}, &DataFromDatabaseImpl{}, &SnapshotMigrationImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {

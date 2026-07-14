@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type columnDetails struct {
@@ -60,17 +61,17 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 }
 
 func AddNewColumn(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("request started", "method", r.Method, "path", r.URL.Path)
+	logger.Log.Info(fmt.Sprint("request started", "method", r.Method, "path", r.URL.Path))
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("request's body Read Error")
+		logger.Log.Info(fmt.Sprint("request's body Read Error"))
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 	tableId := r.FormValue("table")
 	details := columnDetails{}
 	err = json.Unmarshal(reqBody, &details)
 	if err != nil {
-		fmt.Println("request's Body parse error")
+		logger.Log.Info(fmt.Sprint("request's Body parse error"))
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}

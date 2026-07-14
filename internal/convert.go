@@ -29,36 +29,36 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode               mode                         // Schema mode or data mode.
-	SpSchema           ddl.Schema                   // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys     map[string]SyntheticPKey     // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema          map[string]schema.Table      // Maps source-DB table name to schema information.
-	SchemaIssues       map[string]TableIssues       // Maps source-DB table/col to list of schema conversion issues.
-	InvalidCheckExp    map[string][]InvalidCheckExp // List of check constraint expressions and corresponding issues.
-	ToSpanner          map[string]NameAndCols       // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource           map[string]NameAndCols       `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames          map[string]bool              `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
-	dataSink           func(table string, cols []string, values []interface{})
-	DataFlush          func()                  `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location           *time.Location          // Timezone (for timestamp conversion).
-	sampleBadRows      rowSamples              // Rows that generated errors during conversion.
-	Stats              stats                   `json:"-"`
-	TimezoneOffset     string                  // Timezone offset for timestamp conversion.
-	SpDialect          string                  // The dialect of the spanner database to which Spanner migration tool is writing.
-	UniquePKey         map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
-	Audit              Audit                   `json:"-"` // Stores the audit information for the database conversion
-	Rules              []Rule                  // Stores applied rules during schema conversion
-	IsSharded          bool                    // Flag denoting if the migration is sharded or not
-	ConvLock           sync.RWMutex            `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
-	SpRegion           string                  // Leader Region for Spanner Instance
-	ResourceValidation bool                    // Flag denoting if validation for resources to generated is complete
-	UI                 bool                    // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
-	SpSequences        map[string]ddl.Sequence // Maps Spanner Sequences to Sequence Schema
-	SrcSequences       map[string]ddl.Sequence // Maps source-DB Sequences to Sequence schema information
-	SpProjectId        string                  // Spanner Project Id
-	SpInstanceId       string                  // Spanner Instance Id
-	Source             string                  // Source Database type being migrated
-	DatabaseOptions    ddl.DatabaseOptions
+	mode                   mode                         // Schema mode or data mode.
+	SpSchema               ddl.Schema                   // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys         map[string]SyntheticPKey     // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema              map[string]schema.Table      // Maps source-DB table name to schema information.
+	SchemaIssues           map[string]TableIssues       // Maps source-DB table/col to list of schema conversion issues.
+	InvalidCheckExp        map[string][]InvalidCheckExp // List of check constraint expressions and corresponding issues.
+	ToSpanner              map[string]NameAndCols       // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource               map[string]NameAndCols       `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames              map[string]bool              `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	dataSink               func(table string, cols []string, values []interface{})
+	DataFlush              func()                  `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location               *time.Location          // Timezone (for timestamp conversion).
+	sampleBadRows          rowSamples              // Rows that generated errors during conversion.
+	Stats                  stats                   `json:"-"`
+	TimezoneOffset         string                  // Timezone offset for timestamp conversion.
+	SpDialect              string                  // The dialect of the spanner database to which Spanner migration tool is writing.
+	UniquePKey             map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
+	Audit                  Audit                   `json:"-"` // Stores the audit information for the database conversion
+	Rules                  []Rule                  // Stores applied rules during schema conversion
+	IsSharded              bool                    // Flag denoting if the migration is sharded or not
+	ConvLock               sync.RWMutex            `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
+	SpRegion               string                  // Leader Region for Spanner Instance
+	ResourceValidation     bool                    // Flag denoting if validation for resources to generated is complete
+	UI                     bool                    // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
+	SpSequences            map[string]ddl.Sequence // Maps Spanner Sequences to Sequence Schema
+	SrcSequences           map[string]ddl.Sequence // Maps source-DB Sequences to Sequence schema information
+	SpProjectId            string                  // Spanner Project Id
+	SpInstanceId           string                  // Spanner Instance Id
+	Source                 string                  // Source Database type being migrated
+	DatabaseOptions        ddl.DatabaseOptions
 	DefaultIdentityOptions ddl.IdentityOptions // Default values to use for IDENTITY columns
 }
 
@@ -158,6 +158,7 @@ const (
 	CassandraMAP
 	PossibleOverflow
 	IdentitySkipRange
+	GeneratedColumnValueError
 )
 
 const (
@@ -221,80 +222,14 @@ type Audit struct {
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
 	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run.
-	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
 	Progress                 Progress                               `json:"-"` // Stores information related to progress of the migration progress
 	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
 }
 
-// Stores information related to generated Dataflow Resources.
-type DataflowResources struct {
-	JobId     string `json:"JobId"`
-	GcloudCmd string `json:"GcloudCmd"`
-	Region    string `json:"Region"`
-}
 
-type GcsResources struct {
-	BucketName string `json:"BucketName"`
-}
 
-// Stores information related to generated Datastream Resources.
-type DatastreamResources struct {
-	DatastreamName string `json:"DatastreamName"`
-	Region         string `json:"Region"`
-}
 
-// Stores information related to generated Pubsub Resources.
-type PubsubResources struct {
-	TopicId        string
-	SubscriptionId string
-	NotificationId string
-	BucketName     string
-	Region         string
-}
 
-// Stores information related to Monitoring resources
-type MonitoringResources struct {
-	DashboardName string `json:"DashboardName"`
-}
-
-type ShardResources struct {
-	DatastreamResources DatastreamResources
-	PubsubResources     PubsubResources
-	DlqPubsubResources  PubsubResources
-	DataflowResources   DataflowResources
-	GcsResources        GcsResources
-	MonitoringResources MonitoringResources
-}
-
-// Stores information related to the streaming migration process.
-type streamingStats struct {
-	Streaming                bool                        // Flag for confirmation of streaming migration.
-	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords         []string                    // Records that generated errors during conversion.
-	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
-	DatastreamResources      DatastreamResources
-	DataflowResources        DataflowResources
-	PubsubResources          PubsubResources
-	DlqPubsubResources       PubsubResources
-	GcsResources             GcsResources
-	MonitoringResources      MonitoringResources
-	ShardToShardResourcesMap map[string]ShardResources
-	AggMonitoringResources   MonitoringResources
-}
-
-type PubsubCfg struct {
-	TopicId        string
-	SubscriptionId string
-	NotificationId string
-	BucketName     string
-}
-
-type DataflowOutput struct {
-	JobID     string
-	GCloudCmd string
-}
 
 // Stores information related to rules during schema conversion
 type Rule struct {
@@ -331,6 +266,7 @@ type ExpressionDetail struct {
 	ExpressionId     string
 	Expression       string
 	Type             string
+	SpTableName      string
 	Metadata         map[string]string
 }
 
@@ -371,12 +307,11 @@ func MakeConv() *Conv {
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
 		UniquePKey:     make(map[string][]string),
 		Audit: Audit{
-			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules:        []Rule{},
-		SpSequences:  make(map[string]ddl.Sequence),
-		SrcSequences: make(map[string]ddl.Sequence),
+		Rules:           []Rule{},
+		SpSequences:     make(map[string]ddl.Sequence),
+		SrcSequences:    make(map[string]ddl.Sequence),
 		DatabaseOptions: ddl.DatabaseOptions{},
 	}
 }

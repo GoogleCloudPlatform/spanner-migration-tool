@@ -68,7 +68,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_VerifyExpressions(t *testing.T) {
-	onlyRunForEmulatorTest(t)
+	onlyRunForOmniTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -93,9 +93,9 @@ func TestIntegration_VerifyExpressions(t *testing.T) {
 	assert.True(t, output.ExpressionVerificationOutputList[0].Result)
 }
 
-func onlyRunForEmulatorTest(t *testing.T) {
+func onlyRunForOmniTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
+		t.Skip("Skipping tests only running against Spanner Omni.")
 	}
 }
 

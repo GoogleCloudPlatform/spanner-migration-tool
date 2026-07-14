@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type mockSpec struct {
@@ -234,7 +235,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 	test2TableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
 	assert.Equal(t, nil, err)
 
-	fmt.Printf("arawind@: %v", conv.SchemaIssues[test2TableId].ColumnLevelIssues)
+	logger.Log.Info(fmt.Sprintf("arawind@: %v", conv.SchemaIssues[test2TableId].ColumnLevelIssues))
 
 	assert.Equal(t, len(conv.SchemaIssues[userTableId].ColumnLevelIssues), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 0)

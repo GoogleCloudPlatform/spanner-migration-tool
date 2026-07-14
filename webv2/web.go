@@ -22,10 +22,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -46,7 +48,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
@@ -64,6 +65,36 @@ import (
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
+
+func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
+
+	var dataSourceName string
+	switch config.Driver {
+	case constants.MYSQL:
+		cfg := mysql.NewConfig()
+		cfg.User = config.User
+		cfg.Passwd = config.Password
+		cfg.Net = "tcp"
+		cfg.Addr = fmt.Sprintf("%s:%s", config.Host, config.Port)
+		cfg.DBName = config.Database
+		dataSourceName = cfg.FormatDSN()
+	case constants.SQLSERVER, constants.POSTGRES:
+		u := url.URL{
+			Scheme:   config.Driver,
+			User:     url.UserPassword(config.User, config.Password),
+			Host:     fmt.Sprintf("%s:%s", config.Host, config.Port),
+			Path:     config.Database,
+			RawQuery: "sslmode=disable", // Add other parameters here
+		}
+		dataSourceName = u.String()
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+	default:
+		return "", fmt.Errorf("driver : '%s' is not supported", config.Driver)
+	}
+	return dataSourceName, nil
+}
 
 // TODO:(searce):
 // 1) Test cases for APIs
@@ -90,15 +121,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	var dataSourceName string
 	switch config.Driver {
-	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
-	case constants.MYSQL:
-		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
-	case constants.SQLSERVER:
-		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
-	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
 	case constants.CASSANDRA:
 		// Cassandra does not use sql.Open. We use the accessor to validate the connection.
 		keyspaceMetadata, err := validateCassandraConnection(config)
@@ -125,8 +147,11 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
-		return
+		dataSourceName, err = createDatabaseConnectionString(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
@@ -191,106 +216,12 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	if sourceProfileConfig.ConfigType == "dataflow" {
-		for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
-			bucket, rootPath, err := conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("error while getting target bucket: %v", err), http.StatusInternalServerError)
-				return
-			}
-			dataShard.TmpDir = "gs://" + bucket + rootPath
-		}
-	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
-func setDatastreamDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var datastreamConfig profiles.DatastreamConfig
-	err = json.Unmarshal(reqBody, &datastreamConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DatastreamConfig = datastreamConfig
-	w.WriteHeader(http.StatusOK)
-}
 
-func setGcsDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var gcsConfig profiles.GcsConfig
-	err = json.Unmarshal(reqBody, &gcsConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.GcsConfig = gcsConfig
-	w.WriteHeader(http.StatusOK)
-}
-
-func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var dataflowConfig profiles.DataflowConfig
-	err = json.Unmarshal(reqBody, &dataflowConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	if dataflowConfig.Location == "" {
-		dataflowConfig.Location = sessionState.Region
-	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowConfig
-	w.WriteHeader(http.StatusOK)
-}
-
-func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request) {
-	//Take the received object and store it into session state.
-	sessionState := session.GetSessionState()
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var srcConfig types.ShardedDataflowConfig
-	err = json.Unmarshal(reqBody, &srcConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	sessionState.SourceProfileConfig.ConfigType = srcConfig.MigrationProfile.ConfigType
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataShards = srcConfig.MigrationProfile.ShardConfigurationDataflow.DataShards
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.SchemaSource = srcConfig.MigrationProfile.ShardConfigurationDataflow.SchemaSource
-
-	if sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location == "" {
-		// Create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
-		sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-			Location:            sessionState.Region,
-			Network:             "",
-			Subnetwork:          "",
-			MaxWorkers:          "",
-			NumWorkers:          "",
-			ServiceAccountEmail: "",
-			VpcHostProjectId:    sessionState.GCPProjectID,
-		}
-	}
-	w.WriteHeader(http.StatusOK)
-}
 
 func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
@@ -697,7 +628,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.UI = true
-	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(ctx, sessionState, details)
 	// TODO: Fix UX flow of migration project id
 	migrationProjectId := sessionState.GCPProjectID
 	if sessionState.SpannerProjectId == "" {
@@ -754,69 +685,12 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
 	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	generatedResources.ShardToShardResourcesMap = map[string][]types.ResourceDetails{}
-	if sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName != "" {
-		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName
-		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName, sessionState.GCPProjectID)
-	}
-	if sessionState.Conv.Audit.StreamingStats.DataflowResources.JobId != "" {
-		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowResources.JobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowResources.Region, sessionState.Conv.Audit.StreamingStats.DataflowResources.JobId, sessionState.GCPProjectID)
-		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowResources.GcloudCmd
-	}
-	if sessionState.Conv.Audit.StreamingStats.PubsubResources.TopicId != "" {
-		generatedResources.PubsubTopicName = sessionState.Conv.Audit.StreamingStats.PubsubResources.TopicId
-		generatedResources.PubsubTopicUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubResources.TopicId, sessionState.GCPProjectID)
-	}
-	if sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId != "" {
-		generatedResources.DlqPubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId
-		generatedResources.DlqPubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId, sessionState.GCPProjectID)
-	}
-	if sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" {
-		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName
-		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName, sessionState.GCPProjectID)
-	}
-	if sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" {
-		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName
-		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, sessionState.GCPProjectID)
-	}
-	for shardId, shardResources := range sessionState.Conv.Audit.StreamingStats.ShardToShardResourcesMap {
-		//Datastream
-		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, shardResources.DatastreamResources.DatastreamName, sessionState.GCPProjectID)
-		resourceDetails := types.ResourceDetails{ResourceType: constants.DATASTREAM_RESOURCE, ResourceName: shardResources.DatastreamResources.DatastreamName, ResourceUrl: url}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
-		//Dataflow
-		dfId := shardResources.DataflowResources.JobId
-		url = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowResources.Region, dfId, sessionState.GCPProjectID)
-		resourceDetails = types.ResourceDetails{ResourceType: constants.DATAFLOW_RESOURCE, ResourceName: dfId, ResourceUrl: url, GcloudCmd: shardResources.DataflowResources.GcloudCmd}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
-		//monitoring
-		url = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResources.MonitoringResources.DashboardName, sessionState.GCPProjectID)
-		resourceDetails = types.ResourceDetails{ResourceType: constants.MONITORING_RESOURCE, ResourceName: shardResources.MonitoringResources.DashboardName, ResourceUrl: url}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
-		//gcs
-		url = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v?project=%v", shardResources.GcsResources.BucketName, sessionState.GCPProjectID)
-		resourceDetails = types.ResourceDetails{ResourceType: constants.GCS_RESOURCE, ResourceName: shardResources.GcsResources.BucketName, ResourceUrl: url}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
-		//pubsub
-		topicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", shardResources.PubsubResources.TopicId, sessionState.GCPProjectID)
-		topicResourceDetails := types.ResourceDetails{ResourceType: constants.PUBSUB_TOPIC_RESOURCE, ResourceName: shardResources.PubsubResources.TopicId, ResourceUrl: topicUrl}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], topicResourceDetails)
-		subscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.PubsubResources.SubscriptionId, sessionState.GCPProjectID)
-		subscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.PUBSUB_SUB_RESOURCE, ResourceName: shardResources.PubsubResources.SubscriptionId, ResourceUrl: subscriptionUrl}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], subscriptionResourceDetails)
-		//dlq-pubsub
-		dlqTopicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", shardResources.DlqPubsubResources.TopicId, sessionState.GCPProjectID)
-		dlqTopicResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_TOPIC_RESOURCE, ResourceName: shardResources.DlqPubsubResources.TopicId, ResourceUrl: dlqTopicUrl}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqTopicResourceDetails)
-		dlqSubscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.DlqPubsubResources.SubscriptionId, sessionState.GCPProjectID)
-		dlqSubscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_SUB_RESOURCE, ResourceName: shardResources.DlqPubsubResources.SubscriptionId, ResourceUrl: dlqSubscriptionUrl}
-		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqSubscriptionResourceDetails)
-	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(generatedResources)
 }
 
-func getSourceAndTargetProfiles(sessionState *session.SessionState, details types.MigrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
+func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.SessionState, details types.MigrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
 		err                 error
@@ -848,18 +722,6 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 	if details.TargetDetails.DefaultTimezone != "" {
 		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
 	}
-	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION && !details.IsSharded {
-		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		sessionState.Bucket, sessionState.RootPath, err = conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
-		if err != nil {
-			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
-		}
-		err = createStreamingCfgFile(sessionState, details, fileName)
-		if err != nil {
-			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
-		}
-		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
-	} else {
 		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
 		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
 		if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
@@ -884,19 +746,16 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 			sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 			sessionState.RootPath = "/"
 		}
-	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
-	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source, false)
 	if err != nil && sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
-	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
-		sourceProfile.Config.ConfigType = constants.DATAFLOW_MIGRATION
-	}
+
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
@@ -908,30 +767,11 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 			return "", err
 		}
 		return fmt.Sprintf("config=%v", fileName), nil
-	} else if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
-		err := createConfigFileForShardedDataflowMigration(sessionState, details, fileName)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("config=%v", fileName), nil
-	} else {
-		return "", fmt.Errorf("this migration type is not implemented yet")
 	}
+	return "", fmt.Errorf("low downtime migration is no longer supported")
 
 }
 
-func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
-	sourceProfileConfig := sessionState.SourceProfileConfig
-	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
-	if err != nil {
-		return fmt.Errorf("error while marshalling json: %v", err)
-	}
-	err = ioutil.WriteFile(fileName, file, 0644)
-	if err != nil {
-		return fmt.Errorf("error while writing json to file: %v", err)
-	}
-	return nil
-}
 
 func createConfigFileForShardedBulkMigration(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
 	sourceProfileConfig := profiles.SourceProfileConfig{
@@ -987,68 +827,6 @@ func writeSessionFile(ctx context.Context, sessionState *session.SessionState) e
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
-	targetDetails, datastreamConfig, dataflowConfig := details.TargetDetails, details.DatastreamConfig, details.DataflowConfig
-	dfLocation := sessionState.Region
-	if dataflowConfig.Location != "" {
-		dfLocation = dataflowConfig.Location
-	}
-	data := streaming.StreamingCfg{
-		DatastreamCfg: streaming.DatastreamCfg{
-			StreamId:          "",
-			StreamLocation:    sessionState.Region,
-			StreamDisplayName: "",
-			SourceConnectionConfig: streaming.SrcConnCfg{
-				Name:     targetDetails.SourceConnectionProfileName,
-				Location: sessionState.Region,
-			},
-			DestinationConnectionConfig: streaming.DstConnCfg{
-				Name:     targetDetails.TargetConnectionProfileName,
-				Location: sessionState.Region,
-			},
-			MaxConcurrentBackfillTasks: datastreamConfig.MaxConcurrentBackfillTasks,
-			MaxConcurrentCdcTasks:      datastreamConfig.MaxConcurrentCdcTasks,
-		},
-		GcsCfg: streaming.GcsCfg{
-			TtlInDays:    details.GcsConfig.TtlInDays,
-			TtlInDaysSet: details.GcsConfig.TtlInDaysSet,
-		},
-		DataflowCfg: streaming.DataflowCfg{
-			ProjectId:            dataflowConfig.ProjectId,
-			JobName:              "",
-			Location:             dfLocation,
-			Network:              dataflowConfig.Network,
-			Subnetwork:           dataflowConfig.Subnetwork,
-			MaxWorkers:           dataflowConfig.MaxWorkers,
-			NumWorkers:           dataflowConfig.NumWorkers,
-			ServiceAccountEmail:  dataflowConfig.ServiceAccountEmail,
-			VpcHostProjectId:     dataflowConfig.VpcHostProjectId,
-			MachineType:          dataflowConfig.MachineType,
-			AdditionalUserLabels: dataflowConfig.AdditionalUserLabels,
-			KmsKeyName:           dataflowConfig.KmsKeyName,
-			GcsTemplatePath:      dataflowConfig.GcsTemplatePath,
-			CustomJarPath:        dataflowConfig.CustomJarPath,
-			CustomClassName:      dataflowConfig.CustomClassName,
-			CustomParameter:      dataflowConfig.CustomParameter,
-		},
-		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
-	}
-
-	databaseType, _ := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
-	if databaseType == constants.POSTGRES {
-		data.DatastreamCfg.Properties = fmt.Sprintf("replicationSlot=%v,publication=%v", targetDetails.ReplicationSlot, targetDetails.Publication)
-	}
-	file, err := json.MarshalIndent(data, "", " ")
-	if err != nil {
-		return fmt.Errorf("error while marshalling json: %v", err)
-	}
-
-	err = ioutil.WriteFile(fileName, file, 0644)
-	if err != nil {
-		return fmt.Errorf("error while writing json to file: %v", err)
-	}
-	return nil
-}
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
@@ -1129,8 +907,7 @@ func App(logLevel string, open bool, port int) error {
 	}
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
-	fmt.Println("Reverse Replication feature in preview: Please refer to https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/reverse_replication/README.md for detailed instructions.")
+	logger.Log.Info(fmt.Sprint("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr)))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}

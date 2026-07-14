@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 // Reader is a simple line-reader wrapper around bufio.Reader
@@ -45,7 +46,7 @@ func (r *Reader) ReadLine() []byte {
 	if err == io.EOF {
 		r.EOF = true
 	} else if err != nil {
-		fmt.Printf("Error reading input data: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Error reading input data: %v\n", err))
 		return []byte{}
 	}
 	r.Offset += len(b)

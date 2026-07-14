@@ -44,7 +44,17 @@ func TestPrintScalarType(t *testing.T) {
 		{Type{Name: Timestamp}, "TIMESTAMP"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType())
+		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType(false))
+	}
+	testsVirtual := []struct {
+		in       Type
+		expected string
+	}{
+		{Type{Name: String, Len: int64(42)}, "STRING(MAX)"},
+		{Type{Name: Bytes, Len: int64(42)}, "BYTES(MAX)"},
+	}
+	for _, tc := range testsVirtual {
+		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType(true))
 	}
 }
 
@@ -64,7 +74,17 @@ func TestPrintScalarTypePG(t *testing.T) {
 		{Type{Name: Timestamp}, "TIMESTAMPTZ"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType())
+		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType(false))
+	}
+	testsVirtual := []struct {
+		in       Type
+		expected string
+	}{
+		{Type{Name: String, Len: int64(42)}, "VARCHAR(2621440)"},
+		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
+	}
+	for _, tc := range testsVirtual {
+		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType(true))
 	}
 }
 
@@ -98,6 +118,30 @@ func TestPrintColumnDef(t *testing.T) {
 			},
 			expected: "col1 INT64 OPTIONS (cassandra_type = 'bigint')",
 		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColStored,
+				},
+			},
+			expected: "col1 INT64 AS (col2 + 1) STORED",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Float32},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColVirtual,
+				},
+			},
+			expected: "col1 FLOAT32 AS (CAST(col2 + 1 AS FLOAT32))",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
@@ -115,7 +159,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL "},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "\"col1\" INT8"},
 		{
 			in: ColumnDef{
 				Name: "col1",
@@ -126,6 +170,30 @@ func TestPrintColumnDefPG(t *testing.T) {
 				},
 			},
 			expected: "col1 INT8 DEFAULT ((`col2` + 1))",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColStored,
+				},
+			},
+			expected: "col1 INT8 GENERATED ALWAYS AS (col2 + 1) STORED",
+		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Float32},
+				GeneratedColumn: GeneratedColumn{
+					IsPresent: true,
+					Value:     Expression{Statement: "col2 + 1"},
+					Type:      GeneratedColVirtual,
+				},
+			},
+			expected: "col1 FLOAT4 GENERATED ALWAYS AS (CAST(col2 + 1 AS FLOAT4)) VIRTUAL",
 		},
 	}
 	for _, tc := range tests {
@@ -153,7 +221,7 @@ func TestPrintPkOrIndexKey(t *testing.T) {
 		{in: IndexKey{ColId: "c1"}, expected: "col1"},
 		{in: IndexKey{ColId: "c1", Desc: true}, expected: "col1 DESC"},
 		{in: IndexKey{ColId: "c1"}, protectIds: true, expected: "`col1`"},
-		{in: IndexKey{ColId: "c1"}, protectIds: true, spDialect: constants.DIALECT_POSTGRESQL, expected: "col1"},
+		{in: IndexKey{ColId: "c1"}, protectIds: true, spDialect: constants.DIALECT_POSTGRESQL, expected: "\"col1\""},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PrintPkOrIndexKey(ct, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
@@ -455,12 +523,12 @@ func TestPrintCreateTablePG(t *testing.T) {
 			"quote",
 			true,
 			s["t1"],
-			"CREATE TABLE table1 (\n" +
-				"	col1 INT8 NOT NULL ,\n" +
-				"	col2 VARCHAR(2621440),\n" +
-				"	col3 BYTEA,\n" +
+			"CREATE TABLE \"table1\" (\n" +
+				"	\"col1\" INT8 NOT NULL ,\n" +
+				"	\"col2\" VARCHAR(2621440),\n" +
+				"	\"col3\" BYTEA,\n" +
 				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99),\n" +
-				"	PRIMARY KEY (col1 DESC)\n" +
+				"	PRIMARY KEY (\"col1\" DESC)\n" +
 				")",
 		},
 		{
@@ -545,8 +613,8 @@ func TestPrintCreateIndex(t *testing.T) {
 		{"no quote non unique", false, "", ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
 		{"quote non unique", true, "", ci[0], "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
 		{"unique key", true, "", ci[1], "CREATE UNIQUE INDEX `myindex2` ON `mytable` (`col1` DESC, `col2`)"},
-		{"quote non unique PG", true, constants.DIALECT_POSTGRESQL, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
-		{"unique key PG", true, constants.DIALECT_POSTGRESQL, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
+		{"quote non unique PG", true, constants.DIALECT_POSTGRESQL, ci[0], "CREATE INDEX \"myindex\" ON \"mytable\" (\"col1\" DESC, \"col2\")"},
+		{"unique key PG", true, constants.DIALECT_POSTGRESQL, ci[1], "CREATE UNIQUE INDEX \"myindex2\" ON \"mytable\" (\"col1\" DESC, \"col2\")"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(ct, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
@@ -593,7 +661,7 @@ func TestPrintForeignKey(t *testing.T) {
 		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
 		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`) ON DELETE NO ACTION", fk[0]},
 		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1) ON DELETE CASCADE", fk[1]},
-		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT \"fk_test\" FOREIGN KEY (\"c1\", \"c2\") REFERENCES \"ref_table\" (\"ref_c1\", \"ref_c2\") ON DELETE NO ACTION", fk[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[2]},
 	}
 	for _, tc := range tests {
@@ -667,7 +735,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, from) REFERENCES table2 (productid, userid, from) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`, `from`) REFERENCES `table2` (`productid`, `userid`, `from`) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, \"from\") REFERENCES table2 (productid, userid, \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE \"table1\" ADD CONSTRAINT \"fk_test\" FOREIGN KEY (\"productid\", \"userid\", \"from\") REFERENCES \"table2\" (\"productid\", \"userid\", \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {
@@ -806,79 +874,79 @@ func TestPGPrintIdentityCol(t *testing.T) {
 		expected string
 	}{
 		{
-			agc: AutoGenCol{},
-			dialect: constants.DIALECT_GOOGLESQL,
+			agc:      AutoGenCol{},
+			dialect:  constants.DIALECT_GOOGLESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE)",
 		},
 		{
-			agc: AutoGenCol{},
-			dialect: constants.DIALECT_POSTGRESQL,
+			agc:      AutoGenCol{},
+			dialect:  constants.DIALECT_POSTGRESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "",
-					SkipRangeMax: "",
+					SkipRangeMin:     "",
+					SkipRangeMax:     "",
 					StartCounterWith: "10",
 				},
 			},
-			dialect: constants.DIALECT_GOOGLESQL,
+			dialect:  constants.DIALECT_GOOGLESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE START COUNTER WITH 10)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "",
-					SkipRangeMax: "",
+					SkipRangeMin:     "",
+					SkipRangeMax:     "",
 					StartCounterWith: "10",
 				},
 			},
-			dialect: constants.DIALECT_POSTGRESQL,
+			dialect:  constants.DIALECT_POSTGRESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE START COUNTER WITH 10)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "100",
-					SkipRangeMax: "250",
+					SkipRangeMin:     "100",
+					SkipRangeMax:     "250",
 					StartCounterWith: "",
 				},
 			},
-			dialect: constants.DIALECT_GOOGLESQL,
+			dialect:  constants.DIALECT_GOOGLESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE SKIP RANGE 100, 250)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "100",
-					SkipRangeMax: "250",
+					SkipRangeMin:     "100",
+					SkipRangeMax:     "250",
 					StartCounterWith: "",
 				},
 			},
-			dialect: constants.DIALECT_POSTGRESQL,
+			dialect:  constants.DIALECT_POSTGRESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE SKIP RANGE 100 250)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "100",
-					SkipRangeMax: "250",
+					SkipRangeMin:     "100",
+					SkipRangeMax:     "250",
 					StartCounterWith: "10",
 				},
 			},
-			dialect: constants.DIALECT_GOOGLESQL,
+			dialect:  constants.DIALECT_GOOGLESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE SKIP RANGE 100, 250 START COUNTER WITH 10)",
 		},
 		{
 			agc: AutoGenCol{
 				IdentityOptions: IdentityOptions{
-					SkipRangeMin: "100",
-					SkipRangeMax: "250",
+					SkipRangeMin:     "100",
+					SkipRangeMax:     "250",
 					StartCounterWith: "10",
 				},
 			},
-			dialect: constants.DIALECT_POSTGRESQL,
+			dialect:  constants.DIALECT_POSTGRESQL,
 			expected: " GENERATED BY DEFAULT AS IDENTITY (BIT_REVERSED_POSITIVE SKIP RANGE 100 250 START COUNTER WITH 10)",
 		},
 	}
@@ -1012,7 +1080,7 @@ func TestPGPrintSequence(t *testing.T) {
 			sequence:   s1,
 			protectIds: true,
 			spDialect:  constants.DIALECT_POSTGRESQL,
-			expected:   "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE",
+			expected:   "CREATE SEQUENCE \"sequence1\" BIT_REVERSED_POSITIVE",
 		},
 		{
 			name:       "min and max skip range set",
@@ -1181,7 +1249,7 @@ func TestGetDDL(t *testing.T) {
 	assert.ElementsMatch(t, e4, sequencesOnly)
 
 	databaseOptions := DatabaseOptions{
-		DbName: "test-db",
+		DbName:          "test-db",
 		DefaultTimezone: "America/New_York",
 	}
 	e5 := []string{
@@ -1189,6 +1257,22 @@ func TestGetDDL(t *testing.T) {
 	}
 	dbOptionsOnly := GetDDL(Config{}, Schema{}, make(map[string]Sequence), databaseOptions)
 	assert.ElementsMatch(t, e5, dbOptionsOnly)
+
+	tablesWithTableIds := GetDDL(Config{Tables: true, ForeignKeys: false, TableIds: []string{"t1", "t3"}}, s, make(map[string]Sequence), DatabaseOptions{})
+	e6 := []string{
+		"CREATE TABLE table1 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			") PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table3 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			"	c INT64,\n" +
+			") PRIMARY KEY (a, b),\n" +
+			"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+	}
+	assert.ElementsMatch(t, e6, tablesWithTableIds)
 }
 
 func TestGetPGDDL(t *testing.T) {
@@ -1328,7 +1412,7 @@ func TestGetPGDDL(t *testing.T) {
 	assert.ElementsMatch(t, e4, sequencesOnly)
 
 	databaseOptions := DatabaseOptions{
-		DbName: "test-db",
+		DbName:          "test-db",
 		DefaultTimezone: "America/New_York",
 	}
 	e5 := []string{
@@ -1336,6 +1420,23 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	dbOptionsOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, make(map[string]Sequence), databaseOptions)
 	assert.ElementsMatch(t, e5, dbOptionsOnly)
+
+	tablesWithTableIds := GetDDL(Config{Tables: true, ForeignKeys: false, TableIds: []string{"t1", "t3"}, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence), DatabaseOptions{})
+	e6 := []string{
+		"CREATE TABLE table1 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	PRIMARY KEY (a)\n" +
+			")",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table3 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	c INT8,\n" +
+			"	PRIMARY KEY (a, b)\n" +
+			") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+	}
+	assert.ElementsMatch(t, e6, tablesWithTableIds)
 }
 
 func TestGetSortedTableIdsBySpName(t *testing.T) {
@@ -1521,24 +1622,24 @@ func TestPrintDatabaseOptions(t *testing.T) {
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "test-db",
+				DbName:          "test-db",
 				DefaultTimezone: "",
 			},
-			expected:  "",
+			expected: "",
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "",
+				DbName:          "",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  "ALTER DATABASE db SET OPTIONS (default_time_zone = 'America/New_York')",
+			expected: "ALTER DATABASE db SET OPTIONS (default_time_zone = 'America/New_York')",
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "test-db",
+				DbName:          "test-db",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  "ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York')",
+			expected: "ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York')",
 		},
 	}
 	for _, tc := range tests {
@@ -1557,27 +1658,115 @@ func TestPGPrintDatabaseOptions(t *testing.T) {
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "test-db",
+				DbName:          "test-db",
 				DefaultTimezone: "",
 			},
-			expected:  nil,
+			expected: nil,
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "",
+				DbName:          "",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  []string{"ALTER DATABASE db SET spanner.default_time_zone = 'America/New_York'"},
+			expected: []string{"ALTER DATABASE db SET spanner.default_time_zone = 'America/New_York'"},
 		},
 		{
 			dbOptions: DatabaseOptions{
-				DbName: "test-db",
+				DbName:          "test-db",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  []string{"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'"},
+			expected: []string{"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'"},
 		},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.dbOptions.PGPrintDatabaseOptions())
+	}
+}
+
+func TestIsVirtual(t *testing.T) {
+	tests := []struct {
+		gc       GeneratedColumn
+		expected bool
+	}{
+		{GeneratedColumn{}, false},
+		{GeneratedColumn{IsPresent: true, Type: GeneratedColStored}, false},
+		{GeneratedColumn{IsPresent: true, Type: GeneratedColVirtual}, true},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.IsVirtual())
+	}
+}
+
+func TestPrintGeneratedColumn(t *testing.T) {
+	tests := []struct {
+		desc     string
+		gc       GeneratedColumn
+		ty       Type
+		expected string
+	}{
+		{
+			"stored generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColStored},
+			Type{Name: Int64},
+			" AS (col2 + 1) STORED",
+		},
+		{
+			"virtual generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Int64},
+			" AS (col2 + 1)",
+		},
+		{
+			"virtual float32",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Float32},
+			" AS (CAST(col2 + 1 AS FLOAT32))",
+		},
+		{
+			"not present",
+			GeneratedColumn{IsPresent: false},
+			Type{Name: Float32},
+			"",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.PrintGeneratedColumn(tc.ty), tc.desc)
+	}
+}
+
+func TestPGPrintGeneratedColumn(t *testing.T) {
+	tests := []struct {
+		desc     string
+		gc       GeneratedColumn
+		ty       Type
+		expected string
+	}{
+		{
+			"stored generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColStored},
+			Type{Name: Int64},
+			" GENERATED ALWAYS AS (col2 + 1) STORED",
+		},
+		{
+			"virtual generic",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Int64},
+			" GENERATED ALWAYS AS (col2 + 1) VIRTUAL",
+		},
+		{
+			"virtual float4",
+			GeneratedColumn{IsPresent: true, Value: Expression{Statement: "col2 + 1"}, Type: GeneratedColVirtual},
+			Type{Name: Float32},
+			" GENERATED ALWAYS AS (CAST(col2 + 1 AS FLOAT4)) VIRTUAL",
+		},
+		{
+			"not present",
+			GeneratedColumn{IsPresent: false},
+			Type{Name: Float32},
+			"",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.gc.PGPrintGeneratedColumn(tc.ty), tc.desc)
 	}
 }

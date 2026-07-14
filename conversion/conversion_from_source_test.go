@@ -41,12 +41,6 @@ func TestSchemaFromDatabase(t *testing.T) {
 			ConfigType: "bulk",
 		},
 	}
-	sourceProfileConfigDataflow := profiles.SourceProfile{
-		Ty: profiles.SourceProfileType(3),
-		Config: profiles.SourceProfileConfig{
-			ConfigType: "dataflow",
-		},
-	}
 	sourceProfileConfigDms := profiles.SourceProfile{
 		Ty: profiles.SourceProfileType(3),
 		Config: profiles.SourceProfileConfig{
@@ -90,20 +84,6 @@ func TestSchemaFromDatabase(t *testing.T) {
 			sourceProfile:      sourceProfileConfigBulk,
 			getInfoError:       nil,
 			processSchemaError: fmt.Errorf("error"),
-			errorExpected:      true,
-		},
-		{
-			name:               "successful source profile config for dataflow migration",
-			sourceProfile:      sourceProfileConfigDataflow,
-			getInfoError:       nil,
-			processSchemaError: nil,
-			errorExpected:      false,
-		},
-		{
-			name:               "source profile config for dataflow migration: get info error",
-			sourceProfile:      sourceProfileConfigDataflow,
-			getInfoError:       fmt.Errorf("error"),
-			processSchemaError: nil,
 			errorExpected:      true,
 		},
 		{

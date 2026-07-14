@@ -11,6 +11,10 @@ const LOG_FILE_NAME = "spanner-migration-tool.log"
 
 var Log *zap.Logger
 
+func init() {
+	Log = zap.NewExample()
+}
+
 func InitializeLogger(inputLogLevel string) error {
 	// create zapper encoding config object
 	config := zap.NewProductionEncoderConfig()

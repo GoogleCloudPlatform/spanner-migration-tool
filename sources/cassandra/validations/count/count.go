@@ -14,6 +14,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/gocql/gocql"
 	"google.golang.org/api/iterator"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 // This script connects to both Cassandra and Spanner databases to count the number of rows in specified tables.
@@ -34,19 +35,19 @@ func main() {
 	flag.Parse()
 
 	if *keyspace == "" {
-		fmt.Println("keyspace name is required")
+		logger.Log.Info(fmt.Sprint("keyspace name is required"))
 		os.Exit(1)
 	}
 
 	if *spannerURI == "" {
-		fmt.Println("spanner-uri is required")
+		logger.Log.Info(fmt.Sprint("spanner-uri is required"))
 		os.Exit(1)
 	}
 
 	// Connect to Cassandra
 	cassSession, err := connectToCassandra(*host, *port, *keyspace, *username, *password)
 	if err != nil {
-		fmt.Printf("Failed to connect to Cassandra: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Failed to connect to Cassandra: %v\n", err))
 		os.Exit(1)
 	}
 	defer cassSession.Close()
@@ -55,7 +56,7 @@ func main() {
 	ctx := context.Background()
 	spannerClient, err := connectToSpanner(ctx, *spannerURI)
 	if err != nil {
-		fmt.Printf("Failed to connect to Spanner: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Failed to connect to Spanner: %v\n", err))
 		os.Exit(1)
 	}
 	defer spannerClient.Close()
@@ -69,17 +70,17 @@ func main() {
 	} else {
 		cassandraTables, err := getCassandraTables(cassSession, *keyspace)
 		if err != nil {
-			fmt.Printf("Error fetching Cassandra tables: %v\n", err)
+			logger.Log.Info(fmt.Sprintf("Error fetching Cassandra tables: %v\n", err))
 			os.Exit(1)
 		}
-		fmt.Printf("Found %d tables in Cassandra: %v\n", len(cassandraTables), cassandraTables)
+		logger.Log.Info(fmt.Sprintf("Found %d tables in Cassandra: %v\n", len(cassandraTables), cassandraTables))
 
 		spannerTables, err := getSpannerTables(ctx, spannerClient)
 		if err != nil {
-			fmt.Printf("Error fetching Spanner tables: %v\n", err)
+			logger.Log.Info(fmt.Sprintf("Error fetching Spanner tables: %v\n", err))
 			os.Exit(1)
 		}
-		fmt.Printf("Found %d tables in Spanner: %v\n", len(spannerTables), spannerTables)
+		logger.Log.Info(fmt.Sprintf("Found %d tables in Spanner: %v\n", len(spannerTables), spannerTables))
 
 		spannerTableSet := make(map[string]struct{}, len(spannerTables))
 		for _, t := range spannerTables {
@@ -93,43 +94,43 @@ func main() {
 		}
 
 		if len(tables) == 0 {
-			fmt.Println("No common tables found between Cassandra and Spanner.")
+			logger.Log.Info(fmt.Sprint("No common tables found between Cassandra and Spanner."))
 			os.Exit(0)
 		}
 	}
 
-	fmt.Printf("Getting counts for tables: %v\n", tables)
+	logger.Log.Info(fmt.Sprintf("Getting counts for tables: %v\n", tables))
 
 	// Get token ranges for the cluster
 	// TODO: Consider generating custom token ranges based on size estimates instead of relying on cassandra partitions.
 	tokenRanges, err := getClusterTokenRanges(cassSession)
 	if err != nil {
-		fmt.Printf("Error fetching token ranges: %v\n", err)
+		logger.Log.Info(fmt.Sprintf("Error fetching token ranges: %v\n", err))
 		os.Exit(1)
 	}
-	fmt.Printf("Found %d token ranges across the cluster\n", len(tokenRanges))
+	logger.Log.Info(fmt.Sprintf("Found %d token ranges across the cluster\n", len(tokenRanges)))
 
 	// TODO: Consider parallelizing across tables.
 	for _, tableName := range tables {
-		fmt.Printf("\nTable: %s\n", tableName)
-		fmt.Printf("----------------------------------------\n")
+		logger.Log.Info(fmt.Sprintf("\nTable: %s\n", tableName))
+		logger.Log.Info(fmt.Sprintf("----------------------------------------\n"))
 
 		result := countBothDatabases(ctx, cassSession, spannerClient, *keyspace, tableName, tokenRanges, *workers)
 
 		// Print Cassandra results
 		if result.CassandraError != nil {
-			fmt.Printf("  Cassandra count: ERROR - %v\n", result.CassandraError)
+			logger.Log.Info(fmt.Sprintf("  Cassandra count: ERROR - %v\n", result.CassandraError))
 		} else {
-			fmt.Printf("  Cassandra count: %d\n", result.CassandraCount)
+			logger.Log.Info(fmt.Sprintf("  Cassandra count: %d\n", result.CassandraCount))
 		}
 
 		// Print Spanner results
 		if result.SpannerError != nil {
-			fmt.Printf("  Spanner count:   ERROR - %v\n", result.SpannerError)
+			logger.Log.Info(fmt.Sprintf("  Spanner count:   ERROR - %v\n", result.SpannerError))
 		} else {
-			fmt.Printf("  Spanner count:   %d\n", result.SpannerCount)
+			logger.Log.Info(fmt.Sprintf("  Spanner count:   %d\n", result.SpannerCount))
 		}
-		fmt.Printf("----------------------------------------\n")
+		logger.Log.Info(fmt.Sprintf("----------------------------------------\n"))
 	}
 }
 

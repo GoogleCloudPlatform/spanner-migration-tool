@@ -49,11 +49,10 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
-var (
-	dataflowTemplatePath = constants.DEFAULT_TEMPLATE_PATH
-)
+
 
 // IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
@@ -87,11 +86,11 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 	io := IOStreams{In: os.Stdin, Out: os.Stdout}
 	u, err := url.Parse(dumpFile)
 	if err != nil {
-		fmt.Printf("parseFilePath: unable parse file path for dumpfile %s", dumpFile)
+		logger.Log.Info(fmt.Sprintf("parseFilePath: unable parse file path for dumpfile %s", dumpFile))
 		log.Fatal(err)
 	}
 	if (driver == constants.PGDUMP || driver == constants.MYSQLDUMP) && dumpFile != "" {
-		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
+		logger.Log.Info(fmt.Sprintf("\nLoading dump file from path: %s\n", dumpFile))
 		var f *os.File
 		var err error
 		if u.Scheme == constants.GCS_SCHEME {
@@ -102,7 +101,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 			f, err = os.Open(dumpFile)
 		}
 		if err != nil {
-			fmt.Printf("\nError reading dump file: %v err:%v\n", dumpFile, err)
+			logger.Log.Info(fmt.Sprintf("\nError reading dump file: %v err:%v\n", dumpFile, err))
 			log.Fatal(err)
 		}
 		io.In = f
@@ -116,7 +115,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		fmt.Printf("Failed to create GCS client for bucket %q", bucketName)
+		logger.Log.Info(fmt.Sprintf("Failed to create GCS client for bucket %q", bucketName))
 		log.Fatal(err)
 	}
 	defer client.Close()
@@ -124,7 +123,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	bucket := client.Bucket(bucketName)
 	rc, err := bucket.Object(filePath).NewReader(ctx)
 	if err != nil {
-		fmt.Printf("readFile: unable to open file from bucket %q, file %q: %v", bucketName, filePath, err)
+		logger.Log.Info(fmt.Sprintf("readFile: unable to open file from bucket %q, file %q: %v", bucketName, filePath, err))
 		log.Fatal(err)
 		return nil, err
 	}
@@ -135,19 +134,19 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	os.MkdirAll(tmpDir, os.ModePerm)
 	tmpfile, err := os.Create(tmpDir + "/" + tmpFile)
 	if err != nil {
-		fmt.Printf("saveFile: unable to open temporary file to save dump file from GCS bucket %v", err)
+		logger.Log.Info(fmt.Sprintf("saveFile: unable to open temporary file to save dump file from GCS bucket %v", err))
 		log.Fatal(err)
 		return nil, err
 	}
 
-	fmt.Printf("\nDownloading file from GCS bucket %s, path %s\n", bucketName, filePath)
+	logger.Log.Info(fmt.Sprintf("\nDownloading file from GCS bucket %s, path %s\n", bucketName, filePath))
 	buffer := make([]byte, 1024)
 	for {
 		// read a chunk
 		n, err := r.Read(buffer[:cap(buffer)])
 
 		if err != nil && err != io.EOF {
-			fmt.Printf("readFile: unable to read entire file from bucket %s, file %s: %v", bucketName, filePath, err)
+			logger.Log.Info(fmt.Sprintf("readFile: unable to read entire file from bucket %s, file %s: %v", bucketName, filePath, err))
 			log.Fatal(err)
 			return nil, err
 		}
@@ -157,7 +156,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 
 		// write a chunk
 		if _, err = tmpfile.Write(buffer[:n]); err != nil {
-			fmt.Printf("saveFile: unable to save read data from bucket %s, file %s: %v", bucketName, filePath, err)
+			logger.Log.Info(fmt.Sprintf("saveFile: unable to save read data from bucket %s, file %s: %v", bucketName, filePath, err))
 			log.Fatal(err)
 		}
 	}
@@ -184,7 +183,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 					return nil, fmt.Errorf("cannot download gcs file: %s for table %s", filePath, table.Table_name)
 				}
 				tables[i].File_patterns[j] = fileLoc
-				fmt.Printf("Downloaded file: %s\n", fileLoc)
+				logger.Log.Info(fmt.Sprintf("Downloaded file: %s\n", fileLoc))
 			}
 		}
 	}
@@ -260,17 +259,17 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 func (gui *GetUtilInfoImpl) GetPassword() string {
 	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
 	if strings.EqualFold(calledFromGCloud, "true") {
-		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
-			"(not recommended) while using Spanner migration tool from gCloud CLI.")
+		logger.Log.Info(fmt.Sprint("\n Please specify password in enviroment variables (recommended) or --source-profile " +
+			"(not recommended) while using Spanner migration tool from gCloud CLI."))
 		return ""
 	}
-	fmt.Print("Enter Password: ")
+	logger.Log.Info(fmt.Sprint("Enter Password: "))
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
-		fmt.Println("\nCoudln't read password")
+		logger.Log.Info(fmt.Sprint("\nCoudln't read password"))
 		return ""
 	}
-	fmt.Printf("\n")
+	logger.Log.Info(fmt.Sprintf("\n"))
 	return strings.TrimSpace(string(bytePassword))
 }
 
@@ -415,7 +414,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	if err != nil {
 		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
 		// We raise an unexpected error for now to make it compatible with the integration tests.
-		// In the emulator, the interleave_type column in not supported hence the query fails.
+		// In Spanner Omni, the interleave_type column in not supported hence the query fails.
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
@@ -550,10 +549,4 @@ func FindInPrimaryKey(id string, primaryKeys []ddl.IndexKey) bool {
 	return false
 }
 
-func SetDataflowTemplatePath(path string) {
-	dataflowTemplatePath = path
-}
 
-func GetDataflowTemplatePath() string {
-	return dataflowTemplatePath
-}
