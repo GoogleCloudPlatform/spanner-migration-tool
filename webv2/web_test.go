@@ -213,6 +213,38 @@ func TestGetSourceAndTargetProfiles_Cassandra(t *testing.T) {
 	assert.Equal(t, "dc1", sourceProfile.Conn.Cassandra.DataCenter)
 }
 
+func TestGetSourceAndTargetProfiles_Neo4j(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Conv = internal.MakeConv()
+	sessionState.Driver = constants.NEO4J
+	sessionState.DbName = "neo4j"
+	sessionState.Dialect = constants.DIALECT_GOOGLESQL
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           "127.0.0.1",
+		Port:           "7687",
+		User:           "neo4j",
+		Password:       "pass",
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
+	}
+	sessionState.SpannerProjectId = "test-project"
+	sessionState.SpannerInstanceID = "test-instance"
+
+	details := types.MigrationDetails{
+		TargetDetails: types.TargetDetails{
+			TargetDB: "test-spanner-db",
+		},
+		MigrationMode: helpers.SCHEMA_ONLY,
+	}
+
+	sourceProfile, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+
+	assert.NoError(t, err)
+	assert.Equal(t, constants.NEO4J, sourceProfile.Driver)
+	assert.Equal(t, "bolt://127.0.0.1:7687", sourceProfile.Conn.Neo4j.URI)
+	assert.Equal(t, "neo4j", sourceProfile.Conn.Neo4j.User)
+	assert.Equal(t, "pass", sourceProfile.Conn.Neo4j.Pwd)
+}
+
 func TestCreateDatabaseConnectionString(t *testing.T) {
 	testCases := []struct {
 		name           string

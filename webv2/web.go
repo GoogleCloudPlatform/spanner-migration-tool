@@ -752,6 +752,12 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 			sourceDBConnectionDetails.Password,
 			sessionState.DbName,
 			sourceDBConnectionDetails.DataCenter)
+	} else if sessionState.Driver == constants.NEO4J {
+		sourceProfileString = fmt.Sprintf("\"uri=bolt://%v:%v\",\"user=%v\",\"password=%v\"",
+			sourceDBConnectionDetails.Host,
+			sourceDBConnectionDetails.Port,
+			sourceDBConnectionDetails.User,
+			sourceDBConnectionDetails.Password)
 	} else {
 		sourceProfileString = fmt.Sprintf("\"host=%v\",\"port=%v\",\"user=%v\",\"password=%v\",\"dbName=%v\"",
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
