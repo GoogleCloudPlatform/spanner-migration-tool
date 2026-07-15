@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/spanner-migration-tool
 
-go 1.25.11
+go 1.25.12
 
 require (
 	cloud.google.com/go v0.123.0
