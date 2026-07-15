@@ -95,7 +95,7 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 				return nil, err
 			}
 			defer neoSource.Close(context.Background())
-			fmt.Println("Successfully connected to Neo4j!")
+			logger.Log.Info("Successfully connected to Neo4j!")
 
 			// Use standard ProcessSchema flow
 			schemaToSpanner := common.SchemaToSpannerImpl{}
