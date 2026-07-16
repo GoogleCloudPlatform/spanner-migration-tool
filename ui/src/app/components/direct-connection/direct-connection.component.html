@@ -71,6 +71,37 @@
         </mat-error>
       </mat-form-field>
       <br />
+      <!-- SSL/TLS Connection Settings -->
+      <div *ngIf="connectForm.value.dbEngine === 'mysql' || connectForm.value.dbEngine === 'postgres' || connectForm.value.dbEngine === 'cassandra'">
+        <h3 class="primary-header">SSL/TLS Settings</h3>
+
+        <mat-form-field class="full-width" appearance="outline">
+          <mat-label>SSL/TLS Mode</mat-label>
+          <mat-select formControlName="sslmode" id="sslmode-input">
+            <mat-option value="">Default / Preferred</mat-option>
+            <mat-option value="disable">Disable</mat-option>
+            <mat-option value="require">Require</mat-option>
+            <mat-option value="verify-ca">Verify CA</mat-option>
+            <mat-option value="verify-full">Verify Full</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field class="full-width" appearance="outline">
+          <mat-label>SSL Root CA File Path</mat-label>
+          <input matInput placeholder="/path/to/ca.pem" name="sslrootcert" type="text" formControlName="sslrootcert" id="sslrootcert-input" />
+        </mat-form-field>
+
+        <mat-form-field class="full-width" appearance="outline">
+          <mat-label>SSL Client Certificate File Path</mat-label>
+          <input matInput placeholder="/path/to/client-cert.pem" name="sslcert" type="text" formControlName="sslcert" id="sslcert-input" />
+        </mat-form-field>
+
+        <mat-form-field class="full-width" appearance="outline">
+          <mat-label>SSL Client Private Key File Path</mat-label>
+          <input matInput placeholder="/path/to/client-key.pem" name="sslkey" type="text" formControlName="sslkey" id="sslkey-input" />
+        </mat-form-field>
+      </div>
+      <br />
       <h3 class="primary-header">Spanner Dialect</h3>
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Spanner dialect</mat-label>
