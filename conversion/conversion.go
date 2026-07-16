@@ -57,7 +57,7 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 	var conv *internal.Conv
 	var err error
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA, constants.NEO4J:
 		conv, err = schemaFromSource.schemaFromDatabase(migrationProjectId, sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
@@ -84,7 +84,7 @@ func (ci *ConvImpl) DataConv(ctx context.Context, migrationProjectId string, sou
 		Verbose:    internal.Verbose(),
 	}
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE, constants.NEO4J:
 		return dataFromSource.dataFromDatabase(ctx, migrationProjectId, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{}, &DataFromDatabaseImpl{}, &SnapshotMigrationImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {

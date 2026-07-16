@@ -36,6 +36,7 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
     { value: 'cassandra', displayName: 'Cassandra'},
+    { value: 'neo4j', displayName: 'Neo4j'},
   ]
 
   isTestConnectionSuccessful = false
@@ -86,13 +87,16 @@ export class DirectConnectionComponent implements OnInit {
 
   updateDialectAndDataCenterOptions(dbEngine: string) {
     const dataCenterControl = this.connectForm.get('dataCenter')
-    if (dbEngine === SourceDbNames.Cassandra) {
+    if (dbEngine === SourceDbNames.Cassandra || dbEngine === SourceDbNames.Neo4j) {
       this.dialect = DialectList.filter((d) => d.value !== 'postgresql')
       this.connectForm.get('dialect')?.setValue('google_standard_sql')
-
-      dataCenterControl?.setValidators([Validators.required])
     } else {
       this.dialect = DialectList
+    }
+
+    if (dbEngine === SourceDbNames.Cassandra) {
+      dataCenterControl?.setValidators([Validators.required])
+    } else {
       dataCenterControl?.clearValidators()
     }
     dataCenterControl?.updateValueAndValidity()
