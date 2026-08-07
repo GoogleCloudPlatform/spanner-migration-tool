@@ -60,7 +60,7 @@ Programmatically extract and research a comprehensive list of all native datatyp
   - System/Internal Types
 
 #### 2.4 Discover Alternative Mappings in Conversion Code & Public Dialects
-- Analyze the Dataflow template's generic conversion classes (e.g., `GenericRecordTypeConvertor.java` and `AvroToValueMapper.java`) to understand what alternative mappings are supported via user overrides.
+- Analyze the Dataflow template's (repository: https://github.com/GoogleCloudPlatform/DataflowTemplates) generic conversion classes (e.g., `GenericRecordTypeConvertor.java` and `AvroToValueMapper.java`) to understand what alternative mappings are supported via user overrides.
 - **Leverage Public Mapping References (Cheat Sheets):** Research how mature open-source projects or JDBC drivers map the type:
   - **Hibernate Dialects**: Search for the target database's Hibernate Dialect class.
   - **JDBC Driver Type Mappings**: Check how the JDBC driver handles the type (e.g., mapping IPADDRESS to binary format).
@@ -103,7 +103,7 @@ Construct a markdown table containing exactly these columns:
 You must explicitly research and evaluate the source database for all of the critical architectural features listed below. 
 
 **Strict Category Names:** When populating the `Category` column in the matrix, you MUST strictly use exactly these 5 bolded category strings for the items listed beneath them. Downstream automated templates rigidly parse this output expecting these exact category strings. 
-However, **you are NOT restricted to only these categories.** You must research other core database functionalities (e.g., Stored Procedures, Sequences, Row-Level Security) or proprietary edge cases, invent appropriate new category names for them, and append them to the report alongside these mandatory minimums.
+However, **you are NOT restricted to only these categories.** You must research other core database functionalities (e.g., Stored Procedures, Sequences, Row-Level Security) or proprietary edge cases, map them to `Others` category, and append them to the report alongside these mandatory minimums.
 
 1. **Constraints**: Cascading Foreign Keys, Deferred Constraints, Check/Unique Constraints.
 2. **Indexes**: Partial/Filtered Indexes, Function-Based Indexes, Bitmap Indexes, Full-Text/Vector Indexes.
