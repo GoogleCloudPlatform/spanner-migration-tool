@@ -103,13 +103,13 @@ Construct a markdown table containing exactly these columns:
 You must explicitly research and evaluate the source database for all of the critical architectural features listed below. 
 
 **Strict Category Names:** When populating the `Category` column in the matrix, you MUST strictly use exactly these 5 bolded category strings for the items listed beneath them. Downstream automated templates rigidly parse this output expecting these exact category strings. 
-However, **you are NOT restricted to only these categories.** You must research other core database functionalities (e.g., Stored Procedures, Sequences, Row-Level Security) or proprietary edge cases, map them to `Others` category, and append them to the report alongside these mandatory minimums.
+However, **you are NOT restricted to only these categories.** You must research other core database functionalities (e.g., Stored Procedures, Views, Row-Level Security) or proprietary edge cases, map them to `Others` category, and append them to the report alongside these mandatory minimums.
 
 1. **Constraints**: Cascading Foreign Keys, Deferred Constraints, Check/Unique Constraints.
 2. **Indexes**: Partial/Filtered Indexes, Function-Based Indexes, Bitmap Indexes, Full-Text/Vector Indexes.
 3. **Transactions**: Transaction Isolation Levels (vs Strict Serializability), Pessimistic Locking (`SELECT FOR UPDATE`), Autonomous Transactions.
 4. **Storage**: Table Partitioning (Range/Hash/List), Temporary Tables (Global vs Session), Time Travel/Flashback, Change Data Capture (CDC), Object-Relational Collections.
-5. **Views**: Materialized Views (refresh logic), Updatable Views, Synonyms/Aliases.
+5. **Identity**: Sequences, Identity Columns / Auto-increment, UUID Generation.
 
 ### 4.2 Programmatic Citation Validation & Matrix Construction
 - You must create a feature matrix constructed with the following exact column headers to account for Spanner's dual-dialect nature:
