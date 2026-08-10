@@ -62,7 +62,6 @@ Programmatically extract and research a comprehensive list of all native datatyp
 #### 2.4 Discover Alternative Mappings in Conversion Code & Public Dialects
 - Analyze the Dataflow template's (repository: https://github.com/GoogleCloudPlatform/DataflowTemplates) generic conversion classes (e.g., `GenericRecordTypeConvertor.java` and `AvroToValueMapper.java`) to understand what alternative mappings are supported via user overrides.
 - **Leverage Public Mapping References (Cheat Sheets):** Research how mature open-source projects or JDBC drivers map the type:
-  - **Hibernate Dialects**: Search for the target database's Hibernate Dialect class.
   - **JDBC Driver Type Mappings**: Check how the JDBC driver handles the type (e.g., mapping IPADDRESS to binary format).
   - **Beam SchemaUtil**: Check `org.apache.beam.sdk.io.jdbc.SchemaUtil` to see how Beam maps standard JDBC types.
 - For every supported type, identify **ALL viable, structurally valid alternative Spanner mappings** (Scenario B) based on this research. Do not limit to just one alternative; list all possible fallback types (e.g., `INT64`, `STRING`, `FLOAT64` for numerical fallbacks).
