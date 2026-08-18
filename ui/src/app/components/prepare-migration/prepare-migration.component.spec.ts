@@ -105,4 +105,22 @@ describe('PrepareMigrationComponent', () => {
     expect(component.migrationModes).toEqual([MigrationModes.schemaOnly]);
     expect(component.selectedMigrationMode).toEqual(MigrationModes.schemaOnly);
   });
+
+  it('should set migration mode to schemaOnly for Neo4j source', () => {
+    const mockSummary = {
+      DatabaseType: SourceDbNames.Neo4j,
+      SourceTableCount: 2,
+      SpannerTableCount: 2,
+      SourceIndexCount: 0,
+      SpannerIndexCount: 0,
+      ConnectionType: 'directConnect',
+      SourceDatabaseName: 'neo4j',
+    };
+    fetchServiceSpy.getSourceDestinationSummary.and.returnValue(of(mockSummary as any));
+
+    component.ngOnInit();
+
+    expect(component.migrationModes).toEqual([MigrationModes.schemaOnly]);
+    expect(component.selectedMigrationMode).toEqual(MigrationModes.schemaOnly);
+  });
 });

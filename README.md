@@ -9,7 +9,7 @@
 ## Overview
 
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
-migration, using data from an existing PostgreSQL, MySQL, SQL Server or Oracle database.
+migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle, Cassandra or Neo4j database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration. For schema
 migration, Spanner migration tool automatically builds a Spanner schema from the schema

@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/neo4j"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
@@ -228,6 +229,12 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			SourceProfile:    sourceProfile,
 			TargetProfile:    targetProfile,
 		}, nil
+	case constants.NEO4J:
+		neoSource, err := neo4j.NewInfoSchemaImpl(context.Background(), sourceProfile)
+		if err != nil {
+			return nil, err
+		}
+		return neoSource, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
