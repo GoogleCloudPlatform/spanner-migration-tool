@@ -18,16 +18,19 @@ on:
       - master
   pull_request:
 name: lint
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           # Need to use a version less than 1.25 due to https://github.com/golang/go/issues/74462.
           go-version: '>=1.23.0 <1.25.9'
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: 18
       - run: |
