@@ -86,7 +86,7 @@ jobs:
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -No -o /dev/null"
           --health-interval 10s --health-timeout 5s --health-retries 3
       oracle:
-        image: oracleinanutshell/oracle-xe-11g
+        image: oracleinanutshell/oracle-xe-11g@sha256:8b740e77d4b90add693fedb22938f340821e89665fb58ecaeeb0dace853b9ee5
         ports:
           - 1521:1521
 
