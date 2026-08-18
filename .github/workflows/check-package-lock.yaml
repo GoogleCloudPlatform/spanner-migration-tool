@@ -20,6 +20,9 @@ on:
       - test-workflow
   pull_request:
     types: [opened, synchronize, edited]
+permissions:
+  contents: read
+
 jobs:
   check_lockfile:
     runs-on: ubuntu-latest

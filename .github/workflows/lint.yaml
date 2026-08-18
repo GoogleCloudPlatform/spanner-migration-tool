@@ -18,6 +18,9 @@ on:
       - master
   pull_request:
 name: lint
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest

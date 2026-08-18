@@ -20,6 +20,9 @@ on:
       - master
   pull_request:
 name: integration-tests-against-omni
+permissions:
+  contents: read
+
 jobs:
   integration-tests:
     runs-on: self-hosted
