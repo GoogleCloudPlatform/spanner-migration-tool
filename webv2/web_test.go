@@ -36,7 +36,7 @@ func TestValidateCassandraConnection(t *testing.T) {
 		mockClient.On("KeyspaceMetadata", "test_keyspace").Return(mockMetadata, nil).Once()
 		mockClient.On("Close").Return().Once()
 
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return mockClient, nil
 		}
 
@@ -48,7 +48,7 @@ func TestValidateCassandraConnection(t *testing.T) {
 
 	t.Run("Failure", func(t *testing.T) {
 		expectedErr := errors.New("client creation failed")
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return nil, expectedErr
 		}
 
@@ -83,7 +83,7 @@ func TestDatabaseConnectionCassandra(t *testing.T) {
 		mockClient.On("KeyspaceMetadata", "test_keyspace").Return(mockMetadata, nil).Once()
 		mockClient.On("Close").Return().Once()
 
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return mockClient, nil
 		}
 
@@ -103,7 +103,7 @@ func TestDatabaseConnectionCassandra(t *testing.T) {
 
 	t.Run("Failure", func(t *testing.T) {
 		expectedErr := errors.New("client creation failed")
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return nil, expectedErr
 		}
 
@@ -140,7 +140,7 @@ func TestSetSourceDBDetailsForDirectConnectCassandra(t *testing.T) {
 		mockClient.On("KeyspaceMetadata", "test_keyspace").Return(mockMetadata, nil).Once()
 		mockClient.On("Close").Return().Once()
 
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return mockClient, nil
 		}
 
@@ -160,7 +160,7 @@ func TestSetSourceDBDetailsForDirectConnectCassandra(t *testing.T) {
 
 	t.Run("Failure", func(t *testing.T) {
 		expectedErr := errors.New("client creation failed")
-		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		ca.GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (cc.CassandraClusterInterface, error) {
 			return nil, expectedErr
 		}
 
@@ -227,7 +227,7 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 				Password: "passw\\`~ord",
 				Database: "testdb",
 			},
-			expectedString: "postgres://user:passw%5C%60~ord@localhost:5432/testdb?sslmode=disable",
+			expectedString: "host=localhost port=5432 user=user password=passw\\`~ord dbname=testdb sslmode=disable",
 			expectError:    false,
 		},
 		{
