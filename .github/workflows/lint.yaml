@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           # Need to use a version less than 1.25 due to https://github.com/golang/go/issues/74462.
-          go-version: '>=1.23.0 <1.25.9'
+          go-version: '<1.27.1'
       - uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: 18
