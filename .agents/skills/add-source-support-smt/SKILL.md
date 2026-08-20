@@ -18,9 +18,9 @@ Adding a new database requires two main phases:
 
 ## 1. Prerequisites
 
-### 1.1 Required Input Matrices
-**CRITICAL HALT RULE**: Before writing any code, check if the user provided BOTH a data-type mapping matrix file and a feature support matrix file. If the user did *not* provide these two files, you **must STOP execution immediately** and politely ask the user to provide them before proceeding. Do not create your own files as the user's provided files are your Absolute Ground Truth.
-**Analyze matrices**: Read the Mapping Matrix (containing GoogleSQL and PostgreSQL Dialect mapping structures, including both Default and Alternative assignments) and the Feature Matrix (outlining what system features the target database supports).
+### 1.1 Required Mapping Files
+**CRITICAL HALT RULE**: Before writing any code, check if the user provided ALL of the following: a data-type mapping matrix file, a feature support matrix file, and a testing environment setup path (e.g., `testing_execution.env`). If the user did *not* provide these files and test credentials, you **must STOP execution immediately** and politely ask the user to provide them before proceeding. If the user does not have the mapping files, advise them to formally execute the `source-baseline-matrix-research-skill` to generate baseline mapping files, upon which the user can perform their own research to update and achieve the final mapping files. Do not proceed blind; physical End-to-End validation is strictly required. Do not create your own files as the user's provided files are your Absolute Ground Truth.
+**Analyze mapping files**: Read the Mapping Matrix (containing GoogleSQL and PostgreSQL Dialect mapping structures, including both Default and Alternative assignments) and the Feature Matrix (outlining what system features the target database supports).
 
 **Sample Structures and Header Validation**: You **MUST** strictly validate that the column headers in the user's provided matrices identically match the structural header layouts found in the official SMT MySQL samples. If the user's matrices are missing required columns (e.g., missing specific PostgreSQL edge case columns), you must halt and require the user to structurally fix their inputs using these templates:
 * **Data-Type Mapping Matrix Sample**: `https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/.agents/skills/source_research_helper/sampleOutput/mysql_datatype_mapping_matrix.csv`
@@ -101,10 +101,9 @@ The UI needs explicit configuration to show your new source. Open the frontend c
 4. **`ui/src/app/components/direct-connection/direct-connection.component.ts`**: Add to the direct connection form array.
 5. **`ui/src/app/components/prepare-migration/prepare-migration.component.ts`**: Update the `ngOnInit` conditions that check `res.DatabaseType` to ensure your database is recognized and allowed to proceed.
 6. **`ui/src/app/components/home/home.component.html`**: Update the landing page text description to explicitly list your new database as a supported source.
-7. **`ui/src/app/components/load-dump/load-dump.component.ts`**: If your new database supports dump file migrations (like `mysqldump`), add it to the dropdown form in this component.
-8. **`ui/src/app/components/object-detail/object-detail.component.ts`**: Update the conditional rendering logic (e.g., `if (this.srcDbName == ...)`) to ensure advanced object details are displayed correctly for your source.
-9. **`ui/src/app/components/add-new-column/add-new-column.component.ts`**: Add your database to `autoGenSupportedDbs` if it supports auto-increment columns.
-10. **Frontend Unit Tests**: Update corresponding `.spec.ts` files (e.g., `utils.spec.ts`, `load-session.component.spec.ts`, `direct-connection.component.spec.ts`) and Cypress E2E tests (`ui/cypress/e2e/spec.cy.ts`) to validate the new constants and dropdowns.
+7. **`ui/src/app/components/object-detail/object-detail.component.ts`**: Update the conditional rendering logic (e.g., `if (this.srcDbName == ...)`) to ensure advanced object details are displayed correctly for your source.
+8. **`ui/src/app/components/add-new-column/add-new-column.component.ts`**: Add your database to `autoGenSupportedDbs` if it supports auto-increment columns.
+9. **Frontend Unit Tests**: Update corresponding `.spec.ts` files (e.g., `utils.spec.ts`, `load-session.component.spec.ts`, `direct-connection.component.spec.ts`) and Cypress E2E tests (`ui/cypress/e2e/spec.cy.ts`) to validate the new constants and dropdowns.
 
 ### Step 9: Dynamic Future-Proof Search (Hybrid Approach)
 1. **Verify Architectural Changes**: Because SMT is actively developed, new Angular components or backend routers may have been added since this skill was written. Run a workspace-wide search (`grep_search` or similar) for usages of `constants.MYSQL` (in the Go backend) and `SourceDbNames.MySQL` (in the Angular frontend).
@@ -114,31 +113,17 @@ The UI needs explicit configuration to show your new source. Open the frontend c
 
 ## Phase 3: Exhaustive E2E Validation
 
-### Step 10: Write Permanent Backend Tests (UTs & ITs)
+### Step 10: Write Permanent Backend Unit Tests (UTs)
 1. **Data-Driven Unit Tests (UT)**: Stop writing tautological unit tests that mistakenly mirror broken internal implementation files. You **MUST** implement strict testing dynamically verifying that every single mapped output natively equals the constraints explicitly defined in both the Feature Mapping Matrix and the Data-Type Mapping Matrix! Rigorously implement data-driven coverage in `sources/<database>/toddl_test.go` and mock scraping metadata via `sources/<database>/infoschema_test.go`. Ensure explicit tests exist for backend Web API endpoints (like asserting `/typemaps` JSON renders correctly).
-2. **Integration Tests (IT)**: Create a `testing/<database>/integration_test.go` suite to assert backend database extraction CLI workflows, achieving parity with the MySQL ITs.
-
-### Step 11: Global Regression Testing
-1. **Backend Integration Regressions**: Trigger a workspace-wide `go test ./testing/...` to guarantee your new engine did not inadvertently break pre-existing platforms.
-2. **UI E2E Regressions**: Navigate to `ui/` and trigger Cypress regression suites (`npm run cypress:run`) to ensure new HTML/TS implementations did not poison other database UI flows.
-
-### Step 12: Perform Live QA Sanity Check (Full-Stack Web App)
-Because automated Backend ITs only test the CLI, they **never test the true physical bridge** to the Angular UI. You must act as a QA engineer and manually execute the scenarios across the full live stack:
-1. **Setup**: Boot the `smt-cli` backend and the Angular frontend.
-   - **Important Integration Rule**: To determine *where* and *how* to run the backend and database, you must read the `testing_execution.env` file. You must route all your validation commands, compiler executions, and server setups through the `REMOTE_EXEC_TEMPLATE` strings provided there. Do not attempt to randomly run local commands if a remote template is strictly provided.
-2. **Full-Spectrum Schema Check**: Populate the physical DB with every single data type edge case available. Extract the schema. Assert the Go-Drivers do not panic and that precision masking (like `TIMESTAMP(6)`) worked on the real wire.
-3. **End-to-End Execution (Dynamic Capabilities Check)**: Evaluate your available Agent Tooling capabilities. To guarantee web routes are strictly integrated, you **must** build the UI (`npm run build`) and boot the web backend (`go run main.go web` in the background). 
-    - **If you have UI Rendering Capabilities** (e.g., Headless browser tools, visual/DOM orchestration hooks): Execute the true end-to-end testing visually by interacting with the Angular SPA UI directly via your browser tools.
-    - **If you DO NOT have UI Rendering Capabilities** (e.g., standard text/code LLMs): Programmatically simulate the exact Angular direct-connection UI flow by crafting a strictly typed `curl -X POST` payload against the `localhost:8080/connect` endpoint, followed by fetching `localhost:8080/convert/infoschema`. Asserting a `200 OK` on these internal API handlers structurally guarantees the new database configuration executes flawlessly for the final user without needing DOM-rendering capabilities!
+2. **Integration Tests & E2E**: You must **NOT** implement Integration Tests (ITs) or execute E2E Validation yourself. To avoid confirmation bias (tautological testing), integration tests must be written by a completely independent agent strictly examining the mapping files from the outside-in.
 
 ---
 
-## Phase 4: Final Reporting
+## Phase 4: Finalization and Handoff
 
-### Step 13: Compile and Report
+### Step 11: Compile and Handoff
 1. **Compile**: Run `go build ./...`. Ensure there are no undeclared variables or unused imports.
 2. **Report**: Create a final markdown artifact (`[database]_implementation_report.md`) detailing the implementation. Include:
     - Clickable file links of all files created and modified.
     - A Markdown table showing the Type Mapping Matrix (Source Type -> Spanner Type -> Warnings).
-    - Explicit printed test validations documenting the status of your UTs, Global ITs, Global Cypress suites.
-    - The outcome of your True-Integrated Manual DB Evaluation, **explicitly highlighting** your tooling capabilities and whether you tested the integration natively via UI browser rendering tools, or used the backend `curl` programmatic API simulation approach (and how it was executed).
+3. **Independent Testing Handoff**: Explicitly and unequivocally instruct the user that the backend extraction implementation is complete, but it **requires independent integration testing**. Advise the user to execute the `add-source-e2e-integ-test-smt` skill via a new agent to structurally build the Integration Tests and perform the Live QA E2E validation.
