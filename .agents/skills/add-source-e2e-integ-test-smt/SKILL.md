@@ -8,7 +8,7 @@ description: Skill for independently generating Integration Tests and performing
 
 ## 1. Prerequisites
 
-### 1.1 Required Mapping Files and Test Setup
+### 1.1 Required Input Files
 **CRITICAL HALT RULE**: Before writing any tests, check if the user provided ALL of the following: a data-type mapping matrix file, a feature support matrix file, and a testing environment setup path (e.g., `testing_execution.env`). If the user did *not* provide these files and test credentials, you **must STOP execution immediately** and politely ask the user to provide them before proceeding. These files act as your Absolute Ground Truth for assertions. 
 
 ### 1.2 Execution Configuration
