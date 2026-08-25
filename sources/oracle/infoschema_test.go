@@ -15,247 +15,25 @@
 package oracle
 
 import (
-	"context"
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"database/sql/driver"
 	"testing"
+	"regexp"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockSpec struct {
 	query string
-	args  []driver.Value   // Query args.
-	cols  []string         // Columns names for returned rows.
-	rows  [][]driver.Value // Set of rows returned.
-}
-
-func TestProcessSchemaOracle(t *testing.T) {
-	ms := []mockSpec{
-		{
-			query: "SELECT table_name FROM all_tables (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"table_name"},
-			rows: [][]driver.Value{
-				{"USER"},
-				{"TEST"},
-				{"TEST2"}},
-		},
-		// USER table
-		{
-			query: `SELECT (.+) FROM all_constraints (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "contraint_type", "condition"},
-			rows: [][]driver.Value{
-				{"USER_ID", "P", "USER ID IS NOT NULL"},
-				{"REF", "F", ""},
-			},
-		},
-		{
-			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
-			rows: [][]driver.Value{
-				{"TEST", "REF", "ID", "fk_test"},
-			},
-		},
-		{
-			query: "SELECT (.+) FROM all_tab_columns (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
-			rows: [][]driver.Value{
-				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows: [][]driver.Value{
-				{"INDEX1_LAST", "SYS_NC00009$", 1, "DESC", "NONUNIQUE", "\"NAME\"", "FUNCTION-BASED NORMAL"},
-				{"INDEX_CONTACT_TEST", "SYS_NC00008$", 1, "ASC", "UNIQUE", "UPPER(\"USER_ID\")", "FUNCTION-BASED NORMAL"},
-				{"INDEX_CONTACT_TEST", "REF", 2, "ASC", "UNIQUE", nil, "FUNCTION-BASED NORMAL"},
-				{"INDEX_CONTACT_TEST", "NAME", 3, "ASC", "UNIQUE", nil, "FUNCTION-BASED NORMAL"},
-				{"INDEX_TEST_2", "SYS_NC00007$", 1, "DESC", "NONUNIQUE", "\"NAME\"", "FUNCTION-BASED NORMAL"},
-				{"INDEX_TEST_2", "SYS_NC00009$", 2, "DESC", "NONUNIQUE", "\"USER_ID\"", "FUNCTION-BASED NORMAL"},
-			},
-		},
-
-		// test table
-		{
-			query: `SELECT (.+) FROM all_constraints (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "contraint_type", "condition"},
-			rows: [][]driver.Value{
-				{"ID", "P", "ID IS NOT NULL"}},
-		},
-		{
-			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
-			rows:  [][]driver.Value{},
-		},
-		{
-			query: "SELECT (.+) FROM all_tab_columns (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
-			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
-
-		// test2 table [json column test]
-		{
-			query: `SELECT (.+) FROM all_constraints (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "contraint_type", "condition"},
-			rows: [][]driver.Value{
-				{"ID", "P", "ID IS NOT NULL"},
-				{"JSON", "C", "JSON IS JSON"}},
-		},
-		{
-			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
-			rows:  [][]driver.Value{},
-		},
-
-		{
-			query: "SELECT (.+) FROM all_tab_columns (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
-			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"REALJSON", "JSON", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"ARRAY_NUM", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 5},
-				{"ARRAY_FLOAT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "FLOAT", nil, nil, nil},
-				{"ARRAY_STRING", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "VARCHAR2", 15, nil, nil},
-				{"ARRAY_DATE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "DATE", nil, nil, nil},
-				{"ARRAY_INT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 0},
-				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil},
-				{"BINARY_FLOAT", "BINARY_FLOAT", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"ARRAY_BINARY_FLOAT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "BINARY_FLOAT", nil, nil, nil}},
-		},
-		// db call to fetch index happens after fetching of column
-		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
-	}
-	db := mkMockDB(t, ms)
-	conv := internal.MakeConv()
-	processSchema := common.ProcessSchemaImpl{}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
-		},
-	})
-
-	schemaToSpanner := common.SchemaToSpannerImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
-	}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
-	assert.Nil(t, err)
-	expectedSchema := map[string]ddl.CreateTable{
-		"USER": {
-			Name:        "USER",
-			ColIds:      []string{"USER_ID", "NAME", "REF"},
-			ColDefs:     map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "USER_ID", Order: 1}},
-			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"REF"}, ReferTableId: "TEST", ReferColumnIds: []string{"ID"}}},
-			Indexes: []ddl.CreateIndex{{
-				Name:    "INDEX1_LAST",
-				TableId: "USER",
-				Unique:  false,
-				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}},
-			}, {
-				Name:    "INDEX_TEST_2",
-				TableId: "USER",
-				Unique:  false,
-				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}, {ColId: "USER_ID", Desc: true, Order: 2}},
-			}},
-		},
-		"TEST": {
-			Name:   "TEST",
-			ColIds: []string{"ID"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"ID": {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
-		},
-		"TEST2": {
-			Name:   "TEST2",
-			ColIds: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT", "BINARY_FLOAT", "ARRAY_BINARY_FLOAT"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"ID":                 {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
-				"JSON":               {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"REALJSON":           {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"ARRAY_NUM":          {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: false},
-				"ARRAY_FLOAT":        {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: false},
-				"ARRAY_STRING":       {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: false},
-				"ARRAY_DATE":         {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: false},
-				"ARRAY_INT":          {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: false},
-				"OBJECT":             {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"BINARY_FLOAT":       {Name: "BINARY_FLOAT", T: ddl.Type{Name: ddl.Float32}, NotNull: true},
-				"ARRAY_BINARY_FLOAT": {Name: "ARRAY_BINARY_FLOAT", T: ddl.Type{Name: ddl.Float32, IsArray: true}, NotNull: false},
-			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
-		},
-	}
-	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	userTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "USER")
-	assert.Equal(t, nil, err)
-	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST")
-	assert.Equal(t, nil, err)
-	test2TableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
-	assert.Equal(t, nil, err)
-
-	logger.Log.Info(fmt.Sprintf("arawind@: %v", conv.SchemaIssues[test2TableId].ColumnLevelIssues))
-
-	assert.Equal(t, len(conv.SchemaIssues[userTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 6)
-	assert.Equal(t, int64(0), conv.Unexpecteds())
-}
-
-// stripSchemaComments returns a schema with all comments removed.
-// We mostly ignore schema comments in testing since schema comments
-// are often changed and are not a core part of conversion functionality.
-func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
-	for t, ct := range spSchema {
-		for c, cd := range ct.ColDefs {
-			cd.Comment = ""
-			ct.ColDefs[c] = cd
-		}
-		ct.Comment = ""
-		spSchema[t] = ct
-	}
-	return spSchema
+	args  []driver.Value
+	cols  []string
+	rows  [][]driver.Value
 }
 
 func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
@@ -273,4 +51,139 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 		}
 	}
 	return db
+}
+
+func TestGetTableName(t *testing.T) {
+	isi := InfoSchemaImpl{}
+	assert.Equal(t, "test_table", isi.GetTableName("test_db", "test_table"))
+}
+
+func TestToType(t *testing.T) {
+	ty := toType("VARCHAR2", sql.NullInt64{Int64: 255, Valid: true}, sql.NullInt64{}, sql.NullInt64{})
+	assert.Equal(t, "VARCHAR2", ty.Name)
+
+	ty = toType("NUMBER", sql.NullInt64{}, sql.NullInt64{Int64: 38, Valid: true}, sql.NullInt64{Int64: 2, Valid: true})
+	assert.Equal(t, "NUMBER", ty.Name)
+	assert.Equal(t, []int64{38, 2}, ty.Mods)
+}
+
+func TestGenerateSrcSchema(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER[(]:1[)]",
+			args:  []driver.Value{"testdb"},
+			cols:  []string{"TABLE_NAME"},
+			rows:  [][]driver.Value{{"TEST_TABLE"}},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		FROM ALL_TAB_COLS 
+		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
+		ORDER BY TABLE_NAME, COLUMN_ID`),
+			args: []driver.Value{"TESTDB", "TEST_TABLE"},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "DATA_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN"},
+			rows: [][]driver.Value{
+				{"TEST_TABLE", "ID", "NUMBER", "N", nil, nil, 38, 0, "YES"},
+				{"TEST_TABLE", "NAME", "VARCHAR2", "Y", nil, 50, nil, nil, "NO"},
+			},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT 
+			k.table_name,
+			k.column_name,
+			t.constraint_type,
+			t.search_condition,
+			t.constraint_name
+		FROM all_constraints t
+		INNER JOIN all_cons_columns k
+		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		WHERE t.owner = :1 AND k.table_name IN (:2)
+		ORDER BY k.table_name, k.position`),
+			args: []driver.Value{"TESTDB", "TEST_TABLE"},
+			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name"},
+			rows: [][]driver.Value{
+				{"TEST_TABLE", "ID", "P", nil, "PK_TEST"},
+				{"TEST_TABLE", "NAME", "C", "IS JSON", "SYS_C1"},
+			},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT 
+			A.table_name,
+			B.table_name AS ref_table, 
+			A.column_name AS col_name,
+			B.column_name AS ref_col_name,
+			A.constraint_name AS name
+		FROM all_cons_columns A 
+		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
+		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+		WHERE A.owner = :1 AND A.table_name IN (:2)
+		ORDER BY A.table_name, A.position`),
+			args: []driver.Value{"TESTDB", "TEST_TABLE"},
+			cols: []string{"table_name", "ref_table", "col_name", "ref_col_name", "name"},
+			rows: [][]driver.Value{},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT 
+			IC.table_name,
+			IC.index_name,
+			IC.column_name,
+			IC.descend,
+			I.uniqueness,
+			IE.column_expression,
+			I.index_type
+		FROM all_ind_columns IC 
+		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		ORDER BY IC.table_name, IC.index_name, IC.column_position`),
+			args: []driver.Value{"TESTDB", "TEST_TABLE"},
+			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type"},
+			rows: [][]driver.Value{
+				{"TEST_TABLE", "IDX_NAME", "NAME", "ASC", "NONUNIQUE", nil, "NORMAL"},
+			},
+		},
+	}
+
+	db := mkMockDB(t, ms)
+	defer db.Close()
+
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	isi := InfoSchemaImpl{"testdb", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	commonInfoSchema := common.InfoSchemaImpl{}
+
+	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
+	assert.Nil(t, err)
+
+	
+var table schema.Table
+var ok bool
+for _, t := range conv.SrcSchema {
+	if t.Name == "TEST_TABLE" {
+		table = t
+		ok = true
+	}
+}
+
+	if fmt.Printf("SrcSchema = %+v\n", conv.SrcSchema)
+	assert.True(t, ok) {
+				assert.Equal(t, "TEST_TABLE", table.Name)
+		assert.Equal(t, 2, len(table.ColDefs))
+		
+		colIdMapped := table.ColNameIdMap["ID"]
+		assert.Equal(t, "NUMBER", table.ColDefs[colIdMapped].Type.Name)
+		assert.Equal(t, true, table.ColDefs[colIdMapped].NotNull)
+		
+		colNameMapped := table.ColNameIdMap["NAME"]
+		assert.Equal(t, "VARCHAR2", table.ColDefs[colNameMapped].Type.Name)
+		assert.Equal(t, false, table.ColDefs[colNameMapped].NotNull)
+
+		// Check primary key constraint accurately
+		assert.Equal(t, 1, len(table.PrimaryKeys))
+		assert.Equal(t, colIdMapped, table.PrimaryKeys[0].ColId)
+		
+		// Check JSON check constraint structures organically mapped
+		assert.Equal(t, 1, len(table.CheckConstraints))
+		assert.Equal(t, "(IS JSON)", table.CheckConstraints[0].Expr)
+	}
 }
