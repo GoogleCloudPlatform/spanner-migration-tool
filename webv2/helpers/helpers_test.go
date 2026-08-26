@@ -73,6 +73,12 @@ func TestGetSourceDatabaseFromDriver(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "Neo4j driver",
+			driver:  constants.NEO4J,
+			wantDb:  constants.NEO4J,
+			wantErr: false,
+		},
+		{
 			name:    "Unsupported driver",
 			driver:  "unsupported",
 			wantDb:  "",

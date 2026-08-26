@@ -30,6 +30,7 @@ export class LoadSessionComponent implements OnInit {
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
     { value: 'cassandra', displayName: 'Cassandra' },
+    { value: 'neo4j', displayName: 'Neo4j' },
   ]
   fileToUpload: File | null = null
   uploadStart: boolean = false

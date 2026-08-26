@@ -785,6 +785,10 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence, db
 		}
 	}
 
+	if c.Source == constants.NEO4J && c.SpDialect != constants.DIALECT_POSTGRESQL {
+		ddl = append(ddl, getNeo4jGraphDDL(tableSchema, c)...)
+	}
+
 	return ddl
 }
 
