@@ -52,7 +52,7 @@ const (
 	completionPercentage = 100
 )
 
-func metricsPopulation(ctx context.Context, driver string, conv *internal.Conv) {
+func metricsPopulation(ctx context.Context, driver string, conv *internal.Conv) context.Context {
 	if !conv.Audit.SkipMetricsPopulation {
 		// Adding migration metadata to the outgoing context.
 		migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
@@ -60,6 +60,7 @@ func metricsPopulation(ctx context.Context, driver string, conv *internal.Conv) 
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	}
+	return ctx
 }
 
 func GetSessionFileName(sessionFileName, filePrefix string) string {
@@ -182,6 +183,7 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client) error {
+	ctx = metricsPopulation(ctx, sourceProfile.Driver, conv)
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
@@ -195,7 +197,6 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
 	}
-	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 	return nil
 }
@@ -237,6 +238,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 
 func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
+	ctx = metricsPopulation(ctx, sourceProfile.Driver, conv)
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return nil, err
@@ -250,7 +252,6 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
-	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 
 
