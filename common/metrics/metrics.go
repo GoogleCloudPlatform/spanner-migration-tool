@@ -56,7 +56,7 @@ func GetMigrationData(conv *internal.Conv, driver, typeOfConv string) *migration
 // if any in source schema
 func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migration.MigrationData) *migration.MigrationData_SchemaPatterns {
 
-	numTables := int32(len(conv.SrcSchema))
+	numTables := int32(len(conv.SpSchema))
 	var numForeignKey, numIndexes, numMissingPrimaryKey, numInterleaves, maxInterleaveDepth, numColumns, numWarnings int32 = 0, 0, 0, 0, 0, 0, 0
 
 	for srcTableId, srcSchema := range conv.SrcSchema {
