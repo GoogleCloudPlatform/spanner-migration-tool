@@ -8,6 +8,10 @@ export default interface IDbConfig {
   dbName: string
   dataCenter?: string
   shardId?: string
+  sslmode?: string
+  sslrootcert?: string
+  sslcert?: string
+  sslkey?: string
 }
 
 export interface IDbConfigs {

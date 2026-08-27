@@ -41,6 +41,10 @@ func NewCassandraAccessor(sourceProfile profiles.SourceProfile) (*CassandraAcces
 		cfg.DataCenter,
 		cfg.User,
 		cfg.Pwd,
+		cfg.Sslmode,
+		cfg.Sslrootcert,
+		cfg.Sslcert,
+		cfg.Sslkey,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Cassandra client: %w", err)

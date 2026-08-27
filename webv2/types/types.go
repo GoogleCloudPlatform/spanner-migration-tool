@@ -23,6 +23,10 @@ type DriverConfig struct {
 	DataCenter  string `json:"DataCenter"`
 	Dialect     string `json:"Dialect"`
 	DataShardId string `json:"DataShardId"`
+	Sslmode     string `json:"Sslmode"`
+	Sslrootcert string `json:"Sslrootcert"`
+	Sslcert     string `json:"Sslcert"`
+	Sslkey      string `json:"Sslkey"`
 }
 
 type DriverConfigs struct {
