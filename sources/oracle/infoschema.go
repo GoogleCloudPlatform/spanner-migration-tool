@@ -36,12 +36,100 @@ type InfoSchemaImpl struct {
 	TargetProfile      profiles.TargetProfile
 }
 
+// GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
+// GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 	return tableName
+}
+
+// GetRowsFromTable returns a sql Rows object for a table.
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
+	tbl := conv.SrcSchema[tableId]
+	srcCols := tbl.ColIds
+	if len(srcCols) == 0 {
+		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", tbl.Name))
+		return nil, nil
+	}
+	q := getSelectQuery(isi.DbName, tbl.Schema, tbl.Name, tbl.ColIds, tbl.ColDefs)
+	rows, err := isi.Db.Query(q)
+	return rows, err
+}
+
+func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []string, colDefs map[string]schema.Column) string {
+	var selects = make([]string, len(colIds))
+
+	for i, colId := range colIds {
+		cn := colDefs[colId].Name
+		var s string
+		if TimestampReg.MatchString(colDefs[colId].Type.Name) {
+			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
+		} else if len(colDefs[colId].Type.ArrayBounds) == 1 {
+			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000))
+				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
+		} else {
+			switch colDefs[colId].Type.Name {
+			case "NUMBER":
+				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
+			case "XMLTYPE":
+				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
+			case "SDO_GEOMETRY":
+				s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
+			case "OBJECT":
+				s = fmt.Sprintf(`
+				(
+					CASE WHEN "%s" IS NULL THEN ''
+					ELSE
+						XMLTYPE("%s").getStringVal()
+					END
+				) AS "%s"
+				`, cn, cn, cn)
+			default:
+				s = fmt.Sprintf(`"%s"`, cn)
+			}
+		}
+		selects[i] = s
+	}
+
+	return fmt.Sprintf(`SELECT %s FROM "%s"."%s"`, strings.Join(selects, ", "), schemaName, tableName)
+}
+
+// ProcessData performs data conversion for source database.
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
+		return err
+	}
+	rows := rowsInterface.(*sql.Rows)
+	defer rows.Close()
+	srcCols, _ := rows.Columns()
+	v, scanArgs := buildVals(len(srcCols))
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
+	for rows.Next() {
+		// get RawBytes from data.
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+			// Scan failed, so we don't have any data to add to bad rows.
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			continue
+		}
+		values := valsToStrings(v)
+		newValues, err := common.PrepareValues(conv, tableId, colNameIdMap, commonColIds, srcCols, values)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, values)
+			continue
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues)
+	}
+	return nil
 }
 
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
@@ -444,12 +532,33 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	return result, nil
 }
 
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error {
-	return nil
+// buildVals constructs []sql.RawBytes value containers to scan row
+// results into.  Returns both the underlying containers (as a slice)
+// as well as an interface{} of pointers to containers to pass to
+// rows.Scan.
+func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
+	v = make([]sql.RawBytes, n)
+	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+	// references into such a slice.
+	iv = make([]interface{}, len(v))
+	for i := range v {
+		iv[i] = &v[i]
+	}
+	return v, iv
 }
 
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
-	return nil, nil
+func valsToStrings(vals []sql.RawBytes) []string {
+	toString := func(val sql.RawBytes) string {
+		if val == nil {
+			return "NULL"
+		}
+		return string(val)
+	}
+	var s []string
+	for _, v := range vals {
+		s = append(s, toString(v))
+	}
+	return s
 }
 
 var TimestampReg = regexp.MustCompile(`^TIMESTAMP(\(\d+\))?(\s+WITH(\s+LOCAL)?\s+TIME\s+ZONE)?$`)
