@@ -119,6 +119,45 @@ func TestGetTypeMapPostgres(t *testing.T) {
 		"timestamp": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Timestamp, Brief: reports.IssueDB[internal.Timestamp].Brief, DisplayT: ddl.Timestamp}},
+		"inet": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"cidr": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"interval": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"json": {
+			{T: ddl.String, DisplayT: ddl.String},
+			{T: ddl.JSON, DisplayT: ddl.JSON}},
+		"jsonb": {
+			{T: ddl.String, DisplayT: ddl.String},
+			{T: ddl.JSON, DisplayT: ddl.JSON}},
+		"macaddr": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"macaddr8": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"money": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Numeric].Brief, DisplayT: ddl.Numeric}},
+		"oid": {
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Int64, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
+		"time": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"timetz": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"uuid": {
+			{T: ddl.String, DisplayT: ddl.String},
+			{T: ddl.UUID, DisplayT: ddl.UUID}},
+		"varbit": {
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"citext": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+		"bit": {
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -148,9 +187,10 @@ func TestGetConversionPostgres(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-	assert.Equal(t, 2, len(result))
+	assert.Equal(t, 3, len(result))
 	assert.Contains(t, result, "t1")
 	assert.Contains(t, result, "t2")
+	assert.Contains(t, result, "t3")
 }
 
 func TestGetTypeMapMySQL(t *testing.T) {
@@ -2495,6 +2535,27 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c19": {Name: "c", Id: "c19", Type: schema.Type{Name: "bool"}},
 				"c20": {Name: "d", Id: "c20", Type: schema.Type{Name: "smallserial"}},
 			}},
+		"t3": {
+			Name:   "t3",
+			Id:     "t3",
+			ColIds: []string{"c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30", "c31", "c32", "c33", "c34", "c35", "c36"},
+			ColDefs: map[string]schema.Column{
+				"c22": {Name: "a", Id: "c22", Type: schema.Type{Name: "uuid"}},
+				"c23": {Name: "b", Id: "c23", Type: schema.Type{Name: "money"}},
+				"c24": {Name: "c", Id: "c24", Type: schema.Type{Name: "oid"}},
+				"c25": {Name: "d", Id: "c25", Type: schema.Type{Name: "bit"}},
+				"c26": {Name: "e", Id: "c26", Type: schema.Type{Name: "varbit"}},
+				"c27": {Name: "f", Id: "c27", Type: schema.Type{Name: "time"}},
+				"c28": {Name: "g", Id: "c28", Type: schema.Type{Name: "timetz"}},
+				"c29": {Name: "h", Id: "c29", Type: schema.Type{Name: "interval"}},
+				"c30": {Name: "i", Id: "c30", Type: schema.Type{Name: "citext"}},
+				"c31": {Name: "j", Id: "c31", Type: schema.Type{Name: "inet"}},
+				"c32": {Name: "k", Id: "c32", Type: schema.Type{Name: "cidr"}},
+				"c33": {Name: "l", Id: "c33", Type: schema.Type{Name: "macaddr"}},
+				"c34": {Name: "m", Id: "c34", Type: schema.Type{Name: "macaddr8"}},
+				"c35": {Name: "n", Id: "c35", Type: schema.Type{Name: "json"}},
+				"c36": {Name: "o", Id: "c36", Type: schema.Type{Name: "jsonb"}},
+			}},
 	}
 	conv.SpSchema = map[string]ddl.CreateTable{
 		"t1": {
@@ -2517,7 +2578,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.Int64}},
 				"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
-				"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Int64}},
+				"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Bool}},
 				"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
@@ -2534,6 +2595,29 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c21": {Name: "synth_id", Id: "c21", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c21"}},
+		},
+		"t3": {
+			Name:   "table3",
+			Id:     "t3",
+			ColIds: []string{"c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30", "c31", "c32", "c33", "c34", "c35", "c36"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c22": {Name: "a", Id: "c22", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c23": {Name: "b", Id: "c23", T: ddl.Type{Name: ddl.Numeric}},
+				"c24": {Name: "c", Id: "c24", T: ddl.Type{Name: ddl.Int64}},
+				"c25": {Name: "d", Id: "c25", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+				"c26": {Name: "e", Id: "c26", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+				"c27": {Name: "f", Id: "c27", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c28": {Name: "g", Id: "c28", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c29": {Name: "h", Id: "c29", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c30": {Name: "i", Id: "c30", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c31": {Name: "j", Id: "c31", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c32": {Name: "k", Id: "c32", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c33": {Name: "l", Id: "c33", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c34": {Name: "m", Id: "c34", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c35": {Name: "n", Id: "c35", T: ddl.Type{Name: ddl.JSON}},
+				"c36": {Name: "o", Id: "c36", T: ddl.Type{Name: ddl.JSON}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c22"}},
 		},
 	}
 

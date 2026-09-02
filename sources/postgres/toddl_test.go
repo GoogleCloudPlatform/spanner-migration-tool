@@ -123,6 +123,42 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck != nil {
 		t.Errorf("Error in varchar to bytes conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "oid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
+	if errCheck == nil {
+		t.Errorf("Error in oid to numeric conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "oid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in oid to float64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uuid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in uuid to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "money", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in money to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bit to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in time to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "interval", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in interval to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in citext to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in inet to string conversion")
+	}
 }
 
 // This is just a very basic smoke-test for toSpannerType.
