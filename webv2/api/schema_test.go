@@ -78,7 +78,12 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bigserial": {
 			{T: ddl.Int64, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
+		"serial8": {
+			{T: ddl.Int64, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"bpchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -97,19 +102,53 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int8": {
 			{T: ddl.Int64, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"int4": {
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
 			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"numeric": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
+		"decimal": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
+		"smallint": {
+			{T: ddl.Float32, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float32},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
+		"int2": {
+			{T: ddl.Float32, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float32},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"serial": {
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
 			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
+		"serial4": {
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"smallserial": {
+			{T: ddl.Float32, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float32},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
 			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
+		"serial2": {
+			{T: ddl.Float32, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float32},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"text": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -2504,7 +2543,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20", "c21", "c22", "c23"},
 			ColDefs: map[string]schema.Column{
 				"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
 				"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
@@ -2523,6 +2562,12 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "timestamp"}},
 				"c16": {Name: "p", Id: "c16", Type: schema.Type{Name: "bool"}},
 				"c17": {Name: "q", Id: "c17", Type: schema.Type{Name: "path"}},
+				"c18": {Name: "r", Id: "c18", Type: schema.Type{Name: "decimal"}},
+				"c19": {Name: "s", Id: "c19", Type: schema.Type{Name: "serial4"}},
+				"c20": {Name: "t", Id: "c20", Type: schema.Type{Name: "serial2"}},
+				"c21": {Name: "u", Id: "c21", Type: schema.Type{Name: "serial8"}},
+				"c22": {Name: "v", Id: "c22", Type: schema.Type{Name: "int2"}},
+				"c23": {Name: "w", Id: "c23", Type: schema.Type{Name: "smallint"}},
 			},
 			PrimaryKeys: []schema.Key{{ColId: "c1"}}},
 		"t2": {
@@ -2561,7 +2606,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20", "c21", "c22", "c23"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 				"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float32}},
@@ -2580,6 +2625,12 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
 				"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Bool}},
 				"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c18": {Name: "r", Id: "c18", T: ddl.Type{Name: ddl.Numeric}},
+				"c19": {Name: "s", Id: "c19", T: ddl.Type{Name: ddl.Int64}},
+				"c20": {Name: "t", Id: "c20", T: ddl.Type{Name: ddl.Int64}},
+				"c21": {Name: "u", Id: "c21", T: ddl.Type{Name: ddl.Int64}},
+				"c22": {Name: "v", Id: "c22", T: ddl.Type{Name: ddl.Int64}},
+				"c23": {Name: "w", Id: "c23", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		},
@@ -2628,6 +2679,10 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c13": {internal.Widened},    //m
 				"c15": {internal.Timestamp},  //o
 				"c17": {internal.NoGoodType}, //q
+				"c19": {internal.Widened},    //s
+				"c20": {internal.Widened},    //t
+				"c22": {internal.Widened},    //v
+				"c23": {internal.Widened},    //w
 			},
 		},
 		"t2": {
