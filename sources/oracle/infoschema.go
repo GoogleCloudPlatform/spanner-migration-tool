@@ -15,9 +15,9 @@
 package oracle
 
 import (
-	"regexp"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -132,6 +132,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	return nil
 }
 
+// GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
 	q := fmt.Sprintf("SELECT COUNT(*) FROM \"%s\".\"%s\"", table.Schema, table.Name)
 	var count int64
@@ -139,6 +140,10 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	return count, err
 }
 
+// GetTables fetches all standard tables associated with the mapped DB owner.
+// This maps to ALL_TABLES tracking tables. It does not inherently filter out internal
+// Oracle tables or materialized views if they fall under the exact owner schema filter.
+// Therefore, it fetches both user-created tables and system tables for that owner.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	q := "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER(:1)"
 	rows, err := isi.Db.Query(q, isi.DbName)
@@ -157,6 +162,11 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
+// GetColumnsBatch fetches column metadata simultaneously for multiple tables via ALL_TAB_COLS.
+// It extracts the column data types, nullable bounds, character capacities, precision/scales,
+// and implicitly generated identities (such as AUTO_INCREMENT mappings for IDENTITY_COLUMN='YES').
+// Invisible columns and virtual columns are handled inherently as they appear in ALL_TAB_COLS.
+// Limitations: complex abstract domains (like custom object schemas) may fall back to default mappings.
 func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableColumns, error) {
 	if len(tables) == 0 {
 		return nil, nil
@@ -165,9 +175,9 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	for i, t := range tables {
 		tableNames[i] = t.Name
 	}
-	
+
 	owner := strings.ToUpper(isi.DbName)
-	
+
 	// Create numbered placeholders :2, :3, etc.
 	placeholders := make([]string, len(tables))
 	args := make([]interface{}, len(tables)+1)
@@ -176,7 +186,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		placeholders[i] = fmt.Sprintf(":%d", i+2)
 		args[i+1] = name
 	}
-	
+
 	q := fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
@@ -202,7 +212,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		}
 
 		colId := internal.GenerateColumnId()
-		
+
 		var colAutoGen ddl.AutoGenCol
 		if identityCol == "YES" {
 			colAutoGen = ddl.AutoGenCol{
@@ -248,6 +258,12 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt
 	return schema.Type{Name: dataType}
 }
 
+// GetConstraintsBatch filters ALL_CONSTRAINTS to selectively capture primary keys ('P')
+// and Check constraints ('C'). It filters out basic NOT NULL constraints since they are processed
+// directly via table column definitions. It natively discovers 'IS JSON' check constraints.
+// It does not capture foreign key constraints directly; they are fetched securely in GetForeignKeysBatch.
+// Functional dependencies or advanced check constraints using user-defined functions are unsupported
+// via standard schema mapping.
 func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableConstraints, error) {
 	if len(tables) == 0 {
 		return nil, nil
@@ -256,7 +272,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	for i, t := range tables {
 		tableNames[i] = t.Name
 	}
-	
+
 	owner := strings.ToUpper(isi.DbName)
 	placeholders := make([]string, len(tables))
 	args := make([]interface{}, len(tables)+1)
@@ -300,7 +316,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		if col == "" || constraint == "" {
 			continue
 		}
-		
+
 		switch constraint {
 		case "P":
 			primaryKeys[tableName] = append(primaryKeys[tableName], col)
@@ -318,12 +334,12 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 					checkKeys[tableName] = make(map[string]schema.CheckConstraint)
 				}
 				if _, exists := checkKeys[tableName][constraintName]; !exists {
-						checkKeys[tableName][constraintName] = schema.CheckConstraint{
-							Id:   internal.GenerateCheckConstrainstId(),
-							Name: constraintName,
-							Expr: "(" + condition.String + ")",
-							ExprId: internal.GenerateExpressionId(),
-						}
+					checkKeys[tableName][constraintName] = schema.CheckConstraint{
+						Id:     internal.GenerateCheckConstrainstId(),
+						Name:   constraintName,
+						Expr:   "(" + condition.String + ")",
+						ExprId: internal.GenerateExpressionId(),
+					}
 				}
 			}
 
@@ -353,6 +369,10 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	return result, nil
 }
 
+// GetForeignKeysBatch specifically pulls referential constraints by mapping R_CONSTRAINT_NAMEs
+// between referencing and referenced columns using ALL_CONS_COLUMNS joined structurally.
+// Information related to cascading deletes/updates is currently ignored in standard mapping phase.
+// It uniquely captures cross-table multi-column foreign constraints by aggregating based on constraint name.
 func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableForeignKeys, error) {
 	if len(tables) == 0 {
 		return nil, nil
@@ -361,7 +381,7 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 	for i, t := range tables {
 		tableNames[i] = t.Name
 	}
-	
+
 	owner := strings.ToUpper(isi.DbName)
 	placeholders := make([]string, len(tables))
 	args := make([]interface{}, len(tables)+1)
@@ -430,6 +450,19 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 	return result, nil
 }
 
+// GetIndexesBatch extracts database indices and configuration boundaries from Oracle ALL_INDEXES.
+//
+// WHAT IT FETCHES:
+// - NORMAL: Standard B-Tree indices mapping dynamically down to Spanner B-Tree indices.
+// - UNIQUE: Unique constraint-backed indices.
+// - COMPOSITE: Multi-column indices (automatically handles maintaining the column ORDER/Position).
+// - BITMAP: Standard Bitmap indices are fetched and converted into standard Spanner B-Tree indices.
+// - REVERSE: Reverse key indices are fetched and migrated as standard indices in Spanner.
+//
+// WHAT IT IGNORES / OMITS:
+//   - FUNCTION-BASED INDICES: Automatically bypassed. If the index relies on an expression (e.g. UPPER(name)
+//     which introduces parenthesis parsing '(' and ')'), it skips generation because Spanner native
+//     indices do not support them functionally without explicit generated columns or search indices.
 func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string][]schema.Index, error) {
 	if len(tables) == 0 {
 		return nil, nil
@@ -438,7 +471,7 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	for i, t := range tables {
 		tableNames[i] = t.Name
 	}
-	
+
 	owner := strings.ToUpper(isi.DbName)
 	placeholders := make([]string, len(tables))
 	args := make([]interface{}, len(tables)+1)
