@@ -552,6 +552,8 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		switch v := val.(type) {
 		case []byte:
 			return v, nil
+		case string:
+			return []byte(v), nil
 		}
 	case ddl.Date:
 		// The PostgreSQL driver uses time.Time to represent
@@ -609,6 +611,14 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		switch v := val.(type) {
 		case []byte: // Note: PostgreSQL uses []byte for numeric.
 			return convNumeric(conv, string(v))
+		case string:
+			return convNumeric(conv, v)
+		case float64:
+			return convNumeric(conv, strconv.FormatFloat(v, 'f', -1, 64))
+		case float32:
+			return convNumeric(conv, strconv.FormatFloat(float64(v), 'f', -1, 32))
+		case int64:
+			return convNumeric(conv, strconv.FormatInt(v, 10))
 		}
 	case ddl.String:
 		switch v := val.(type) {
@@ -639,6 +649,13 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		case string:
 			return string(v), nil
 		case []uint8:
+			return string(v), nil
+		}
+	case ddl.UUID:
+		switch v := val.(type) {
+		case string:
+			return v, nil
+		case []byte:
 			return string(v), nil
 		}
 	}

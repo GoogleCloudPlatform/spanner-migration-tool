@@ -128,34 +128,54 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		default:
 			return ddl.Type{Name: ddl.Float32}, nil
 		}
-	case "int8", "bigint", "bigserial":
+	case "int8", "bigint", "bigserial", "serial8":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
-	case "int4", "integer", "serial":
+	case "int4", "integer", "int", "serial", "serial4":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "int2", "smallint", "smallserial":
+	case "int2", "smallint", "smallserial", "serial2":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float32:
+			return ddl.Type{Name: ddl.Float32}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "numeric":
+	case "numeric", "decimal":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
-			// TODO: check mod[0] and mod[1] and generate a warning
-			// if this numeric won't fit in Spanner's NUMERIC.
+			if len(srcType.Mods) > 0 {
+				precision := srcType.Mods[0]
+				scale := int64(0)
+				if len(srcType.Mods) > 1 {
+					scale = srcType.Mods[1]
+				}
+				if precision > 38 || scale > 9 || (precision-scale) > 29 {
+					return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Numeric}
+				}
+			}
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 	case "text":
@@ -179,6 +199,87 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
+		}
+	case "uuid":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.UUID}, nil
+		}
+	case "money":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
+		}
+	case "oid":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "bit", "varbit", "bit varying":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
+	case "time", "time without time zone":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "timetz", "time with time zone":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "interval":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "citext":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "inet":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "cidr":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "macaddr", "macaddr8":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "json", "jsonb":
 		switch spType {
