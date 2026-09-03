@@ -134,9 +134,9 @@ export enum PersistedFormValues {
     IsConnectionSuccessful = 'isConnectionSuccessful'
 }
 
-export const defaultAndSequenceSupportedDbs: string[] = ['MySQL']
+export const defaultAndSequenceSupportedDbs: string[] = ['MySQL', 'Oracle']
 export const generatedColSupportedDbs: string[] = ['MySQL']
-export const identitySupportedDbs: string[] = ['MySQL', 'Postgres']
+export const identitySupportedDbs: string[] = ['MySQL', 'Postgres', 'Oracle']
 
 export const dialogConfigAddSequence: MatDialogConfig<any> = {
   width: '50%',

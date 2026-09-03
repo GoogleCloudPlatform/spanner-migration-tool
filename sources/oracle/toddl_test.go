@@ -15,319 +15,287 @@
 package oracle
 
 import (
-	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap"
 )
-
-func init() {
-	logger.Log = zap.NewNop()
-}
-
-func TestToSpannerTypeInternal(t *testing.T) {
-	conv := internal.MakeConv()
-	_, errCheck := toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "TIMESTAMP", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in timestamp to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "INTERVAL", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in interval to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "INTERVAL", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in interval to default conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "INTERVAL", Mods: []int64{}, ArrayBounds: []int64{}})
-	if errCheck != nil {
-		t.Errorf("Error in interval to default conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "NUMBER", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in number to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "NUMBER", Mods: []int64{31}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in number to default conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "NUMBER", Mods: []int64{31, 11}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in number to default conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "BLOB", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in blob to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CHAR", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in char to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CHAR", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in char to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "CLOB", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in clob to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "DATE", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in date to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "BINARY_FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in binary_float to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "FLOAT64", schema.Type{Name: "BINARY_FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in binary_float to float64 conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "FLOAT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in float to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "RAW", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in raw to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "", schema.Type{Name: "RAW", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in raw to default conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "ROWID", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in rowid to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "UROWID", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in urowid to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{Name: "UROWID", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}})
-	if errCheck != nil {
-		t.Errorf("Error in urowid to string conversion")
-	}
-}
 
 func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	name := "test"
-	tableId := "t1"
-	srcSchema := schema.Table{
-		Name:   name,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c15"},
-		ColDefs: map[string]schema.Column{
-			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
-			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
-			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: "BFILE"}},
-			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{20}}},
-			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: "DATE"}},
-			"c6":  {Name: "f", Id: "c6", Type: schema.Type{Name: "TIMESTAMP"}},
-			"c7":  {Name: "g", Id: "c7", Type: schema.Type{Name: "LONG"}},
-			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: "NUMBER", Mods: []int64{13}}},
-			"c15": {Name: "i", Id: "c15", Type: schema.Type{Name: "BINARY_FLOAT"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}},
-			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}, OnDelete: "", OnUpdate: ""},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""}},
-		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
-			{Name: "index_with_0_key", Unique: true, Keys: []schema.Key{{ColId: "m", Desc: false}, {ColId: "y", Desc: true}}},
-		},
+	td := ToDdlImpl{}
+	tests := []struct {
+		name     string
+		srcType  string
+		spType   string
+		isPk     bool
+		expected ddl.Type
+		dialect  string
+	}{
+		{"VARCHAR2 - Default", "VARCHAR2", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2 - PG PK", "VARCHAR2", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR2 - Alt (ddl.Bytes)", "VARCHAR2", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR - Default", "VARCHAR", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR - PG PK", "VARCHAR", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR - Alt (ddl.Bytes)", "VARCHAR", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CHAR - Default", "CHAR", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CHAR - PG PK", "CHAR", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"CHAR - Alt (ddl.Bytes)", "CHAR", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CHARACTER - Default", "CHARACTER", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CHARACTER - PG PK", "CHARACTER", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"CHARACTER - Alt (ddl.Bytes)", "CHARACTER", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NVARCHAR2 - Default", "NVARCHAR2", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NVARCHAR2 - PG PK", "NVARCHAR2", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NVARCHAR2 - Alt (ddl.Bytes)", "NVARCHAR2", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR - Default", "NCHAR", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR - PG PK", "NCHAR", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NCHAR - Alt (ddl.Bytes)", "NCHAR", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR VARYING - Default", "NCHAR VARYING", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR VARYING - PG PK", "NCHAR VARYING", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NCHAR VARYING - Alt (ddl.Bytes)", "NCHAR VARYING", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHARACTER - Default", "NATIONAL CHARACTER", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHARACTER - PG PK", "NATIONAL CHARACTER", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NATIONAL CHARACTER - Alt (ddl.Bytes)", "NATIONAL CHARACTER", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHAR - Default", "NATIONAL CHAR", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHAR - PG PK", "NATIONAL CHAR", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NATIONAL CHAR - Alt (ddl.Bytes)", "NATIONAL CHAR", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHARACTER VARYING - Default", "NATIONAL CHARACTER VARYING", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHARACTER VARYING - PG PK", "NATIONAL CHARACTER VARYING", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NATIONAL CHARACTER VARYING - Alt (ddl.Bytes)", "NATIONAL CHARACTER VARYING", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHAR VARYING - Default", "NATIONAL CHAR VARYING", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NATIONAL CHAR VARYING - PG PK", "NATIONAL CHAR VARYING", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NATIONAL CHAR VARYING - Alt (ddl.Bytes)", "NATIONAL CHAR VARYING", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER - Default", "NUMBER", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER - PG PK", "NUMBER", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NUMBER - Alt (ddl.Float64)", "NUMBER", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER - Alt (ddl.String)", "NUMBER", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER - Alt (ddl.Int64)", "NUMBER", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"NUMERIC - Default", "NUMERIC", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"NUMERIC - PG PK", "NUMERIC", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NUMERIC - Alt (ddl.Float64)", "NUMERIC", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"NUMERIC - Alt (ddl.String)", "NUMERIC", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NUMERIC - Alt (ddl.Int64)", "NUMERIC", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"DECIMAL - Default", "DECIMAL", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"DECIMAL - PG PK", "DECIMAL", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"DECIMAL - Alt (ddl.Float64)", "DECIMAL", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"DECIMAL - Alt (ddl.String)", "DECIMAL", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DECIMAL - Alt (ddl.Int64)", "DECIMAL", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"DEC - Default", "DEC", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"DEC - PG PK", "DEC", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"DEC - Alt (ddl.Float64)", "DEC", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"DEC - Alt (ddl.String)", "DEC", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DEC - Alt (ddl.Int64)", "DEC", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"FLOAT - Default", "FLOAT", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"FLOAT - PG PK", "FLOAT", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"FLOAT - Alt (ddl.Float64)", "FLOAT", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"FLOAT - Alt (ddl.String)", "FLOAT", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"FLOAT - Alt (ddl.Int64)", "FLOAT", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"DOUBLE PRECISION - Default", "DOUBLE PRECISION", "", false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"DOUBLE PRECISION - PK", "DOUBLE PRECISION", "", true, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"DOUBLE PRECISION - PG PK", "DOUBLE PRECISION", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"DOUBLE PRECISION - Alt (ddl.Numeric)", "DOUBLE PRECISION", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"DOUBLE PRECISION - Alt (ddl.String)", "DOUBLE PRECISION", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DOUBLE PRECISION - Alt (ddl.Int64)", "DOUBLE PRECISION", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"REAL - Default", "REAL", "", false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"REAL - PK", "REAL", "", true, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"REAL - PG PK", "REAL", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"REAL - Alt (ddl.String)", "REAL", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"REAL - Alt (ddl.Numeric)", "REAL", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"REAL - Alt (ddl.Int64)", "REAL", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - Default", "BINARY_FLOAT", "", false, ddl.Type{Name: ddl.Float32}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - PK", "BINARY_FLOAT", "", true, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - PG PK", "BINARY_FLOAT", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"BINARY_FLOAT - Alt (ddl.Float64)", "BINARY_FLOAT", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - Alt (ddl.String)", "BINARY_FLOAT", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - Alt (ddl.Numeric)", "BINARY_FLOAT", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_FLOAT - Alt (ddl.Int64)", "BINARY_FLOAT", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_DOUBLE - Default", "BINARY_DOUBLE", "", false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_DOUBLE - PK", "BINARY_DOUBLE", "", true, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_DOUBLE - PG PK", "BINARY_DOUBLE", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"BINARY_DOUBLE - Alt (ddl.String)", "BINARY_DOUBLE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_DOUBLE - Alt (ddl.Numeric)", "BINARY_DOUBLE", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"BINARY_DOUBLE - Alt (ddl.Int64)", "BINARY_DOUBLE", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INTEGER - Default", "INTEGER", "", false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INTEGER - PG PK", "INTEGER", "", true, ddl.Type{Name: ddl.Int64}, constants.DIALECT_POSTGRESQL},
+		{"INTEGER - Alt (ddl.Numeric)", "INTEGER", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"INTEGER - Alt (ddl.String)", "INTEGER", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"INTEGER - Alt (ddl.Float64)", "INTEGER", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"INT - Default", "INT", "", false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INT - PG PK", "INT", "", true, ddl.Type{Name: ddl.Int64}, constants.DIALECT_POSTGRESQL},
+		{"INT - Alt (ddl.Numeric)", "INT", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"INT - Alt (ddl.String)", "INT", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"INT - Alt (ddl.Float64)", "INT", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"SMALLINT - Default", "SMALLINT", "", false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"SMALLINT - PG PK", "SMALLINT", "", true, ddl.Type{Name: ddl.Int64}, constants.DIALECT_POSTGRESQL},
+		{"SMALLINT - Alt (ddl.Numeric)", "SMALLINT", ddl.Numeric, false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"SMALLINT - Alt (ddl.String)", "SMALLINT", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SMALLINT - Alt (ddl.Float64)", "SMALLINT", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"DATE - Default", "DATE", "", false, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_GOOGLESQL},
+		{"DATE - PG PK", "DATE", "", true, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_POSTGRESQL},
+		{"DATE - Alt (ddl.Date)", "DATE", ddl.Date, false, ddl.Type{Name: ddl.Date}, constants.DIALECT_GOOGLESQL},
+		{"DATE - Alt (ddl.String)", "DATE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DATE - Alt (ddl.Int64)", "DATE", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP - Default", "TIMESTAMP", "", false, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP - PG PK", "TIMESTAMP", "", true, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_POSTGRESQL},
+		{"TIMESTAMP - Alt (ddl.String)", "TIMESTAMP", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP - Alt (ddl.Int64)", "TIMESTAMP", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH TIME ZONE - Default", "TIMESTAMP WITH TIME ZONE", "", false, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH TIME ZONE - PG PK", "TIMESTAMP WITH TIME ZONE", "", true, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_POSTGRESQL},
+		{"TIMESTAMP WITH TIME ZONE - Alt (ddl.String)", "TIMESTAMP WITH TIME ZONE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH TIME ZONE - Alt (ddl.Int64)", "TIMESTAMP WITH TIME ZONE", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH LOCAL TIME ZONE - Default", "TIMESTAMP WITH LOCAL TIME ZONE", "", false, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH LOCAL TIME ZONE - PG PK", "TIMESTAMP WITH LOCAL TIME ZONE", "", true, ddl.Type{Name: ddl.Timestamp}, constants.DIALECT_POSTGRESQL},
+		{"TIMESTAMP WITH LOCAL TIME ZONE - Alt (ddl.String)", "TIMESTAMP WITH LOCAL TIME ZONE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"TIMESTAMP WITH LOCAL TIME ZONE - Alt (ddl.Int64)", "TIMESTAMP WITH LOCAL TIME ZONE", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL YEAR TO MONTH - Default", "INTERVAL YEAR TO MONTH", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL YEAR TO MONTH - PG PK", "INTERVAL YEAR TO MONTH", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"INTERVAL YEAR TO MONTH - Alt (ddl.Int64)", "INTERVAL YEAR TO MONTH", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL YEAR TO MONTH - Alt (ddl.Float64)", "INTERVAL YEAR TO MONTH", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL DAY TO SECOND - Default", "INTERVAL DAY TO SECOND", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL DAY TO SECOND - PG PK", "INTERVAL DAY TO SECOND", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"INTERVAL DAY TO SECOND - Alt (ddl.Int64)", "INTERVAL DAY TO SECOND", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"INTERVAL DAY TO SECOND - Alt (ddl.Float64)", "INTERVAL DAY TO SECOND", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
+		{"RAW - Default", "RAW", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"RAW - PG PK", "RAW", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"RAW - Alt (ddl.String)", "RAW", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"LONG RAW - Default", "LONG RAW", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"LONG RAW - PG PK", "LONG RAW", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"LONG RAW - Alt (ddl.String)", "LONG RAW", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BLOB - Default", "BLOB", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BLOB - PG PK", "BLOB", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"BLOB - Alt (ddl.String)", "BLOB", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CLOB - Default", "CLOB", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CLOB - PG PK", "CLOB", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"CLOB - Alt (ddl.Bytes)", "CLOB", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCLOB - Default", "NCLOB", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NCLOB - PG PK", "NCLOB", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"NCLOB - Alt (ddl.Bytes)", "NCLOB", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BFILE - Default", "BFILE", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"BFILE - PG PK", "BFILE", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"BFILE - Alt (ddl.Bytes)", "BFILE", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"LONG - Default", "LONG", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"LONG - PG PK", "LONG", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"LONG - Alt (ddl.Bytes)", "LONG", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ROWID - Default", "ROWID", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ROWID - PG PK", "ROWID", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ROWID - Alt (ddl.Bytes)", "ROWID", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ROWID - Alt (ddl.Int64)", "ROWID", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"UROWID - Default", "UROWID", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"UROWID - PG PK", "UROWID", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"UROWID - Alt (ddl.Bytes)", "UROWID", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"UROWID - Alt (ddl.Int64)", "UROWID", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"BOOLEAN - Default", "BOOLEAN", "", false, ddl.Type{Name: ddl.Bool}, constants.DIALECT_GOOGLESQL},
+		{"BOOLEAN - PG PK", "BOOLEAN", "", true, ddl.Type{Name: ddl.Bool}, constants.DIALECT_POSTGRESQL},
+		{"BOOLEAN - Alt (ddl.Int64)", "BOOLEAN", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
+		{"BOOLEAN - Alt (ddl.String)", "BOOLEAN", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"JSON - Default", "JSON", "", false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"JSON - PG PK", "JSON", "", true, ddl.Type{Name: ddl.JSON}, constants.DIALECT_POSTGRESQL},
+		{"JSON - Alt (ddl.String)", "JSON", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"JSON - Alt (ddl.Bytes)", "JSON", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"XMLType - Default", "XMLType", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"XMLType - PG PK", "XMLType", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"XMLType - Alt (ddl.Bytes)", "XMLType", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_GEOMETRY - Default", "SDO_GEOMETRY", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_GEOMETRY - PG PK", "SDO_GEOMETRY", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SDO_GEOMETRY - Alt (ddl.Bytes)", "SDO_GEOMETRY", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_GEOMETRY - Alt (ddl.JSON)", "SDO_GEOMETRY", ddl.JSON, false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"SDO_TOPO_GEOMETRY - Default", "SDO_TOPO_GEOMETRY", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_TOPO_GEOMETRY - PG PK", "SDO_TOPO_GEOMETRY", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SDO_TOPO_GEOMETRY - Alt (ddl.Bytes)", "SDO_TOPO_GEOMETRY", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_TOPO_GEOMETRY - Alt (ddl.JSON)", "SDO_TOPO_GEOMETRY", ddl.JSON, false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"SDO_GEORASTER - Default", "SDO_GEORASTER", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SDO_GEORASTER - PG PK", "SDO_GEORASTER", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SDO_GEORASTER - Alt (ddl.String)", "SDO_GEORASTER", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VECTOR - Default", "VECTOR", "", false, ddl.Type{Name: ddl.Float32, IsArray: true}, constants.DIALECT_GOOGLESQL},
+		{"VECTOR - PG PK", "VECTOR", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"VECTOR - Alt (ddl.Float64)", "VECTOR", ddl.Float64, false, ddl.Type{Name: ddl.Float64, IsArray: true}, constants.DIALECT_GOOGLESQL},
+		{"VECTOR - Alt (ddl.Bytes)", "VECTOR", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}, constants.DIALECT_GOOGLESQL},
+		{"ANYDATA - Default", "ANYDATA", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ANYDATA - PG PK", "ANYDATA", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ANYDATA - Alt (ddl.String)", "ANYDATA", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ANYTYPE - Default", "ANYTYPE", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ANYTYPE - PG PK", "ANYTYPE", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ANYTYPE - Alt (ddl.String)", "ANYTYPE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ANYDATASET - Default", "ANYDATASET", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ANYDATASET - PG PK", "ANYDATASET", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ANYDATASET - Alt (ddl.String)", "ANYDATASET", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"URIType - Default", "URIType", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"URIType - PG PK", "URIType", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"URIType - Alt (ddl.Bytes)", "URIType", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DBUriType - Default", "DBUriType", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"DBUriType - PG PK", "DBUriType", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"DBUriType - Alt (ddl.Bytes)", "DBUriType", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"XDBUriType - Default", "XDBUriType", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"XDBUriType - PG PK", "XDBUriType", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"XDBUriType - Alt (ddl.Bytes)", "XDBUriType", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"HttpUriType - Default", "HttpUriType", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"HttpUriType - PG PK", "HttpUriType", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"HttpUriType - Alt (ddl.Bytes)", "HttpUriType", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"Expression - Default", "Expression", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"Expression - PG PK", "Expression", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"Expression - Alt (ddl.Bytes)", "Expression", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDAUDIO - Default", "ORDAUDIO", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDAUDIO - PG PK", "ORDAUDIO", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ORDAUDIO - Alt (ddl.String)", "ORDAUDIO", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDIMAGE - Default", "ORDIMAGE", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDIMAGE - PG PK", "ORDIMAGE", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ORDIMAGE - Alt (ddl.String)", "ORDIMAGE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDVIDEO - Default", "ORDVIDEO", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDVIDEO - PG PK", "ORDVIDEO", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ORDVIDEO - Alt (ddl.String)", "ORDVIDEO", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDDOC - Default", "ORDDOC", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ORDDOC - PG PK", "ORDDOC", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"ORDDOC - Alt (ddl.String)", "ORDDOC", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_STILLIMAGE - Default", "SI_STILLIMAGE", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_STILLIMAGE - PG PK", "SI_STILLIMAGE", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_STILLIMAGE - Alt (ddl.String)", "SI_STILLIMAGE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_COLOR - Default", "SI_COLOR", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_COLOR - PG PK", "SI_COLOR", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_COLOR - Alt (ddl.String)", "SI_COLOR", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_AVERAGECOLOR - Default", "SI_AVERAGECOLOR", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_AVERAGECOLOR - PG PK", "SI_AVERAGECOLOR", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_AVERAGECOLOR - Alt (ddl.String)", "SI_AVERAGECOLOR", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_COLORHISTOGRAM - Default", "SI_COLORHISTOGRAM", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_COLORHISTOGRAM - PG PK", "SI_COLORHISTOGRAM", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_COLORHISTOGRAM - Alt (ddl.String)", "SI_COLORHISTOGRAM", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_POSITIONALCOLOR - Default", "SI_POSITIONALCOLOR", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_POSITIONALCOLOR - PG PK", "SI_POSITIONALCOLOR", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_POSITIONALCOLOR - Alt (ddl.String)", "SI_POSITIONALCOLOR", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_TEXTURE - Default", "SI_TEXTURE", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_TEXTURE - PG PK", "SI_TEXTURE", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_TEXTURE - Alt (ddl.String)", "SI_TEXTURE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_FEATURELIST - Default", "SI_FEATURELIST", "", false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"SI_FEATURELIST - PG PK", "SI_FEATURELIST", "", true, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"SI_FEATURELIST - Alt (ddl.String)", "SI_FEATURELIST", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"MLSLABEL - Default", "MLSLABEL", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"MLSLABEL - PG PK", "MLSLABEL", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"MLSLABEL - Alt (ddl.Bytes)", "MLSLABEL", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"REF - Default", "REF", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"REF - PG PK", "REF", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"REF - Alt (ddl.Bytes)", "REF", ddl.Bytes, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARRAY - Default", "VARRAY", "", false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, constants.DIALECT_GOOGLESQL},
+		{"VARRAY - PG PK", "VARRAY", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
+		{"VARRAY - Alt (ddl.JSON)", "VARRAY", ddl.JSON, false, ddl.Type{Name: ddl.JSON, IsArray: true}, constants.DIALECT_GOOGLESQL},
+		{"NESTED TABLE - Default", "NESTED TABLE", "", false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"NESTED TABLE - PG PK", "NESTED TABLE", "", true, ddl.Type{Name: ddl.JSON}, constants.DIALECT_POSTGRESQL},
+		{"NESTED TABLE - Alt (ddl.String)", "NESTED TABLE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"ASSOCIATIVE ARRAY - Default", "ASSOCIATIVE ARRAY", "", false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"ASSOCIATIVE ARRAY - PG PK", "ASSOCIATIVE ARRAY", "", true, ddl.Type{Name: ddl.JSON}, constants.DIALECT_POSTGRESQL},
+		{"ASSOCIATIVE ARRAY - Alt (ddl.String)", "ASSOCIATIVE ARRAY", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"OBJECT TYPE - Default", "OBJECT TYPE", "", false, ddl.Type{Name: ddl.JSON}, constants.DIALECT_GOOGLESQL},
+		{"OBJECT TYPE - PG PK", "OBJECT TYPE", "", true, ddl.Type{Name: ddl.JSON}, constants.DIALECT_POSTGRESQL},
+		{"OBJECT TYPE - Alt (ddl.String)", "OBJECT TYPE", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
 	}
-	conv.SrcSchema[tableId] = srcSchema
-	conv.SrcSchema["t2"] = schema.Table{
-		Name:   "ref_table",
-		Id:     "t2",
-		ColIds: []string{"c9", "c10", "c11"},
-		ColDefs: map[string]schema.Column{
-			"c9":  {Name: "dref", Id: "c9", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{6}}},
-			"c10": {Name: "b", Id: "c10", Type: schema.Type{Name: "FLOAT"}},
-			"c11": {Name: "c", Id: "c11", Type: schema.Type{Name: "BOOL"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c9"}},
-	}
-	conv.SrcSchema["t3"] = schema.Table{
-		Name:   "ref_table2",
-		Id:     "t3",
-		ColIds: []string{"c12", "c13", "c14"},
-		ColDefs: map[string]schema.Column{
-			"c12": {Name: "aref", Id: "c12", Type: schema.Type{Name: "NUMBER"}},
-			"c13": {Name: "b", Id: "c13", Type: schema.Type{Name: "FLOAT"}},
-			"c14": {Name: "c", Id: "c14", Type: schema.Type{Name: "BOOL"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c12"}},
-	}
-	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
-		},
-	})
-	schemaToSpanner := common.SchemaToSpannerImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
-	}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
-	actual := conv.SpSchema[tableId]
-	dropComments(&actual) // Don't test comment.
-	expected := ddl.CreateTable{
-		Name:   name,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c15"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}},
-			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(20)}},
-			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Date}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
-			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
-			"c15": {Name: "i", Id: "c15", T: ddl.Type{Name: ddl.Float32}},
-		},
-		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}, OnDelete: "", OnUpdate: ""},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""}},
-		Indexes: []ddl.CreateIndex{{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
-			{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
-	}
-	assert.Equal(t, expected, actual)
-
-	expectedIssues := internal.TableIssues{
-		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
-		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
-	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
-	// 1 FK issue, 2 index col not found
-	assert.Equal(t, int64(3), conv.Unexpecteds())
-}
-
-// This is just a very basic smoke-test for toSpannerPostgreSQLDialectType.
-func TestToSpannerPostgreSQLDialectType(t *testing.T) {
-	conv := internal.MakeConv()
-	conv.SetSchemaMode()
-	conv.SpDialect = constants.DIALECT_POSTGRESQL
-	name := "test"
-	tableId := "t1"
-	srcSchema := schema.Table{
-		Name:   name,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c18"},
-		ColDefs: map[string]schema.Column{
-			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
-			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
-			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: "BFILE"}},
-			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{20}}},
-			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: "DATE"}},
-			"c6":  {Name: "f", Id: "c6", Type: schema.Type{Name: "TIMESTAMP"}},
-			"c7":  {Name: "g", Id: "c7", Type: schema.Type{Name: "LONG"}},
-			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: "NUMBER", Mods: []int64{13}}},
-			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: "JSON"}},
-			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: "NCLOB"}},
-			"c11": {Name: "k", Id: "c11", Type: schema.Type{Name: "XMLTYPE"}},
-			"c18": {Name: "l", Id: "c18", Type: schema.Type{Name: "BINARY_FLOAT"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}},
-			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}, OnDelete: "", OnUpdate: ""},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}, OnDelete: "", OnUpdate: ""}},
-		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
-			{Name: "index_with_0_key", Unique: true, Keys: []schema.Key{{ColId: "m", Desc: false}, {ColId: "y", Desc: true}}},
-		},
-	}
-	conv.SrcSchema[tableId] = srcSchema
-	conv.SrcSchema["t2"] = schema.Table{
-		Name:   "ref_table",
-		Id:     "t2",
-		ColIds: []string{"c12", "c13", "c14"},
-		ColDefs: map[string]schema.Column{
-			"c12": {Name: "dref", Id: "c12", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{6}}},
-			"c13": {Name: "b", Id: "c13", Type: schema.Type{Name: "FLOAT"}},
-			"c14": {Name: "c", Id: "c14", Type: schema.Type{Name: "BOOL"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c12"}},
-	}
-	conv.SrcSchema["t3"] = schema.Table{
-		Name:   "ref_table2",
-		Id:     "t3",
-		ColIds: []string{"c15", "c16", "c17"},
-		ColDefs: map[string]schema.Column{
-			"c15": {Name: "aref", Id: "c15", Type: schema.Type{Name: "NUMBER"}},
-			"c16": {Name: "b", Id: "c16", Type: schema.Type{Name: "FLOAT"}},
-			"c17": {Name: "c", Id: "c17", Type: schema.Type{Name: "BOOL"}},
-		},
-		PrimaryKeys: []schema.Key{{ColId: "c15"}},
-	}
-	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
-	ctx := context.Background()
-	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
-		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
-			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
-		},
-	})
-	schemaToSpanner := common.SchemaToSpannerImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-		DdlV:                           &expressions_api.MockDDLVerifier{},
-	}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
-	actual := conv.SpSchema[tableId]
-	dropComments(&actual) // Don't test comment.
-	expected := ddl.CreateTable{
-		Name:   name,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c18"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}},
-			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(20)}},
-			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Date}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
-			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
-			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.JSON}},
-			"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"c18": {Name: "l", Id: "c18", T: ddl.Type{Name: ddl.Float32}},
-		},
-		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}, OnDelete: "", OnUpdate: ""}},
-		Indexes: []ddl.CreateIndex{{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
-	}
-	assert.Equal(t, expected, actual)
-
-	expectedIssues := internal.TableIssues{
-		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
-		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
-	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
-
-	// 1 FK issue, 2 index col not found
-	assert.Equal(t, int64(3), conv.Unexpecteds())
-}
-
-func dropComments(t *ddl.CreateTable) {
-	t.Comment = ""
-	for _, c := range t.ColIds {
-		cd := t.ColDefs[c]
-		cd.Comment = ""
-		t.ColDefs[c] = cd
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			srcSchemaType := schema.Type{Name: tc.srcType}
+			actual, _ := td.ToSpannerType(conv, tc.spType, srcSchemaType, tc.isPk)
+			assert.Equal(t, tc.expected, actual)
+		})
 	}
 }

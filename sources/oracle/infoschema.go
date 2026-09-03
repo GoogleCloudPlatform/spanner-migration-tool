@@ -17,10 +17,10 @@ package oracle
 import (
 	"database/sql"
 	"fmt"
-	"sort"
+	"regexp"
 	"strings"
 
-
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -68,7 +68,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 		if TimestampReg.MatchString(colDefs[colId].Type.Name) {
 			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
 		} else if len(colDefs[colId].Type.ArrayBounds) == 1 {
-			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
+			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000))
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[colId].Type.Name {
@@ -83,7 +83,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 				(
 					CASE WHEN "%s" IS NULL THEN ''
 					ELSE
-						XMLTYPE("%s").getStringVal() 
+						XMLTYPE("%s").getStringVal()
 					END
 				) AS "%s"
 				`, cn, cn, cn)
@@ -134,323 +134,449 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := fmt.Sprintf(`SELECT count(*) FROM "%s"`, table.Name)
-	rows, err := isi.Db.Query(q)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
+	q := fmt.Sprintf("SELECT COUNT(*) FROM \"%s\".\"%s\"", table.Schema, table.Name)
 	var count int64
-	if rows.Next() {
-		err := rows.Scan(&count)
-		return count, err
-	}
-	return 0, nil
+	err := isi.Db.QueryRow(q).Scan(&count)
+	return count, err
 }
 
+// GetTables fetches all standard tables associated with the mapped DB owner.
+// This maps to ALL_TABLES tracking tables. It does not inherently filter out internal
+// Oracle tables or materialized views if they fall under the exact owner schema filter.
+// Therefore, it fetches both user-created tables and system tables for that owner.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	q := fmt.Sprintf("SELECT table_name FROM all_tables WHERE owner = '%s'", isi.DbName)
-	rows, err := isi.Db.Query(q)
+	q := "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER(:1)"
+	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get tables: %w", err)
+		return nil, err
 	}
 	defer rows.Close()
-	var tableName string
 	var tables []common.SchemaAndName
+	var tableName string
 	for rows.Next() {
-		rows.Scan(&tableName)
-		tables = append(tables, common.SchemaAndName{Schema: isi.DbName, Name: tableName})
+		err := rows.Scan(&tableName)
+		if err == nil {
+			tables = append(tables, common.SchemaAndName{Schema: isi.DbName, Name: tableName})
+		}
 	}
 	return tables, nil
 }
 
-// GetColumns returns a list of Column objects and names
-func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := fmt.Sprintf(`
-						SELECT 
-						column_name, 
-						data_type, 
-						nullable, 
-						data_default, 
-						data_length, 
-						data_precision, 
-						data_scale,
-						at.typecode,
-						act.elem_type_name,
-						act.length,
-						act.precision,
-						act.scale
-					FROM all_tab_columns atc
-					LEFT JOIN all_types at ON atc.data_type=at.type_name AND atc.owner = at.owner
-					LEFT JOIN all_coll_types act ON atc.data_type=act.type_name AND atc.owner = at.owner
-					WHERE atc.owner = '%s' AND atc.table_name = '%s'
-					`, table.Schema, table.Name)
-	cols, err := isi.Db.Query(q)
-	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+// GetColumnsBatch fetches column metadata simultaneously for multiple tables via ALL_TAB_COLS.
+// It extracts the column data types, nullable bounds, character capacities, precision/scales,
+// and implicitly generated identities (such as AUTO_INCREMENT mappings for IDENTITY_COLUMN='YES').
+// Invisible columns and virtual columns are handled inherently as they appear in ALL_TAB_COLS.
+// Limitations: complex abstract domains (like custom object schemas) may fall back to default mappings.
+func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableColumns, error) {
+	if len(tables) == 0 {
+		return nil, nil
 	}
-	defer cols.Close()
-	colDefs := make(map[string]schema.Column)
-	var colIds []string
-	var colName, dataType string
-	var isNullable string
-	var colDefault, typecode, elementDataType sql.NullString
-	var charMaxLen, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64
-	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &typecode, &elementDataType, &elementCharMaxLen, &elementNumericPrecision, &elementNumericScale)
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	owner := strings.ToUpper(isi.DbName)
+
+	// Create numbered placeholders :2, :3, etc.
+	placeholders := make([]string, len(tables))
+	args := make([]interface{}, len(tables)+1)
+	args[0] = owner
+	for i, name := range tableNames {
+		placeholders[i] = fmt.Sprintf(":%d", i+2)
+		args[i+1] = name
+	}
+
+	var hasIdentityColumn int
+	err := isi.Db.QueryRow("SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'").Scan(&hasIdentityColumn)
+	if err != nil {
+		hasIdentityColumn = 0
+	}
+
+	var q string
+	if hasIdentityColumn > 0 {
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		FROM ALL_TAB_COLS 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
+	} else {
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		FROM ALL_TAB_COLS 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
+	}
+
+	rows, err := isi.Db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	colDefs := make(map[string]map[string]schema.Column)
+	colIds := make(map[string][]string)
+
+	for rows.Next() {
+		var tableName, colName, dataType, isNullable, identityCol string
+		var colDefault sql.NullString
+		var charMaxLen, numericPrecision, numericScale sql.NullInt64
+
+		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &identityCol)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		ignored := schema.Ignored{}
-		for _, c := range constraints[colName] {
-			// Type of constraint definition in oracle C (check constraint on a table)
-			// P (primary key), U (unique key) ,R (referential integrity), V (with check option, on a view)
-			// O (with read only, on a view).
-			// We've already filtered out PRIMARY KEY.
-			switch c {
-			case "C":
-				ignored.Check = true
-			// Oracle 21c introduces a JSON datatype, before that we used to store json as VARCHAR2, CLOB, and BLOB.
-			// If column has check constraints IS JSON(check for J in constraints array as per GetConstraints function) then update src datatype to JSON
-			// so toSpannerTypeInternal function map this datatype to spanner JSON.
-			case "J":
-				dataType = "JSON"
-				charMaxLen.Valid = false
+
+		colId := internal.GenerateColumnId()
+
+		var colAutoGen ddl.AutoGenCol
+		if identityCol == "YES" {
+			colAutoGen = ddl.AutoGenCol{
+				Name:           constants.AUTO_INCREMENT,
+				GenerationType: constants.AUTO_INCREMENT,
 			}
 		}
-		if typecode.Valid && typecode.String == "OBJECT" {
-			dataType = "OBJECT"
-			charMaxLen.Valid = false
-		}
 
-		ignored.Default = colDefault.Valid
-		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
-			Type:    toType(dataType, typecode, elementDataType, charMaxLen, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale),
-			NotNull: strings.ToUpper(isNullable) == "N",
-			Ignored: ignored,
+			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
+			NotNull: isNullable == "N",
+			AutoGen: colAutoGen,
 		}
-		colDefs[colId] = c
-		colIds = append(colIds, colId)
+
+		if _, ok := colDefs[tableName]; !ok {
+			colDefs[tableName] = make(map[string]schema.Column)
+		}
+		colDefs[tableName][colId] = c
+		colIds[tableName] = append(colIds[tableName], colId)
 	}
-	return colDefs, colIds, nil
+
+	result := make(map[string]common.TableColumns)
+	for _, t := range tables {
+		result[t.Name] = common.TableColumns{
+			ColDefs: colDefs[t.Name],
+			ColIds:  colIds[t.Name],
+		}
+	}
+	return result, nil
 }
 
-// GetConstraints returns a list of primary keys and by-column map of
-// other constraints.  Note: we need to preserve ordinal order of
-// columns in primary key constraints.
-// Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
-	q := fmt.Sprintf(`
-					SELECT 
-						k.column_name,
-						t.constraint_type,
-						t.search_condition
-	   				FROM all_constraints t
-       				INNER JOIN all_cons_columns k
-       				ON (k.constraint_name = t.constraint_name) 
-					WHERE t.owner = '%s' AND k.table_name = '%s'
-					`, table.Schema, table.Name)
-	rows, err := isi.Db.Query(q)
+func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
+	// Simple mapping for now
+	if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+	} else if numericPrecision.Valid {
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	} else if charLen.Valid && strings.Contains(dataType, "CHAR") {
+		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	}
+	return schema.Type{Name: dataType}
+}
+
+// GetConstraintsBatch filters ALL_CONSTRAINTS to selectively capture primary keys ('P')
+// and Check constraints ('C'). It filters out basic NOT NULL constraints since they are processed
+// directly via table column definitions. It natively discovers 'IS JSON' check constraints.
+// It does not capture foreign key constraints directly; they are fetched securely in GetForeignKeysBatch.
+// Functional dependencies or advanced check constraints using user-defined functions are unsupported
+// via standard schema mapping.
+func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableConstraints, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	owner := strings.ToUpper(isi.DbName)
+	placeholders := make([]string, len(tables))
+	args := make([]interface{}, len(tables)+1)
+	args[0] = owner
+	for i, name := range tableNames {
+		placeholders[i] = fmt.Sprintf(":%d", i+2)
+		args[i+1] = name
+	}
+
+	q := fmt.Sprintf(`SELECT 
+			k.table_name,
+			k.column_name,
+			t.constraint_type,
+			t.search_condition,
+			t.constraint_name
+		FROM all_constraints t
+		INNER JOIN all_cons_columns k
+		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		WHERE t.owner = :1 AND k.table_name IN (%s)
+		ORDER BY k.table_name, k.position`, strings.Join(placeholders, ","))
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
-	var primaryKeys []string
-	var col, constraint string
+
+	primaryKeys := make(map[string][]string)
+	m := make(map[string]map[string][]string)
+	checkKeys := make(map[string]map[string]schema.CheckConstraint)
+
+	var tableName, col, constraint, constraintName string
 	var condition sql.NullString
-	m := make(map[string][]string)
+
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint, &condition)
+		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if col == "" || constraint == "" {
-			conv.Unexpected("Got empty col or constraint")
 			continue
 		}
-		// P (primary key) constraint in oracle
+
 		switch constraint {
 		case "P":
-			primaryKeys = append(primaryKeys, col)
+			primaryKeys[tableName] = append(primaryKeys[tableName], col)
 		case "C":
-			// If column has IS JSON check constraints then add extra string "J" in constraints array.
-			// condition value example `column_name IS JSON`,null etc.
-			if condition.Valid && strings.Contains(condition.String, "IS JSON") {
-				m[col] = append(m[col], "J")
+			if _, ok := m[tableName]; !ok {
+				m[tableName] = make(map[string][]string)
 			}
-			m[col] = append(m[col], constraint)
+			if condition.Valid && strings.Contains(condition.String, "IS JSON") {
+				m[tableName][col] = append(m[tableName][col], "J")
+			}
+			m[tableName][col] = append(m[tableName][col], constraint)
+
+			if condition.Valid && !strings.Contains(condition.String, "IS NOT NULL") {
+				if _, ok := checkKeys[tableName]; !ok {
+					checkKeys[tableName] = make(map[string]schema.CheckConstraint)
+				}
+				if _, exists := checkKeys[tableName][constraintName]; !exists {
+					checkKeys[tableName][constraintName] = schema.CheckConstraint{
+						Id:     internal.GenerateCheckConstrainstId(),
+						Name:   constraintName,
+						Expr:   "(" + condition.String + ")",
+						ExprId: internal.GenerateExpressionId(),
+					}
+				}
+			}
+
 		default:
-			m[col] = append(m[col], constraint)
+			if _, ok := m[tableName]; !ok {
+				m[tableName] = make(map[string][]string)
+			}
+			m[tableName][col] = append(m[tableName][col], constraint)
 		}
 	}
-	return primaryKeys, nil, m, nil
+
+	result := make(map[string]common.TableConstraints)
+	for _, t := range tables {
+		var checks []schema.CheckConstraint
+		if ckMap, ok := checkKeys[t.Name]; ok {
+			for _, chk := range ckMap {
+				checks = append(checks, chk)
+			}
+		}
+
+		result[t.Name] = common.TableConstraints{
+			PrimaryKeys:       primaryKeys[t.Name],
+			ColumnConstraints: m[t.Name],
+			CheckConstraints:  checks,
+		}
+	}
+	return result, nil
 }
 
-// GetForeignKeys return list all the foreign keys constraints.
-func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := fmt.Sprintf(`
-						SELECT 
-							B.table_name AS ref_table, 
-							A.column_name AS col_name,
-							B.column_name AS ref_col_name,
-							A.constraint_name AS name
-						FROM all_cons_columns A 
-						JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
-						JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
-						WHERE A.table_name='%s' AND A.owner='%s'
-					`, table.Name, isi.DbName)
-	rows, err := isi.Db.Query(q)
+// GetForeignKeysBatch specifically pulls referential constraints by mapping R_CONSTRAINT_NAMEs
+// between referencing and referenced columns using ALL_CONS_COLUMNS joined structurally.
+// Information related to cascading deletes/updates is currently ignored in standard mapping phase.
+// It uniquely captures cross-table multi-column foreign constraints by aggregating based on constraint name.
+func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableForeignKeys, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	owner := strings.ToUpper(isi.DbName)
+	placeholders := make([]string, len(tables))
+	args := make([]interface{}, len(tables)+1)
+	args[0] = owner
+	for i, name := range tableNames {
+		placeholders[i] = fmt.Sprintf(":%d", i+2)
+		args[i+1] = name
+	}
+
+	q := fmt.Sprintf(`SELECT 
+			A.table_name,
+			B.table_name AS ref_table, 
+			A.column_name AS col_name,
+			B.column_name AS ref_col_name,
+			A.constraint_name AS name
+		FROM all_cons_columns A 
+		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
+		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+		WHERE A.owner = :1 AND A.table_name IN (%s)
+		ORDER BY A.table_name, A.position`, strings.Join(placeholders, ","))
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var col, refCol, refTable, fKeyName string
-	fKeys := make(map[string]common.FkConstraint)
-	var keyNames []string
+
+	var tableName, col, refCol, refTable, fKeyName string
+	fKeys := make(map[string]map[string]common.FkConstraint)
 
 	for rows.Next() {
-		err := rows.Scan(&refTable, &col, &refCol, &fKeyName)
+		err := rows.Scan(&tableName, &refTable, &col, &refCol, &fKeyName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := fKeys[fKeyName]; found {
-			fk := fKeys[fKeyName]
+		if _, ok := fKeys[tableName]; !ok {
+			fKeys[tableName] = make(map[string]common.FkConstraint)
+		}
+		if _, found := fKeys[tableName][fKeyName]; found {
+			fk := fKeys[tableName][fKeyName]
 			fk.Cols = append(fk.Cols, col)
 			fk.Refcols = append(fk.Refcols, refCol)
-			fKeys[fKeyName] = fk
+			fKeys[tableName][fKeyName] = fk
 			continue
 		}
-		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}}
-		keyNames = append(keyNames, fKeyName)
+		fKeys[tableName][fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}}
 	}
-	sort.Strings(keyNames)
-	for _, k := range keyNames {
-		foreignKeys = append(foreignKeys,
-			schema.ForeignKey{
-				Id:               internal.GenerateForeignkeyId(),
-				Name:             fKeys[k].Name,
-				ColumnNames:      fKeys[k].Cols,
-				ReferTableName:   fKeys[k].Table,
-				ReferColumnNames: fKeys[k].Refcols})
+
+	result := make(map[string]common.TableForeignKeys)
+	for _, t := range tables {
+		var fks []schema.ForeignKey
+		if tableFkeys, ok := fKeys[t.Name]; ok {
+			for fkName, fkData := range tableFkeys {
+				fks = append(fks, schema.ForeignKey{
+					Id:               internal.GenerateForeignkeyId(),
+					Name:             fkName,
+					ColumnNames:      fkData.Cols,
+					ReferTableName:   fkData.Table,
+					ReferColumnNames: fkData.Refcols,
+				})
+			}
+		}
+		result[t.Name] = common.TableForeignKeys{ForeignKeys: fks}
 	}
-	return foreignKeys, nil
+	return result, nil
 }
 
-// GetIndexes return a list of all indexes for the specified table.
-// Oracle db support several types of index:
-// 1. Normal indexes. (By default, Oracle Database creates B-tree indexes.)
-// 2.Bitmap indexes
-// 3.Partitioned indexes
-// 4. Function-based indexes
-// 5.Domain indexes,
-// we are only considering normal index as of now.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
-	q := fmt.Sprintf(`
-					SELECT 
-						IC.index_name,
-						IC.column_name,
-						IC.column_position, 
-						IC.descend,
-						I.uniqueness, 
-						IE.column_expression, 
-						I.index_type 
-                	FROM  all_ind_columns IC 
-					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name 
-						AND IC.column_position=IE.column_position
-						AND IC.index_owner = IE.index_owner
-                	LEFT JOIN all_indexes I ON IC.index_name = I.index_name
-						 AND I.table_owner = IC.index_owner
-                	WHERE IC.index_owner='%s' AND IC.table_name='%s'
-            		ORDER BY IC.index_name, IC.column_position
-				`, table.Schema, table.Name)
-	rows, err := isi.Db.Query(q)
+// GetIndexesBatch extracts database indices and configuration boundaries from Oracle ALL_INDEXES.
+//
+// WHAT IT FETCHES:
+// - NORMAL: Standard B-Tree indices mapping dynamically down to Spanner B-Tree indices.
+// - UNIQUE: Unique constraint-backed indices.
+// - COMPOSITE: Multi-column indices (automatically handles maintaining the column ORDER/Position).
+// - BITMAP: Standard Bitmap indices are fetched and converted into standard Spanner B-Tree indices.
+// - REVERSE: Reverse key indices are fetched and migrated as standard indices in Spanner.
+//
+// WHAT IT IGNORES / OMITS:
+//   - FUNCTION-BASED INDICES: Automatically bypassed. If the index relies on an expression (e.g. UPPER(name)
+//     which introduces parenthesis parsing '(' and ')'), it skips generation because Spanner native
+//     indices do not support them functionally without explicit generated columns or search indices.
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string][]schema.Index, error) {
+	if len(tables) == 0 {
+		return nil, nil
+	}
+	tableNames := make([]string, len(tables))
+	for i, t := range tables {
+		tableNames[i] = t.Name
+	}
+
+	owner := strings.ToUpper(isi.DbName)
+	placeholders := make([]string, len(tables))
+	args := make([]interface{}, len(tables)+1)
+	args[0] = owner
+	for i, name := range tableNames {
+		placeholders[i] = fmt.Sprintf(":%d", i+2)
+		args[i+1] = name
+	}
+
+	q := fmt.Sprintf(`SELECT 
+			IC.table_name,
+			IC.index_name,
+			IC.column_name,
+			IC.descend,
+			I.uniqueness,
+			IE.column_expression,
+			I.index_type
+		FROM all_ind_columns IC 
+		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		ORDER BY IC.table_name, IC.index_name, IC.column_position`, strings.Join(placeholders, ","))
+
+	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, Unique, indexType string
+
+	colNameIdMap := make(map[string]map[string]string)
+	for tableName, tableCols := range colDefs {
+		colNameIdMap[tableName] = make(map[string]string)
+		for colId, col := range tableCols.ColDefs {
+			colNameIdMap[tableName][col.Name] = colId
+		}
+	}
+
+	indexMap := make(map[string]map[string]schema.Index)
+	ignoredIndexes := make(map[string]map[string]bool)
+
+	var tableName, name, column, unique, indexType string
 	var collation, colexpression sql.NullString
-	indexMap := make(map[string]schema.Index)
-	var indexNames []string
-	ignoredIndex := make(map[string]bool)
-	var indexes []schema.Index
+
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &Unique, &colexpression, &indexType); err != nil {
+		if err := rows.Scan(&tableName, &name, &column, &collation, &unique, &colexpression, &indexType); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		// ingnore all index except normal
-		// UPPER("EMAIL") check for the function call with "(",")"
-		if indexType != "NORMAL" && strings.Contains(colexpression.String, "(") && strings.Contains(colexpression.String, ")") {
-			ignoredIndex[name] = true
+
+		if _, ok := indexMap[tableName]; !ok {
+			indexMap[tableName] = make(map[string]schema.Index)
+			ignoredIndexes[tableName] = make(map[string]bool)
 		}
 
-		//INDEX1_LAST	SYS_NC00009$	1	DESC	NONUNIQUE	"LAST_NAME"	FUNCTION-BASED NORMAL
-		// DESC column make index functional index but as special case we included that
-		// and update column name with column expression
+		if indexType != "NORMAL" && strings.Contains(colexpression.String, "(") && strings.Contains(colexpression.String, ")") {
+			ignoredIndexes[tableName][name] = true
+		}
+
 		if colexpression.Valid && !strings.Contains(colexpression.String, "(") && !strings.Contains(colexpression.String, ")") {
 			column = colexpression.String[1 : len(colexpression.String)-1]
 		}
 
-		if _, found := indexMap[name]; !found {
-			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{
+		if _, found := indexMap[tableName][name]; !found {
+			indexMap[tableName][name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
-				Unique: (Unique == "UNIQUE")}
+				Unique: (unique == "UNIQUE"),
+			}
 		}
-		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{
-			ColId: colNameIdMap[column],
-			Desc:  (collation.Valid && collation.String == "DESC")})
-		indexMap[name] = index
+
+		idx := indexMap[tableName][name]
+		idx.Keys = append(idx.Keys, schema.Key{
+			ColId: colNameIdMap[tableName][column],
+			Desc:  (collation.Valid && collation.String == "DESC"),
+		})
+		indexMap[tableName][name] = idx
 	}
-	for _, k := range indexNames {
-		// only add noraml index
-		if _, found := ignoredIndex[k]; !found {
-			indexes = append(indexes, indexMap[k])
+
+	result := make(map[string][]schema.Index)
+	for _, t := range tables {
+		var indexes []schema.Index
+		if tableIdxs, ok := indexMap[t.Name]; ok {
+			for idxName, idxData := range tableIdxs {
+				if !ignoredIndexes[t.Name][idxName] {
+					indexes = append(indexes, idxData)
+				}
+			}
 		}
+		result[t.Name] = indexes
 	}
-	return indexes, nil
-}
-
-
-
-
-
-func toType(dataType string, typecode, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64) schema.Type {
-	switch {
-	case typecode.Valid && typecode.String == "COLLECTION":
-		return modifyType(elementDataType.String, elementCharMaxLen, elementNumericPrecision, elementNumericScale, true)
-	default:
-		return modifyType(dataType, charLen, numericPrecision, numericScale, false)
-	}
-}
-
-func modifyType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64, isArray bool) schema.Type {
-	var t schema.Type
-	switch {
-	case dataType == "NUMBER" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		t = schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "NUMBER" && numericPrecision.Valid:
-		t = schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	// Oracle get column query return data length for the Number type.
-	case dataType != "NUMBER" && charLen.Valid:
-		t = schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	default:
-		t = schema.Type{Name: dataType}
-	}
-	if isArray {
-		t.ArrayBounds = []int64{-1}
-		return t
-	}
-	return t
+	return result, nil
 }
 
 // buildVals constructs []sql.RawBytes value containers to scan row
@@ -481,3 +607,6 @@ func valsToStrings(vals []sql.RawBytes) []string {
 	}
 	return s
 }
+
+var TimestampReg = regexp.MustCompile(`^TIMESTAMP(\(\d+\))?(\s+WITH(\s+LOCAL)?\s+TIME\s+ZONE)?$`)
+var IntervalReg = regexp.MustCompile(`^INTERVAL\s+(YEAR(\(\d+\))?\s+TO\s+MONTH|DAY(\(\d+\))?\s+TO\s+SECOND(\(\d+\))?)$`)
