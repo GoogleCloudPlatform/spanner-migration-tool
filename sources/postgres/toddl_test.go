@@ -79,17 +79,73 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in int8 to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
+	if errCheck == nil {
+		t.Errorf("Error in int8 to numeric conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "serial8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in serial8 to default conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int4 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
+	if errCheck == nil {
+		t.Errorf("Error in int4 to numeric conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in int4 to float64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in int to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "serial4", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in serial4 to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int2 to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "NUMERIC")
+	if errCheck == nil {
+		t.Errorf("Error in int2 to numeric conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT32")
+	if errCheck == nil {
+		t.Errorf("Error in int2 to float32 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "int2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in int2 to float64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "serial2", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in serial2 to default conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in numeric to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "decimal", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in decimal to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{39}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in numeric to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{38, 10}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in numeric to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{38, 0}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in numeric to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "serial", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
@@ -131,33 +187,121 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in oid to float64 conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "oid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in oid to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "oid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in oid to string conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uuid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
 		t.Errorf("Error in uuid to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uuid", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in uuid to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "money", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in money to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "money", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in money to default conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in bit to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in bit to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varbit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in varbit to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit varying", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in bit varying to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in time to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in time to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time without time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in time without time zone to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timetz", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in timetz to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timetz", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in timetz to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time with time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in time with time zone to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time with time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in time with time zone to string conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "interval", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in interval to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "interval", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in interval to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in citext to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in citext to default conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in inet to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in inet to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "cidr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in cidr to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "cidr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in cidr to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in macaddr to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in macaddr to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in macaddr8 to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in macaddr8 to string conversion")
 	}
 }
 
