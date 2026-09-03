@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -47,9 +46,9 @@ var (
 )
 
 type SpannerRecord struct {
-	Date_t      spanner.NullDate
-	Float_t     float64
-	Int_t       int64
+	Date_t      spanner.NullTime
+	Float_t     string
+	Int_t       string
 	Numeric_t   string
 	String_t    string
 	Timestamp_t string
@@ -160,16 +159,16 @@ func checkResults(t *testing.T, dbURI string) {
 
 func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Client) {
 	wantRecord := SpannerRecord{
-		Date_t:      spanner.NullDate{Valid: true, Date: civil.Date{Day: 18, Year: 2022, Month: 01}},
-		Float_t:     float64(1234.56789),
-		Int_t:       int64(42),
+		Date_t:      spanner.NullTime{Valid: true, Time: time.Date(2022, 1, 18, 0, 0, 0, 0, time.UTC)},
+		Float_t:     "1234.567890000",
+		Int_t:       "42.000000000",
 		Numeric_t:   "42.000000000",
 		String_t:    "some varchar data",
 		Timestamp_t: "2022-01-19T11:27:18.262Z",
 	}
-	var date spanner.NullDate
-	var floatVal float64
-	var intVal int64
+	var date spanner.NullTime
+	var floatVal big.Rat
+	var intVal big.Rat
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal spanner.NullTime
@@ -190,8 +189,8 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		fmt.Fprintf(os.Stdout, "%v,%v,%v,%v,%v,%v", date, floatVal, intVal, numericVal, stringVal, timeVal)
 		gotRecord := SpannerRecord{
 			Date_t:      date,
-			Float_t:     floatVal,
-			Int_t:       intVal,
+			Float_t:     floatVal.FloatString(9),
+			Int_t:       intVal.FloatString(9),
 			Numeric_t:   numericVal.FloatString(9),
 			String_t:    stringVal,
 			Timestamp_t: timeVal.String(),

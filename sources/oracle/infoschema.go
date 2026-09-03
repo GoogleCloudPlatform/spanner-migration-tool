@@ -187,10 +187,24 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		args[i+1] = name
 	}
 
-	q := fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+	var hasIdentityColumn int
+	err := isi.Db.QueryRow("SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'").Scan(&hasIdentityColumn)
+	if err != nil {
+		hasIdentityColumn = 0
+	}
+
+	var q string
+	if hasIdentityColumn > 0 {
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
+	} else {
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		FROM ALL_TAB_COLS 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
+	}
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {

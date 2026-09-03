@@ -76,6 +76,12 @@ func TestGenerateSrcSchema(t *testing.T) {
 			rows:  [][]driver.Value{{"TEST_TABLE"}},
 		},
 		{
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'`),
+			args:  []driver.Value{},
+			cols:  []string{"COUNT"},
+			rows:  [][]driver.Value{{1}},
+		},
+		{
 			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
