@@ -639,3 +639,23 @@ func newFalsePtr() *bool {
 	temp := false
 	return &temp
 }
+
+func TestGetIdentityColumns(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.my_table"},
+			cols:  []string{"attname"},
+			rows: [][]driver.Value{
+				{"id"},
+				{"user_id"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{Db: db}
+
+	identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
+	assert.Equal(t, []string{"id", "user_id"}, identityCols)
+}
