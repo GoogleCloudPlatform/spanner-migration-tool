@@ -243,6 +243,10 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"attname"},
 		},
 		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 AND a.attidentity IN (.+)",
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -535,6 +539,10 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 AND a.attidentity IN (.+)",
 			cols:  []string{"attname"},
 		},
 		{

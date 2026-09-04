@@ -299,7 +299,12 @@ func (isi InfoSchemaImpl) getIdentityColumns(conv *internal.Conv, table common.S
 		// Ignore error for backward compatibility: 'attidentity' was introduced in PostgreSQL 10
 		// to support SQL-standard identity columns (GENERATED ALWAYS / BY DEFAULT AS IDENTITY).
 		// In PostgreSQL 9.6 and older, this query fails because the 'attidentity' column does not exist.
-		// Since older versions do not have identity columns (they use SERIAL/sequences instead)
+		// Since older versions do not have identity columns (they use SERIAL/sequences instead), we ignore it.
+		if strings.Contains(err.Error(), "attidentity") {
+			return []string{}
+		}
+
+		conv.Unexpected(fmt.Sprintf("Couldn't get information about identity columns for table %s.%s: %s", table.Schema, table.Name, err))
 		return []string{}
 	}
 	defer identityColsResult.Close()
