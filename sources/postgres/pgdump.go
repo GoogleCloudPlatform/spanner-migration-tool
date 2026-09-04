@@ -921,6 +921,12 @@ func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]sch
 			cd.NotNull = true
 		case pg_query.ConstrType_CONSTR_DEFAULT:
 			cd.Ignored.Default = true
+		case pg_query.ConstrType_CONSTR_IDENTITY:
+			cd.AutoGen = ddl.AutoGenCol{
+				Name:           constants.SERIAL,
+				GenerationType: constants.SERIAL,
+			}
+			cd.Ignored.Default = true
 		}
 		colDef[cid] = cd
 	}

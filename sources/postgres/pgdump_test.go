@@ -67,6 +67,21 @@ func TestProcessPgDump_Serial(t *testing.T) {
 			},
 		},
 		{
+			name: "Identity column",
+			input: "CREATE TABLE public.identity_test (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"identity_test": ddl.CreateTable{
+					Name:   "identity_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
 			name: "Bigserial column",
 			input: "CREATE TABLE public.serial_test (id bigserial NOT NULL PRIMARY KEY, col character varying(255));",
 			expectedSchema: map[string]ddl.CreateTable{
