@@ -78,6 +78,11 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.user"},
 			cols:  []string{"attname"},
@@ -85,11 +90,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "user"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"name", "text", nil, "NO", nil, nil, nil, nil},
-				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
+				{"user_id", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"name", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"ref", "bigint", nil, "YES", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -115,6 +120,11 @@ func TestProcessSchema(t *testing.T) {
 				{"public", "user", "userid", "user_id", "fk_test3", constants.FK_SET_NULL, constants.FK_RESTRICT}},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.cart"},
 			cols:  []string{"attname"},
@@ -122,11 +132,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"productid", "text", nil, "NO", nil, nil, nil, nil},
-				{"userid", "text", nil, "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
+				{"productid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"userid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -153,6 +163,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.product"},
 			cols:  []string{"attname"},
@@ -160,10 +175,10 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "product"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
+				{"product_id", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"product_name", "text", nil, "NO", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -186,6 +201,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
@@ -194,29 +214,29 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"id", "bigint", nil, "NO", "nextval('public.test_id_seq'::regclass)", nil, 64, 0},
-				{"aint", "ARRAY", "integer", "YES", nil, nil, nil, nil},
-				{"atext", "ARRAY", "text", "YES", nil, nil, nil, nil},
-				{"b", "boolean", nil, "YES", nil, nil, nil, nil},
-				{"bs", "bigint", nil, "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0},
-				{"by", "bytea", nil, "YES", nil, nil, nil, nil},
-				{"c", "character", nil, "YES", nil, 1, nil, nil},
-				{"c_8", "character", nil, "YES", nil, 8, nil, nil},
-				{"d", "date", nil, "YES", nil, nil, nil, nil},
-				{"f8", "double precision", nil, "YES", nil, nil, 53, nil},
-				{"f4", "real", nil, "YES", nil, nil, 24, nil},
-				{"i8", "bigint", nil, "YES", nil, nil, 64, 0},
-				{"i4", "integer", nil, "YES", nil, nil, 32, 0},
-				{"i2", "smallint", nil, "YES", nil, nil, 16, 0},
-				{"num", "numeric", nil, "YES", nil, nil, nil, nil},
-				{"s", "integer", nil, "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0},
-				{"ts", "timestamp without time zone", nil, "YES", nil, nil, nil, nil},
-				{"tz", "timestamp with time zone", nil, "YES", nil, nil, nil, nil},
-				{"txt", "text", nil, "NO", nil, nil, nil, nil},
-				{"vc", "character varying", nil, "YES", nil, nil, nil, nil},
-				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
+				{"id", "bigint", nil, "NO", "nextval('public.test_id_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"aint", "ARRAY", "integer", "YES", nil, nil, nil, nil, nil, nil},
+				{"atext", "ARRAY", "text", "YES", nil, nil, nil, nil, nil, nil},
+				{"b", "boolean", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"bs", "bigint", nil, "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"by", "bytea", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"c", "character", nil, "YES", nil, 1, nil, nil, nil, nil},
+				{"c_8", "character", nil, "YES", nil, 8, nil, nil, nil, nil},
+				{"d", "date", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"f8", "double precision", nil, "YES", nil, nil, 53, nil, nil, nil},
+				{"f4", "real", nil, "YES", nil, nil, 24, nil, nil, nil},
+				{"i8", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil},
+				{"i4", "integer", nil, "YES", nil, nil, 32, 0, nil, nil},
+				{"i2", "smallint", nil, "YES", nil, nil, 16, 0, nil, nil},
+				{"num", "numeric", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"s", "integer", nil, "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
+				{"ts", "timestamp without time zone", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"tz", "timestamp with time zone", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"txt", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"vc", "character varying", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -238,6 +258,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test_ref"},
 			cols:  []string{"attname"},
@@ -245,11 +270,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
-				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
-				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
+				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0, nil, nil},
+				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"abc", "text", nil, "NO", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -533,6 +558,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
@@ -540,11 +570,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"a", "text", nil, "NO", nil, nil, nil, nil},
-				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
-				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
+				{"a", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"b", "double precision", nil, "YES", nil, nil, 53, nil, nil, nil},
+				{"c", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{

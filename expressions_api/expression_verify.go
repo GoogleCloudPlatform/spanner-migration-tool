@@ -72,6 +72,9 @@ func NewDDLVerifierImpl(ctx context.Context, project string, instance string) (*
 }
 
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+	if len(verifyExpressionsInput.ExpressionDetailList) == 0 {
+		return internal.VerifyExpressionsOutput{}
+	}
 	err := ev.validateRequest(verifyExpressionsInput)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}

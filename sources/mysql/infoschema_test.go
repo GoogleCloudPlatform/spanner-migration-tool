@@ -74,7 +74,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"test", "s", "set", "set", "YES", nil, nil, nil, nil, nil, nil},
 				{"test", "txt", "text", "text", "NO", nil, nil, nil, nil, nil, nil},
 				{"test", "b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil, nil},
-				{"test", "bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"test", "bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq')", nil, 64, 0, nil, nil},
 				{"test", "bl", "blob", "blob", "YES", nil, nil, nil, nil, nil, nil},
 				{"test", "c", "char", "char(1)", "YES", nil, 1, nil, nil, nil, nil},
 				{"test", "c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil, nil},
@@ -85,7 +85,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"test", "i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil, nil},
 				{"test", "i4", "integer", "integer", "YES", nil, nil, 32, 0, nil, "auto_increment"},
 				{"test", "i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil, nil},
-				{"test", "si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
+				{"test", "si", "integer", "integer", "NO", "nextval('test11_s_seq')", nil, 32, 0, nil, nil},
 				{"test", "ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil, nil},
 				{"test", "tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil, nil},
 				{"test", "vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil, nil},
@@ -184,7 +184,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6", "bu"}, ColDefs: map[string]schema.Column{
 			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_bs_seq'::regclass)"}}},
+			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_bs_seq')"}}},
 			"c":   schema.Column{Name: "c", Type: schema.Type{Name: "char", Mods: []int64{1}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"c8":  schema.Column{Name: "c8", Type: schema.Type{Name: "char", Mods: []int64{8}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"d":   schema.Column{Name: "d", Type: schema.Type{Name: "date", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -196,7 +196,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_s_seq'::regclass)"}}},
+			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "", Statement: "nextval('test11_s_seq')"}}},
 			"ts":  schema.Column{Name: "ts", Type: schema.Type{Name: "datetime", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -507,8 +507,8 @@ func TestProcessData_MultiCol(t *testing.T) {
 	commonInfoSchema := common.InfoSchemaImpl{}
 	commonInfoSchema.ProcessData(conv, isi, internal.AdditionalDataAttributes{})
 	assert.Equal(t, []spannerData{
-		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
-		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}},
+		{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{"cat", "0"}},
+		{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{"dog", "-9223372036854775808"}},
 	},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())

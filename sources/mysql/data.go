@@ -74,6 +74,9 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
+		if spColDef.GeneratedColumn.IsPresent {
+			continue // Spanner will automatically compute generated columns.
+		}
 		spCol := spColDef.Name
 
 		var x interface{}
