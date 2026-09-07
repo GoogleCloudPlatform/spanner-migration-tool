@@ -23,6 +23,7 @@ import (
 	collectorCommon "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/common"
 	common "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/oracle"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -151,6 +152,11 @@ func getInfoSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (common.Inf
 		return mysql.InfoSchemaImpl{
 			Db:     db,
 			DbName: sourceProfile.Conn.Mysql.Db,
+		}, nil
+	case constants.ORACLE:
+		return oracle.InfoSchemaImpl{
+			Db:     db,
+			DbName: sourceProfile.Conn.Oracle.Db,
 		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)

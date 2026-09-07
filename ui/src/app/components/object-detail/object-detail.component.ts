@@ -96,7 +96,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           this.supportsDefaultAndSequence = defaultAndSequenceSupportedDbs.includes(this.srcDbName)
           this.supportsGeneratedColumn = generatedColSupportedDbs.includes(this.srcDbName)
           this.supportsAutoGen = identitySupportedDbs.includes(this.srcDbName)
-          if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
+          if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres || this.srcDbName == SourceDbNames.Oracle) {
             this.foreignKeyActionsSupported = true
           }
           this.spTablesForInterleaving = Object.values(this.conv.SpSchema).map((tableSchema) => ({
