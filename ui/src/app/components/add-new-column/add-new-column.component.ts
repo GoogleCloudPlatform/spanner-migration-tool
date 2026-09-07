@@ -33,7 +33,7 @@ export class AddNewColumnComponent implements OnInit {
   }
   processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
-  autoGenSupportedDbs: string[] = ['MySQL']
+  autoGenSupportedDbs: string[] = ['MySQL', 'Oracle']
   autGenSupported: boolean = false
   constructor(
     private formBuilder: FormBuilder,
