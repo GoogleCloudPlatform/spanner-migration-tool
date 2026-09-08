@@ -148,9 +148,12 @@ func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *inter
 	if err != nil {
 		return fmt.Errorf("error trying create ddl verifier: %v", err)
 	}
-	schemaToSpanner := common.SchemaToSpannerImpl{
-		DdlV:                           ddlVerifier,
-		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	var schemaToSpanner common.SchemaToSpannerImpl
+	if expressionVerificationAccessor != nil {
+		schemaToSpanner.ExpressionVerificationAccessor = expressionVerificationAccessor
+	}
+	if ddlVerifier != nil {
+		schemaToSpanner.DdlV = ddlVerifier
 	}
 	err = processSchema.ProcessSchema(conv, sp, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, commonInfoSchema)
 	if err != nil {
