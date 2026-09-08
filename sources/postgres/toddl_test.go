@@ -216,15 +216,15 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in bit to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in bit to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varbit", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in varbit to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit varying", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in bit varying to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -232,15 +232,15 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in time to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in time to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time without time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in time without time zone to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timetz", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in timetz to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timetz", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -248,7 +248,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in timetz to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time with time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in time with time zone to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time with time zone", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -260,7 +260,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in interval to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "interval", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in interval to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -268,7 +268,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in citext to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in citext to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -276,11 +276,11 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in inet to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in inet to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "cidr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in cidr to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "cidr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -288,7 +288,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in cidr to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in macaddr to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
@@ -296,7 +296,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in macaddr to string conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in macaddr8 to default conversion")
 	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "macaddr8", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")

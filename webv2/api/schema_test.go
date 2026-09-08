@@ -190,12 +190,12 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.String, DisplayT: ddl.String},
 			{T: ddl.UUID, DisplayT: ddl.UUID}},
 		"varbit": {
-			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.Bytes, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Bytes},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"citext": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bit": {
-			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.Bytes, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Bytes},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
