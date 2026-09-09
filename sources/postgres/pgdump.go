@@ -949,20 +949,21 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 		case pg_query.ConstrType_CONSTR_NOTNULL:
 			cd.NotNull = true
 		case pg_query.ConstrType_CONSTR_DEFAULT:
-			cd.Ignored.Default = true
 			if c.rawExpr != "" {
 				cd.DefaultValue.IsPresent = true
 				cd.DefaultValue.Value = ddl.Expression{
 					ExpressionId: c.exprId,
 					Statement:    common.SanitizeExpressionsValue(c.rawExpr, cd.Type.Name, false),
 				}
+			} else {
+				cd.Ignored.Default = true
 			}
 		case pg_query.ConstrType_CONSTR_GENERATED:
 			if c.rawExpr != "" {
 				cd.GeneratedColumn.IsPresent = true
 				cd.GeneratedColumn.Value = ddl.Expression{
 					ExpressionId: c.exprId,
-					Statement:    common.SanitizeExpressionsValue(c.rawExpr, cd.Type.Name, false),
+					Statement:    common.SanitizeExpressionsValue(c.rawExpr, cd.Type.Name, true),
 				}
 				// GeneratedWhen might specify STORED, we map this to Stored.
 				// For now, always set to Stored as PostgreSQL generated columns are always STORED.

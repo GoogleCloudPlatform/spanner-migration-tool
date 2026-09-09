@@ -136,7 +136,9 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"productid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
 				{"userid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
-				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil}},
+				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil},
+				{"gen_col", "text", nil, "YES", nil, nil, nil, nil, "ALWAYS", "((productid || userid))"},
+			},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -312,11 +314,12 @@ func TestProcessSchema(t *testing.T) {
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}},
 		"cart": ddl.CreateTable{
 			Name:   "cart",
-			ColIds: []string{"productid", "userid", "quantity"},
+			ColIds: []string{"productid", "userid", "quantity", "gen_col"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+				"gen_col":   ddl.ColumnDef{Name: "gen_col", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Order: 1}, ddl.IndexKey{ColId: "userid", Order: 2}},
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
@@ -377,10 +380,9 @@ func TestProcessSchema(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"id":  []internal.SchemaIssue{internal.IdentitySkipRange},
 		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
-		"bs":    []internal.SchemaIssue{internal.DefaultValue},
 		"i4":    []internal.SchemaIssue{internal.Widened},
 		"i2":    []internal.SchemaIssue{internal.Widened},
-		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"s":     []internal.SchemaIssue{internal.Widened},
 		"ts":    []internal.SchemaIssue{internal.Timestamp},
 		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},
 	}
@@ -414,7 +416,7 @@ func TestProcessData(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1": ddl.ColumnDef{Name: "a_a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": ddl.ColumnDef{Name: "Ab", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
-				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true}},
 			}},
 		schema.Table{
 			Name:   "te st",
@@ -437,8 +439,8 @@ func TestProcessData(t *testing.T) {
 
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab"}, vals: []interface{}{float64(42.3), int64(3)}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab"}, vals: []interface{}{float64(6.6), int64(22)}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))

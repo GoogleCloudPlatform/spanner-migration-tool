@@ -290,7 +290,6 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn
 		
 		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
 		var defaultVal ddl.DefaultValue
@@ -302,6 +301,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 					Statement:    common.SanitizeExpressionsValue(colDefault.String, ty.Name, false),
 				},
 			}
+		} else if colDefault.Valid && !isSerialColumn {
+			ignored.Default = true
 		}
 		var generatedCol ddl.GeneratedColumn
 		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid && generationExpression.String != "" {
@@ -310,7 +311,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				Type:      ddl.GeneratedColStored,
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    common.SanitizeExpressionsValue(generationExpression.String, ty.Name, false),
+					Statement:    common.SanitizeExpressionsValue(generationExpression.String, ty.Name, true),
 				},
 			}
 		}

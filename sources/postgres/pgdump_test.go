@@ -689,7 +689,7 @@ func TestProcessPgDump(t *testing.T) {
 						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "('b || c')"}, Type: ddl.GeneratedColStored}},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(b || c)"}, Type: ddl.GeneratedColStored}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
 					Indexes:     []ddl.CreateIndex{},
