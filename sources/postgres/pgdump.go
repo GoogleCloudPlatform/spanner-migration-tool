@@ -965,8 +965,9 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 					ExpressionId: c.exprId,
 					Statement:    common.SanitizeExpressionsValue(c.rawExpr, cd.Type.Name, true),
 				}
-				// GeneratedWhen might specify STORED, we map this to Stored.
-				// For now, always set to Stored as PostgreSQL generated columns are always STORED.
+				// Note: PostgreSQL 18 introduced VIRTUAL generated columns, but our parser
+				// (pg_query_go v6) lacks PG 18 syntax support and throws an error on VIRTUAL.
+				// Defaulting to STORED until the parser is updated.
 				cd.GeneratedColumn.Type = ddl.GeneratedColStored
 			}
 		}
