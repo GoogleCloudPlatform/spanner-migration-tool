@@ -207,7 +207,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -223,7 +223,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -363,7 +363,7 @@ func TestProcessPgDump(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"id":          {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"integer_col": {Name: "integer_col", T: ddl.Type{Name: ddl.Int64}},
-						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}},
+						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'NEW'"}}},
 					},
 					PrimaryKeys:      []ddl.IndexKey{{ColId: "id", Order: 1}},
 					CheckConstraints: []ddl.CheckConstraint{},
@@ -671,6 +671,50 @@ func TestProcessPgDump(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
+		},
+		{
+			name: "Create table with generated column",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text," +
+				"d text GENERATED ALWAYS AS ((b || c)) STORED," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c", "d"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(b || c)"}, Type: ddl.GeneratedColStored}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
+		},
+		{
+			name: "Create table with default value",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text DEFAULT 'xyz'::text," +
+				"c text," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'xyz'"}}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Multiple statements on one line",
@@ -1775,17 +1819,71 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 
 func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("RefreshSpannerClient", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ctx := context.Background()
 	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
 		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+	
+	mockDDLVerifier := &expressions_api.MockDDLVerifier{
+		GetSourceExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+			expressionDetails := []internal.ExpressionDetail{}
+			for _, tableId := range tableIds {
+				srcTable := conv.SrcSchema[tableId]
+				for _, srcColId := range srcTable.ColIds {
+					srcCol := srcTable.ColDefs[srcColId]
+					var expression ddl.Expression
+					var expressionType string
+					isExpressionAvailable := false
+					if srcCol.DefaultValue.IsPresent {
+						expression = srcCol.DefaultValue.Value
+						isExpressionAvailable = true
+						expressionType = constants.DEFAULT_EXPRESSION
+					} else if srcCol.GeneratedColumn.IsPresent {
+						expression = srcCol.GeneratedColumn.Value
+						isExpressionAvailable = true
+						if srcCol.GeneratedColumn.Type == ddl.GeneratedColStored {
+							expressionType = constants.STORED_GENERATED
+						} else {
+							expressionType = constants.VIRTUAL_GENERATED
+						}
+					}
+					if isExpressionAvailable {
+						expressionDetails = append(expressionDetails, internal.ExpressionDetail{
+							Expression:   expression.Statement,
+							ExpressionId: expression.ExpressionId,
+							Type:         expressionType,
+							Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
+						})
+					}
+				}
+			}
+			return expressionDetails
+		},
+		VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+			outputs := []internal.ExpressionVerificationOutput{}
+			for _, ed := range expressionDetails {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result:           true,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: outputs}, nil
+		},
+		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}, nil
+		},
+	}
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
@@ -1808,8 +1906,59 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+	
+	mockDDLVerifier := &expressions_api.MockDDLVerifier{
+		GetSourceExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+			expressionDetails := []internal.ExpressionDetail{}
+			for _, tableId := range tableIds {
+				srcTable := conv.SrcSchema[tableId]
+				for _, srcColId := range srcTable.ColIds {
+					srcCol := srcTable.ColDefs[srcColId]
+					var expression ddl.Expression
+					var expressionType string
+					isExpressionAvailable := false
+					if srcCol.DefaultValue.IsPresent {
+						expression = srcCol.DefaultValue.Value
+						isExpressionAvailable = true
+						expressionType = constants.DEFAULT_EXPRESSION
+					} else if srcCol.GeneratedColumn.IsPresent {
+						expression = srcCol.GeneratedColumn.Value
+						isExpressionAvailable = true
+						if srcCol.GeneratedColumn.Type == ddl.GeneratedColStored {
+							expressionType = constants.STORED_GENERATED
+						} else {
+							expressionType = constants.VIRTUAL_GENERATED
+						}
+					}
+					if isExpressionAvailable {
+						expressionDetails = append(expressionDetails, internal.ExpressionDetail{
+							Expression:   expression.Statement,
+							ExpressionId: expression.ExpressionId,
+							Type:         expressionType,
+							Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
+						})
+					}
+				}
+			}
+			return expressionDetails
+		},
+		VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+			outputs := []internal.ExpressionVerificationOutput{}
+			for _, ed := range expressionDetails {
+				outputs = append(outputs, internal.ExpressionVerificationOutput{
+					Result:           true,
+					ExpressionDetail: ed,
+				})
+			}
+			return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: outputs}, nil
+		},
+		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}, nil
+		},
+	}
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(

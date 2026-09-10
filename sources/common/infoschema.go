@@ -16,16 +16,19 @@ package common
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
-
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
+
+var postgresCastRegex = regexp.MustCompile(constants.POSTGRES_CAST_REGEX)
 
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
 
@@ -37,7 +40,6 @@ type InfoSchema interface {
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
-
 }
 
 // StandardInfoSchema supports per-table fetching of metadata.
@@ -208,7 +210,7 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 			cols := tableCols[t.Name]
 			constraints := tableConstraints[t.Name]
 			fks := tableForeignKeys[t.Name]
-			
+
 			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys)
 			conv.SrcSchema[tableObj.Id] = tableObj
 		}
@@ -348,7 +350,6 @@ func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schem
 		ForeignKeys:      foreignKeys}
 }
 
-
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.
 func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
@@ -390,6 +391,10 @@ func SanitizeExpressionsValue(expressionValue string, ty string, generated bool)
 	expressionValue = strings.ReplaceAll(expressionValue, "_utf8mb4", "")
 	expressionValue = strings.ReplaceAll(expressionValue, "\\\\", "\\")
 	expressionValue = strings.ReplaceAll(expressionValue, "\\'", "'")
+
+	// Strip PostgreSQL type casts like ::text or ::character varying(50)
+	expressionValue = postgresCastRegex.ReplaceAllString(expressionValue, "")
+
 	if !generated && stringType && !strings.HasPrefix(expressionValue, "'") && !strings.HasSuffix(expressionValue, "'") {
 		expressionValue = "'" + expressionValue + "'"
 	}

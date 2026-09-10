@@ -113,4 +113,8 @@ const (
 
 	// Regex for matching database collation
 	DB_COLLATION_REGEX = `(_[a-zA-Z0-9]+\\|\\)`
+
+	// Regex to find and remove PostgreSQL type tags (like "::text" or "::character varying(50)")
+	// from default values so that they are compatible with GoogleSQL.
+	POSTGRES_CAST_REGEX = `::[a-zA-Z0-9_ ]+(?:\([0-9, ]+\))?`
 )

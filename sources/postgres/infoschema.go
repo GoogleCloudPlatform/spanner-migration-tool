@@ -163,6 +163,9 @@ func convertSQLRow(conv *internal.Conv, tableId string, colIds []string, srcSche
 		if !ok1 || !ok2 {
 			return nil, nil, fmt.Errorf("data conversion: can't find schema for column id %s of table %s", colId, conv.SrcSchema[tableId].Name)
 		}
+		if spCd.GeneratedColumn.IsPresent {
+			continue // Spanner will automatically compute generated columns.
+		}
 		if srcVals[i] == nil {
 			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
 		}
@@ -238,11 +241,25 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
+	qCheck := `SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema' AND table_name = 'columns' AND column_name = 'generation_expression'`
+	var colCheck string
+	errCheck := isi.Db.QueryRow(qCheck).Scan(&colCheck)
+	hasGenerationExpression := (errCheck == nil && colCheck == "generation_expression")
+
+	var q string
+	if hasGenerationExpression {
+		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.is_generated, c.generation_expression
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+	} else {
+		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, 'NEVER', NULL
+              FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
+                 ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
+                     = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
+              where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+	}
 	serialCols := isi.getSerialColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
@@ -252,10 +269,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	colDefs := make(map[string]schema.Column)
 	var colIds []string
 	var colName, dataType, isNullable string
-	var colDefault, elementDataType sql.NullString
+	var colDefault, elementDataType, isGenerated, generationExpression sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &isGenerated, &generationExpression)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -273,15 +290,42 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn
+		
+		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
+		var defaultVal ddl.DefaultValue
+		if colDefault.Valid && !isSerialColumn && colDefault.String != "" {
+			defaultVal = ddl.DefaultValue{
+				IsPresent: true,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(colDefault.String, ty.Name, false),
+				},
+			}
+		} else if colDefault.Valid && !isSerialColumn {
+			ignored.Default = true
+		}
+		var generatedCol ddl.GeneratedColumn
+		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid && generationExpression.String != "" {
+			generatedCol = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      ddl.GeneratedColStored,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(generationExpression.String, ty.Name, true),
+				},
+			}
+		}
+
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: toAutoGen(isSerialColumn),
+			Id:              colId,
+			Name:            colName,
+			Type:            ty,
+			NotNull:         common.ToNotNull(conv, isNullable),
+			Ignored:         ignored,
+			AutoGen:         toAutoGen(isSerialColumn),
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedCol,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
