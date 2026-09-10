@@ -244,6 +244,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
 	serialCols := isi.getSerialColumns(conv, table)
+	identityCols := isi.getIdentityColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -273,7 +274,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn
+		isIdentityColumn := slices.Contains(identityCols, colName)
+		ignored.Default = colDefault.Valid && !isSerialColumn && !isIdentityColumn
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
@@ -281,12 +283,38 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
-			AutoGen: toAutoGen(isSerialColumn),
+			AutoGen: toAutoGen(isSerialColumn || isIdentityColumn),
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+func (isi InfoSchemaImpl) getIdentityColumns(conv *internal.Conv, table common.SchemaAndName) []string {
+	identityColsQuery := `SELECT a.attname FROM pg_attribute a
+        WHERE attrelid = $1::regclass AND attnum > 0 AND a.attidentity IN ('a', 'd');`
+	identityColsResult, err := isi.Db.Query(identityColsQuery, table.Schema+"."+table.Name)
+	if err != nil {
+		// Ignore error for backward compatibility: 'attidentity' was introduced in PostgreSQL 10
+		// to support SQL-standard identity columns (GENERATED ALWAYS / BY DEFAULT AS IDENTITY).
+		// In PostgreSQL 9.6 and older, this query fails because the 'attidentity' column does not exist.
+		// Since older versions do not have identity columns (they use SERIAL/sequences instead), we ignore it.
+		if strings.Contains(err.Error(), "attidentity") {
+			return []string{}
+		}
+
+		conv.Unexpected(fmt.Sprintf("Couldn't get information about identity columns for table %s.%s: %s", table.Schema, table.Name, err))
+		return []string{}
+	}
+	defer identityColsResult.Close()
+	identityCols := []string{}
+	var identityColName string
+	for identityColsResult.Next() {
+		identityColsResult.Scan(&identityColName)
+		identityCols = append(identityCols, identityColName)
+	}
+	return identityCols
 }
 
 func (isi InfoSchemaImpl) getSerialColumns(conv *internal.Conv, table common.SchemaAndName) []string {
