@@ -15,6 +15,7 @@
 package ddl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -1769,4 +1770,79 @@ func TestPGPrintGeneratedColumn(t *testing.T) {
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.gc.PGPrintGeneratedColumn(tc.ty), tc.desc)
 	}
+}
+
+func TestGetDDL_Neo4jPropertyGraph(t *testing.T) {
+	s := Schema{
+		"t1": CreateTable{
+			Name:   "CustomNode",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
+			ColDefs: map[string]ColumnDef{
+				"c1": {Name: "node_id", Id: "c1", T: Type{Name: String}},
+				"c2": {Name: "node_label", Id: "c2", T: Type{Name: String}},
+				"c3": {Name: "node_props", Id: "c3", T: Type{Name: JSON}},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "c1"}},
+		},
+		"t2": CreateTable{
+			Name:   "CustomEdge",
+			Id:     "t2",
+			ColIds: []string{"c4", "c5", "c6", "c7", "c8"},
+			ColDefs: map[string]ColumnDef{
+				"c4": {Name: "node_id", Id: "c4", T: Type{Name: String}},
+				"c5": {Name: "node_dest_id", Id: "c5", T: Type{Name: String}},
+				"c6": {Name: "edge_unique_id", Id: "c6", T: Type{Name: String}},
+				"c7": {Name: "edge_label", Id: "c7", T: Type{Name: String}},
+				"c8": {Name: "edge_props", Id: "c8", T: Type{Name: JSON}},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "c4"}, {ColId: "c5"}, {ColId: "c6"}},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+		},
+	}
+
+	config := Config{
+		Tables:      true,
+		ForeignKeys: false,
+		ProtectIds:  true,
+		Source:      "neo4j",
+	}
+
+	ddl := GetDDL(config, s, make(map[string]Sequence), DatabaseOptions{})
+
+	foundGraph := false
+	expectedGraphStatement := "CREATE OR REPLACE PROPERTY GRAPH Neo4jGraph\n" +
+		"  NODE TABLES (\n" +
+		"    `CustomNode`\n" +
+		"      DYNAMIC LABEL (`node_label`)\n" +
+		"      DYNAMIC PROPERTIES (`node_props`)\n" +
+		"  )\n" +
+		"  EDGE TABLES (\n" +
+		"    `CustomEdge`\n" +
+		"      SOURCE KEY (`node_id`) REFERENCES `CustomNode` (`node_id`)\n" +
+		"      DESTINATION KEY (`node_dest_id`) REFERENCES `CustomNode` (`node_id`)\n" +
+		"      DYNAMIC LABEL (`edge_label`)\n" +
+		"      DYNAMIC PROPERTIES (`edge_props`)\n" +
+		"  )"
+
+	for _, stmt := range ddl {
+		if strings.Contains(stmt, "CREATE OR REPLACE PROPERTY GRAPH") {
+			assert.Equal(t, expectedGraphStatement, stmt)
+			foundGraph = true
+		}
+	}
+	assert.True(t, foundGraph, "Property graph statement should be generated")
+
+	foundNodeConstraint := false
+	foundEdgeConstraint := false
+	for _, stmt := range ddl {
+		if strings.Contains(stmt, "ALTER TABLE `CustomNode` ADD CONSTRAINT CustomNode_label_lower_case CHECK(LOWER(`node_label`) = `node_label`)") {
+			foundNodeConstraint = true
+		}
+		if strings.Contains(stmt, "ALTER TABLE `CustomEdge` ADD CONSTRAINT CustomEdge_label_lower_case CHECK(LOWER(`edge_label`) = `edge_label`)") {
+			foundEdgeConstraint = true
+		}
+	}
+	assert.True(t, foundNodeConstraint, "GraphNode lowercase label constraint should be generated")
+	assert.True(t, foundEdgeConstraint, "GraphEdge lowercase label constraint should be generated")
 }

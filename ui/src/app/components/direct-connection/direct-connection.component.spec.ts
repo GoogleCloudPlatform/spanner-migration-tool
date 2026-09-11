@@ -167,4 +167,27 @@ describe('DirectConnectionComponent', () => {
         expect(btn.nativeElement.disabled).toBeFalsy()
     })
   })
+
+  describe('Neo4j Engine Tests', () => {
+    beforeEach(() => {
+      component.connectForm.get('dbEngine')?.setValue('neo4j')
+      fixture.detectChanges()
+    })
+
+    it('should have a valid form and enabled button with all required fields (dataCenter is not required)', () => {
+        component.connectForm.patchValue({
+            hostName: 'localhost',
+            port: '7687',
+            userName: 'neo4j',
+            password: 'password',
+            dbName: 'neo4j',
+            dialect: 'google_standard_sql',
+        })
+
+        fixture.detectChanges()
+
+        expect(component.connectForm.valid).toBeTruthy()
+        expect(btn.nativeElement.disabled).toBeFalsy()
+    })
+  })
 })
