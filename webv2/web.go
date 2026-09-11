@@ -22,7 +22,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/go-sql-driver/mysql"
+
 	"io/fs"
 	"io/ioutil"
 	"log"
@@ -67,24 +67,55 @@ import (
 )
 
 func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
-
 	var dataSourceName string
 	switch config.Driver {
 	case constants.MYSQL:
-		cfg := mysql.NewConfig()
-		cfg.User = config.User
-		cfg.Passwd = config.Password
-		cfg.Net = "tcp"
-		cfg.Addr = fmt.Sprintf("%s:%s", config.Host, config.Port)
-		cfg.DBName = config.Database
-		dataSourceName = cfg.FormatDSN()
-	case constants.SQLSERVER, constants.POSTGRES:
+		sourceProfile := profiles.SourceProfile{
+			Driver: constants.MYSQL,
+			Conn: profiles.SourceProfileConnection{
+				Ty: profiles.SourceProfileConnectionTypeMySQL,
+				Mysql: profiles.SourceProfileConnectionMySQL{
+					Host:        config.Host,
+					Port:        config.Port,
+					User:        config.User,
+					Pwd:         config.Password,
+					Db:          config.Database,
+					Sslmode:     config.Sslmode,
+					Sslrootcert: config.Sslrootcert,
+					Sslcert:     config.Sslcert,
+					Sslkey:      config.Sslkey,
+				},
+			},
+			Ty: profiles.SourceProfileTypeConnection,
+		}
+		dataSourceName = profiles.GetSQLConnectionStr(sourceProfile)
+	case constants.POSTGRES:
+		sourceProfile := profiles.SourceProfile{
+			Driver: constants.POSTGRES,
+			Conn: profiles.SourceProfileConnection{
+				Ty: profiles.SourceProfileConnectionTypePostgreSQL,
+				Pg: profiles.SourceProfileConnectionPostgreSQL{
+					Host:        config.Host,
+					Port:        config.Port,
+					User:        config.User,
+					Pwd:         config.Password,
+					Db:          config.Database,
+					Sslmode:     config.Sslmode,
+					Sslrootcert: config.Sslrootcert,
+					Sslcert:     config.Sslcert,
+					Sslkey:      config.Sslkey,
+				},
+			},
+			Ty: profiles.SourceProfileTypeConnection,
+		}
+		dataSourceName = profiles.GetSQLConnectionStr(sourceProfile)
+	case constants.SQLSERVER:
 		u := url.URL{
 			Scheme:   config.Driver,
 			User:     url.UserPassword(config.User, config.Password),
 			Host:     fmt.Sprintf("%s:%s", config.Host, config.Port),
 			Path:     config.Database,
-			RawQuery: "sslmode=disable", // Add other parameters here
+			RawQuery: "sslmode=disable",
 		}
 		dataSourceName = u.String()
 	case constants.ORACLE:
@@ -142,6 +173,10 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 			User:           config.User,
 			Password:       config.Password,
 			DataCenter:     config.DataCenter,
+			Sslmode:        config.Sslmode,
+			Sslrootcert:    config.Sslrootcert,
+			Sslcert:        config.Sslcert,
+			Sslkey:         config.Sslkey,
 			ConnectionType: helpers.DIRECT_CONNECT_MODE,
 		}
 		w.WriteHeader(http.StatusOK)
@@ -181,6 +216,10 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
+		Sslmode:        config.Sslmode,
+		Sslrootcert:    config.Sslrootcert,
+		Sslcert:        config.Sslcert,
+		Sslkey:         config.Sslkey,
 		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -295,9 +334,17 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 	var dataSourceName string
 	switch config.Driver {
 	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+		dataSourceName, err = createDatabaseConnectionString(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	case constants.MYSQL:
-		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+		dataSourceName, err = createDatabaseConnectionString(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	case constants.SQLSERVER:
 		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.ORACLE:
@@ -319,6 +366,10 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 			User:           config.User,
 			Password:       config.Password,
 			DataCenter:     config.DataCenter,
+			Sslmode:        config.Sslmode,
+			Sslrootcert:    config.Sslrootcert,
+			Sslcert:        config.Sslcert,
+			Sslkey:         config.Sslkey,
 			ConnectionType: helpers.DIRECT_CONNECT_MODE,
 		}
 		w.WriteHeader(http.StatusOK)
@@ -350,6 +401,10 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
+		Sslmode:        config.Sslmode,
+		Sslrootcert:    config.Sslrootcert,
+		Sslcert:        config.Sslcert,
+		Sslkey:         config.Sslkey,
 		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -367,6 +422,10 @@ func validateCassandraConnection(config types.DriverConfig) (cc.KeyspaceMetadata
 				DataCenter: config.DataCenter,
 				User:       config.User,
 				Pwd:        config.Password,
+				Sslmode:    config.Sslmode,
+				Sslrootcert: config.Sslrootcert,
+				Sslcert:    config.Sslcert,
+				Sslkey:     config.Sslkey,
 			},
 		},
 	}
@@ -715,6 +774,18 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 		sourceProfileString = fmt.Sprintf("\"host=%v\",\"port=%v\",\"user=%v\",\"password=%v\",\"dbName=%v\"",
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
 			sourceDBConnectionDetails.Password, sessionState.DbName)
+	}
+	if sourceDBConnectionDetails.Sslmode != "" {
+		sourceProfileString = fmt.Sprintf("%s,\"sslmode=%s\"", sourceProfileString, sourceDBConnectionDetails.Sslmode)
+	}
+	if sourceDBConnectionDetails.Sslrootcert != "" {
+		sourceProfileString = fmt.Sprintf("%s,\"sslrootcert=%s\"", sourceProfileString, sourceDBConnectionDetails.Sslrootcert)
+	}
+	if sourceDBConnectionDetails.Sslcert != "" {
+		sourceProfileString = fmt.Sprintf("%s,\"sslcert=%s\"", sourceProfileString, sourceDBConnectionDetails.Sslcert)
+	}
+	if sourceDBConnectionDetails.Sslkey != "" {
+		sourceProfileString = fmt.Sprintf("%s,\"sslkey=%s\"", sourceProfileString, sourceDBConnectionDetails.Sslkey)
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
