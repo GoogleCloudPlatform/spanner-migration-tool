@@ -263,14 +263,6 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in interval to default conversion")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
-	if errCheck == nil {
-		t.Errorf("Error in citext to string conversion")
-	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "citext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
-	if errCheck == nil {
-		t.Errorf("Error in citext to default conversion")
-	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "inet", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in inet to string conversion")

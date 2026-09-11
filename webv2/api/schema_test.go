@@ -192,8 +192,6 @@ func TestGetTypeMapPostgres(t *testing.T) {
 		"varbit": {
 			{T: ddl.Bytes, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Bytes},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
-		"citext": {
-			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bit": {
 			{T: ddl.Bytes, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Bytes},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
@@ -2593,7 +2591,6 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c27": {Name: "f", Id: "c27", Type: schema.Type{Name: "time"}},
 				"c28": {Name: "g", Id: "c28", Type: schema.Type{Name: "timetz"}},
 				"c29": {Name: "h", Id: "c29", Type: schema.Type{Name: "interval"}},
-				"c30": {Name: "i", Id: "c30", Type: schema.Type{Name: "citext"}},
 				"c31": {Name: "j", Id: "c31", Type: schema.Type{Name: "inet"}},
 				"c32": {Name: "k", Id: "c32", Type: schema.Type{Name: "cidr"}},
 				"c33": {Name: "l", Id: "c33", Type: schema.Type{Name: "macaddr"}},
@@ -2722,6 +2719,7 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
+		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
@@ -2734,7 +2732,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
-		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
+		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}},
+		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}}}
 	tests := []struct {
 		dialect            string
 		driver             string
@@ -2803,7 +2802,8 @@ func TestGetAutoGenMapPostgres(t *testing.T) {
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
-		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}}}
+		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
 		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
@@ -2814,8 +2814,9 @@ func TestGetAutoGenMapPostgres(t *testing.T) {
 		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
-		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}},
-		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
+		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
+		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}},
+		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}}}
 	tests := []struct {
 		dialect            string
 		driver             string

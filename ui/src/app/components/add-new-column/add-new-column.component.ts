@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, Input } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ColLength, DataTypes, Dialect, SourceDbNames, StorageKeys } from 'src/app/app.constants';
+import { autoGenSupportedDbs, ColLength, DataTypes, Dialect, SourceDbNames, StorageKeys } from 'src/app/app.constants';
 import { AutoGen, IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
@@ -33,7 +33,6 @@ export class AddNewColumnComponent implements OnInit {
   }
   processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
-  autoGenSupportedDbs: string[] = ['MySQL', 'Oracle']
   autGenSupported: boolean = false
   constructor(
     private formBuilder: FormBuilder,
@@ -59,7 +58,7 @@ export class AddNewColumnComponent implements OnInit {
         this.processedAutoGenMap = processAutoGens(this.autoGenMap)
       }
     );
-    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
+    this.autGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   isColumnNullable = [
@@ -74,7 +73,9 @@ export class AddNewColumnComponent implements OnInit {
       this.datatypes = DataTypes.PostgreSQL
     }
     if (this.srcDbName === SourceDbNames.Cassandra) {
-      this.datatypes = this.datatypes.filter((type) => type !== 'JSON')
+      // Cassandra has no mapping onto the Spanner UUID type (its uuid/timeuuid
+      // columns are migrated as STRING or BYTES)
+      this.datatypes = this.datatypes.filter((type) => type !== 'JSON' && type !== 'UUID')
     }
   }
 
