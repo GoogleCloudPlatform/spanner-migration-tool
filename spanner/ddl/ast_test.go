@@ -42,6 +42,9 @@ func TestPrintScalarType(t *testing.T) {
 		{Type{Name: Bytes, Len: int64(42)}, "BYTES(42)"},
 		{Type{Name: Date}, "DATE"},
 		{Type{Name: Timestamp}, "TIMESTAMP"},
+		{Type{Name: Numeric}, "NUMERIC"},
+		{Type{Name: JSON}, "JSON"},
+		{Type{Name: UUID}, "UUID"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PrintColumnDefType(false))
@@ -72,6 +75,9 @@ func TestPrintScalarTypePG(t *testing.T) {
 		{Type{Name: Bytes, Len: MaxLength}, "BYTEA"},
 		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
 		{Type{Name: Timestamp}, "TIMESTAMPTZ"},
+		{Type{Name: Numeric}, "NUMERIC"},
+		{Type{Name: JSON}, "JSONB"},
+		{Type{Name: UUID}, "UUID"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType(false))

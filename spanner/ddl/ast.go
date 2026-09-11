@@ -55,6 +55,8 @@ const (
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
 	JSON string = "JSON"
+	// UUID represent UUID type.
+	UUID string = "UUID"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 	// StringMaxLength represents maximum allowed STRING length.
@@ -79,6 +81,8 @@ const (
 	PGTimestamptz string = "TIMESTAMPTZ"
 	// Jsonb represents the PG.JSONB type
 	PGJSONB string = "JSONB"
+	// PGUuid represents the PG.UUID type
+	PGUuid string = "UUID"
 	// PGMaxLength represents sentinel for Type's Len field in PG.
 	PGMaxLength                          = 2621440
 	GeneratedColStored  GeneratedColType = "STORED"
@@ -93,6 +97,7 @@ var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 	String:    PGVarchar,
 	Timestamp: PGTimestamptz,
 	JSON:      PGJSONB,
+	UUID:      PGUuid,
 }
 
 var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
@@ -103,6 +108,7 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGVarchar:     String,
 	PGTimestamptz: Timestamp,
 	PGJSONB:       JSON,
+	PGUuid:        UUID,
 }
 
 // PGDialect keyword list

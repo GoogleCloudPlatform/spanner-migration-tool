@@ -386,7 +386,7 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		initializeAutoGenMap(true)
 	case constants.POSTGRES, constants.PGDUMP:
-		initializeAutoGenMap(false)
+		initializeAutoGenMap(true)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(autoGenMap)
@@ -1455,11 +1455,11 @@ func initializeTypeMap() {
 	}
 	// Initialize postgresTypeMap.
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "smallserial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path"} {
+	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "decimal", "serial", "serial4", "smallserial", "serial2", "serial8", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path", "uuid", "money", "oid", "bit", "varbit", "bit varying", "time", "time without time zone", "timetz", "time with time zone", "interval", "inet", "cidr", "macaddr", "macaddr8", "json", "jsonb"} {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON, ddl.UUID} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1624,7 +1624,7 @@ func initializeAutoGenMap(supportsUuidGeneration bool) {
 }
 
 func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUuidGeneration bool) {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat4, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat4, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric, ddl.PGUuid} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name:           "",
@@ -1659,7 +1659,7 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUu
 }
 
 func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUuidGeneration bool) {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON, ddl.UUID} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name:           "",
