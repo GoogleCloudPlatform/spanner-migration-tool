@@ -965,9 +965,8 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 					ExpressionId: c.exprId,
 					Statement:    common.SanitizeExpressionsValue(c.rawExpr, cd.Type.Name, true),
 				}
-				// Note: PostgreSQL 18 introduced VIRTUAL generated columns, but our parser
-				// (pg_query_go v6) lacks PG 18 syntax support and throws an error on VIRTUAL.
-				// Defaulting to STORED until the parser is updated.
+				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory;
+				// PG 18 VIRTUAL fails to parse before reaching here.
 				cd.GeneratedColumn.Type = ddl.GeneratedColStored
 			}
 		}

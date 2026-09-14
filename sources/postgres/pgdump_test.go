@@ -29,13 +29,13 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type spannerData struct {
@@ -1831,56 +1831,8 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	
-	mockDDLVerifier := &expressions_api.MockDDLVerifier{
-		GetSourceExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
-			expressionDetails := []internal.ExpressionDetail{}
-			for _, tableId := range tableIds {
-				srcTable := conv.SrcSchema[tableId]
-				for _, srcColId := range srcTable.ColIds {
-					srcCol := srcTable.ColDefs[srcColId]
-					var expression ddl.Expression
-					var expressionType string
-					isExpressionAvailable := false
-					if srcCol.DefaultValue.IsPresent {
-						expression = srcCol.DefaultValue.Value
-						isExpressionAvailable = true
-						expressionType = constants.DEFAULT_EXPRESSION
-					} else if srcCol.GeneratedColumn.IsPresent {
-						expression = srcCol.GeneratedColumn.Value
-						isExpressionAvailable = true
-						if srcCol.GeneratedColumn.Type == ddl.GeneratedColStored {
-							expressionType = constants.STORED_GENERATED
-						} else {
-							expressionType = constants.VIRTUAL_GENERATED
-						}
-					}
-					if isExpressionAvailable {
-						expressionDetails = append(expressionDetails, internal.ExpressionDetail{
-							Expression:   expression.Statement,
-							ExpressionId: expression.ExpressionId,
-							Type:         expressionType,
-							Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
-						})
-					}
-				}
-			}
-			return expressionDetails
-		},
-		VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
-			outputs := []internal.ExpressionVerificationOutput{}
-			for _, ed := range expressionDetails {
-				outputs = append(outputs, internal.ExpressionVerificationOutput{
-					Result:           true,
-					ExpressionDetail: ed,
-				})
-			}
-			return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: outputs}, nil
-		},
-		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
-			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}, nil
-		},
-	}
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
 
 	pgDump := DbDumpImpl{}
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
@@ -1906,56 +1858,8 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	
-	mockDDLVerifier := &expressions_api.MockDDLVerifier{
-		GetSourceExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
-			expressionDetails := []internal.ExpressionDetail{}
-			for _, tableId := range tableIds {
-				srcTable := conv.SrcSchema[tableId]
-				for _, srcColId := range srcTable.ColIds {
-					srcCol := srcTable.ColDefs[srcColId]
-					var expression ddl.Expression
-					var expressionType string
-					isExpressionAvailable := false
-					if srcCol.DefaultValue.IsPresent {
-						expression = srcCol.DefaultValue.Value
-						isExpressionAvailable = true
-						expressionType = constants.DEFAULT_EXPRESSION
-					} else if srcCol.GeneratedColumn.IsPresent {
-						expression = srcCol.GeneratedColumn.Value
-						isExpressionAvailable = true
-						if srcCol.GeneratedColumn.Type == ddl.GeneratedColStored {
-							expressionType = constants.STORED_GENERATED
-						} else {
-							expressionType = constants.VIRTUAL_GENERATED
-						}
-					}
-					if isExpressionAvailable {
-						expressionDetails = append(expressionDetails, internal.ExpressionDetail{
-							Expression:   expression.Statement,
-							ExpressionId: expression.ExpressionId,
-							Type:         expressionType,
-							Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
-						})
-					}
-				}
-			}
-			return expressionDetails
-		},
-		VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
-			outputs := []internal.ExpressionVerificationOutput{}
-			for _, ed := range expressionDetails {
-				outputs = append(outputs, internal.ExpressionVerificationOutput{
-					Result:           true,
-					ExpressionDetail: ed,
-				})
-			}
-			return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: outputs}, nil
-		},
-		VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
-			return internal.VerifyExpressionsOutput{Err: nil, ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}, nil
-		},
-	}
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
 
 	pgDump := DbDumpImpl{}
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)

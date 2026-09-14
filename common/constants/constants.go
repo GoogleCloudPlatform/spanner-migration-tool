@@ -114,7 +114,7 @@ const (
 	// Regex for matching database collation
 	DB_COLLATION_REGEX = `(_[a-zA-Z0-9]+\\|\\)`
 
-	// Regex to find and remove PostgreSQL type tags (like "::text" or "::character varying(50)")
-	// from default values so that they are compatible with GoogleSQL.
-	POSTGRES_CAST_REGEX = `::[a-zA-Z0-9_ ]+(?:\([0-9, ]+\))?`
+	// Strips PostgreSQL casts: ::text, ::character varying(50), ::pg_catalog.int4[].
+	// Type names must not span whitespace, else "(a)::text AND (b)" -> "(a)(b)".
+	POSTGRES_CAST_REGEX = `::[\w.]+(?: varying| precision| with time zone| without time zone)?(?:\([0-9, ]+\))?(?:\[\])?`
 )

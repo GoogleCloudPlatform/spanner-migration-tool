@@ -70,6 +70,11 @@ func TestProcessSchema(t *testing.T) {
 				{"ref", "FOREIGN KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "user"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -84,6 +89,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.user"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.user"},
 			cols:  []string{"attname"},
 		},
@@ -112,6 +122,13 @@ func TestProcessSchema(t *testing.T) {
 				{"userid", "PRIMARY KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "cart"},
+			cols:  []string{"conname", "pg_get_expr"},
+			rows: [][]driver.Value{
+				{"cart_quantity_check", "(quantity > 0)"}},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -126,6 +143,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.cart"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.cart"},
 			cols:  []string{"attname"},
 		},
@@ -160,6 +182,11 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "PRIMARY KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -171,6 +198,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.product"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.product"},
 			cols:  []string{"attname"},
 		},
@@ -194,7 +226,13 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -212,6 +250,11 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
 			rows: [][]driver.Value{{"id"}},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -254,7 +297,13 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"ref_id", "PRIMARY KEY"},
 				{"ref_txt", "PRIMARY KEY"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -266,6 +315,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test_ref"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.test_ref"},
 			cols:  []string{"attname"},
 		},
@@ -326,7 +380,8 @@ func TestProcessSchema(t *testing.T) {
 				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}}},
 				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}, ddl.IndexKey{ColId: "productid", Desc: true, Order: 2}}},
-				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}}},
+				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}},
+			CheckConstraints: []ddl.CheckConstraint{ddl.CheckConstraint{Name: "cart_quantity_check", Expr: "(quantity > 0)"}}},
 		"product": ddl.CreateTable{
 			Name:   "product",
 			ColIds: []string{"product_id", "product_name"},
@@ -555,6 +610,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -566,6 +626,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
 		},

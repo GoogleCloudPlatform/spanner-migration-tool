@@ -972,19 +972,136 @@ func TestProcessMySQLDump_AddPrimaryKeys(t *testing.T) {
 	}
 }
 
+// TestProcessMySQLDump_Expressions checks DEFAULT and generated column expressions reach SpSchema.
+func TestProcessMySQLDump_Expressions(t *testing.T) {
+	cases := []struct {
+		name           string
+		input          string
+		expectedSchema map[string]ddl.CreateTable
+	}{
+		{
+			// Spanner rejects a STRING default on an INT64 column.
+			name: "quoted numeric default",
+			input: `CREATE TABLE expressions (
+				id bigint NOT NULL,
+				qty bigint DEFAULT '42',
+				PRIMARY KEY (id));`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"expressions": ddl.CreateTable{
+					Name:   "expressions",
+					ColIds: []string{"id", "qty"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"qty": ddl.ColumnDef{Name: "qty", T: ddl.Type{Name: ddl.Int64},
+							DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "42"}}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}}}},
+		},
+		{
+			name: "quoted date default",
+			input: `CREATE TABLE expressions (
+				id bigint NOT NULL,
+				d date DEFAULT '2020-01-01',
+				PRIMARY KEY (id));`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"expressions": ddl.CreateTable{
+					Name:   "expressions",
+					ColIds: []string{"id", "d"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date},
+							DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "2020-01-01"}}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}}}},
+		},
+		{
+			name: "string default",
+			input: `CREATE TABLE expressions (
+				id bigint NOT NULL,
+				label varchar(50) DEFAULT 'unknown',
+				PRIMARY KEY (id));`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"expressions": ddl.CreateTable{
+					Name:   "expressions",
+					ColIds: []string{"id", "label"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"label": ddl.ColumnDef{Name: "label", T: ddl.Type{Name: ddl.String, Len: 50},
+							DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'unknown'"}}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}}}},
+		},
+		{
+			// mysqldump emits DEFAULT NULL for every nullable column; not a real default.
+			name: "default null is ignored",
+			input: `CREATE TABLE expressions (
+				id bigint NOT NULL,
+				nullable_col varchar(50) DEFAULT NULL,
+				PRIMARY KEY (id));`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"expressions": ddl.CreateTable{
+					Name:   "expressions",
+					ColIds: []string{"id", "nullable_col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":           ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"nullable_col": ddl.ColumnDef{Name: "nullable_col", T: ddl.Type{Name: ddl.String, Len: 50}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}}}},
+		},
+		{
+			name: "stored generated column",
+			input: `CREATE TABLE expressions (
+				id bigint NOT NULL,
+				qty bigint,
+				total bigint GENERATED ALWAYS AS (qty * 2) STORED,
+				PRIMARY KEY (id));`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"expressions": ddl.CreateTable{
+					Name:   "expressions",
+					ColIds: []string{"id", "qty", "total"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":  ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"qty": ddl.ColumnDef{Name: "qty", T: ddl.Type{Name: ddl.Int64}},
+						"total": ddl.ColumnDef{Name: "total", T: ddl.Type{Name: ddl.Int64},
+							GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Type: ddl.GeneratedColStored,
+								Value: ddl.Expression{Statement: "(qty*2)"}}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}}}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(tc.input)
+			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			// Migrated expressions must not also be reported as dropped.
+			for _, table := range conv.SchemaIssues {
+				for _, issues := range table.ColumnLevelIssues {
+					assert.NotContains(t, issues, internal.DefaultValue)
+				}
+			}
+		})
+	}
+}
+
 func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("RefreshSpannerClient", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ctx := context.Background()
 	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
 		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
+
 	mysqlDbDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {

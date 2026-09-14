@@ -261,6 +261,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
 	}
 	serialCols := isi.getSerialColumns(conv, table)
+	virtualCols := isi.getVirtualColumns(table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -290,7 +291,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
-		
+
 		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
 		var defaultVal ddl.DefaultValue
 		if colDefault.Valid && !isSerialColumn && colDefault.String != "" {
@@ -308,7 +309,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid && generationExpression.String != "" {
 			generatedCol = ddl.GeneratedColumn{
 				IsPresent: true,
-				Type:      ddl.GeneratedColStored,
+				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
 					Statement:    common.SanitizeExpressionsValue(generationExpression.String, ty.Name, true),
@@ -331,6 +332,28 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+// getVirtualColumns returns a table's VIRTUAL generated columns (PostgreSQL 18+).
+// information_schema cannot distinguish VIRTUAL from STORED; pg_attribute can.
+// attgenerated is absent before PG 12, where the query fails and nil is correct.
+func (isi InfoSchemaImpl) getVirtualColumns(table common.SchemaAndName) []string {
+	q := `SELECT attname FROM pg_attribute
+              WHERE attrelid = $1::regclass AND attnum > 0 AND attgenerated = 'v';`
+	rows, err := isi.Db.Query(q, table.Schema+"."+table.Name)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var virtualCols []string
+	for rows.Next() {
+		var colName string
+		if err := rows.Scan(&colName); err != nil {
+			return virtualCols
+		}
+		virtualCols = append(virtualCols, colName)
+	}
+	return virtualCols
 }
 
 func (isi InfoSchemaImpl) getSerialColumns(conv *internal.Conv, table common.SchemaAndName) []string {
@@ -393,7 +416,43 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, nil, m, nil
+	checkConstraints, err := isi.getCheckConstraints(conv, table)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return primaryKeys, checkConstraints, m, nil
+}
+
+// getCheckConstraints returns a table's CHECK constraints. Uses pg_catalog because
+// information_schema also lists the NOT NULL constraints Postgres synthesizes per
+// column; pg_get_expr returns the bare expression, unlike pg_get_constraintdef.
+func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.SchemaAndName) ([]schema.CheckConstraint, error) {
+	q := `SELECT con.conname, pg_get_expr(con.conbin, con.conrelid)
+              FROM pg_constraint con
+                JOIN pg_class rel ON rel.oid = con.conrelid
+                JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+              WHERE con.contype = 'c' AND nsp.nspname = $1 AND rel.relname = $2
+              ORDER BY con.conname;`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var checkConstraints []schema.CheckConstraint
+	var name, expr string
+	for rows.Next() {
+		if err := rows.Scan(&name, &expr); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan check constraint: %v", err))
+			continue
+		}
+		checkConstraints = append(checkConstraints, schema.CheckConstraint{
+			Id:     internal.GenerateCheckConstrainstId(),
+			Name:   name,
+			Expr:   common.SanitizeExpressionsValue(expr, "", true),
+			ExprId: internal.GenerateExpressionId(),
+		})
+	}
+	return checkConstraints, nil
 }
 
 // GetForeignKeys returns a list of all the foreign key constraints.
@@ -557,6 +616,13 @@ func toAutoGen(isSerial bool) ddl.AutoGenCol {
 		autoGen.GenerationType = constants.SERIAL
 	}
 	return autoGen
+}
+
+func toGeneratedColType(isVirtual bool) ddl.GeneratedColType {
+	if isVirtual {
+		return ddl.GeneratedColVirtual
+	}
+	return ddl.GeneratedColStored
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
