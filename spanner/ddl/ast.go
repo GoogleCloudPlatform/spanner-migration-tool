@@ -253,7 +253,7 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 			s += " NOT NULL "
 		}
 		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
-		s += cd.AutoGen.PGPrintAutoGenCol(c)
+		s += cd.AutoGen.PGPrintAutoGenCol(c, cd.T)
 		s += cd.GeneratedColumn.PGPrintGeneratedColumn(cd.T)
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType(cd.GeneratedColumn.IsVirtual()))
@@ -261,7 +261,7 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 			s += " NOT NULL "
 		}
 		s += cd.DefaultValue.PrintDefaultValue(cd.T)
-		s += cd.AutoGen.PrintAutoGenCol(c)
+		s += cd.AutoGen.PrintAutoGenCol(c, cd.T)
 		s += cd.GeneratedColumn.PrintGeneratedColumn(cd.T)
 	}
 	var opts []string
@@ -552,8 +552,17 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 	return value
 }
 
-func (agc AutoGenCol) PrintAutoGenCol(c Config) string {
+// PrintAutoGenCol unparses the auto-generation clause for a column. ty is the
+// column's Spanner type, which is needed because the correct UUID generator
+// function depends on it.
+func (agc AutoGenCol) PrintAutoGenCol(c Config, ty Type) string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
+		// GENERATE_UUID() returns STRING, so Spanner rejects it as the default
+		// for a UUID column ("Expected type UUID; found STRING"). NEW_UUID() is
+		// the UUID-returning equivalent.
+		if ty.Name == UUID {
+			return " DEFAULT (NEW_UUID())"
+		}
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
@@ -565,8 +574,13 @@ func (agc AutoGenCol) PrintAutoGenCol(c Config) string {
 	return ""
 }
 
-func (agc AutoGenCol) PGPrintAutoGenCol(c Config) string {
+func (agc AutoGenCol) PGPrintAutoGenCol(c Config, ty Type) string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
+		// spanner.generate_uuid() returns a string type, so the UUID-typed
+		// equivalent is gen_random_uuid().
+		if ty.Name == PGUuid {
+			return " DEFAULT (gen_random_uuid())"
+		}
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {

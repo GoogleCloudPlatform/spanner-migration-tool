@@ -2719,7 +2719,7 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
-		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
 		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
@@ -2733,7 +2733,7 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
 		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}},
-		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}}}
+		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 	tests := []struct {
 		dialect            string
 		driver             string
@@ -2802,7 +2802,7 @@ func TestGetAutoGenMapPostgres(t *testing.T) {
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
-		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"UUID":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
 		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
@@ -2816,7 +2816,7 @@ func TestGetAutoGenMapPostgres(t *testing.T) {
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
 		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}},
-		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}}}
+		"UUID":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 	tests := []struct {
 		dialect            string
 		driver             string

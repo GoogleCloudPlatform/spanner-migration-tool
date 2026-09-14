@@ -1633,11 +1633,16 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUu
 		}
 	}
 	if supportsUuidGeneration {
-		autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
-			types.AutoGen{
-				Name:           "UUID",
-				GenerationType: "Pre-defined",
-			})
+		// Offered on both the string and the native UUID type. The emitted DDL
+		// differs per type: spanner.generate_uuid() returns a string, whereas a
+		// uuid column needs gen_random_uuid().
+		for _, t := range []string{ddl.PGVarchar, ddl.PGUuid} {
+			autoGenMap[t] = append(autoGenMap[t],
+				types.AutoGen{
+					Name:           "UUID",
+					GenerationType: "Pre-defined",
+				})
+		}
 	}
 
 	typesSupportingSequences := []string{ddl.Float64, ddl.Int64, ddl.PGFloat8, ddl.PGInt8}
@@ -1668,11 +1673,16 @@ func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsU
 		}
 	}
 	if supportsUuidGeneration {
-		autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
-			types.AutoGen{
-				Name:           "UUID",
-				GenerationType: "Pre-defined",
-			})
+		// Offered on both the string and the native UUID type. The emitted DDL
+		// differs per type: GENERATE_UUID() returns a STRING, whereas a UUID
+		// column needs NEW_UUID().
+		for _, t := range []string{ddl.String, ddl.UUID} {
+			autoGenMap[t] = append(autoGenMap[t],
+				types.AutoGen{
+					Name:           "UUID",
+					GenerationType: "Pre-defined",
+				})
+		}
 	}
 
 	typesSupportingSequences := []string{ddl.Float64, ddl.Int64}
