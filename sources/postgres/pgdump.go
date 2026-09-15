@@ -426,7 +426,9 @@ func processColumn(conv *internal.Conv, n *pg_query.ColumnDef, table string) (st
 
 func getAutoGenFromTypeName(typeName string) ddl.AutoGenCol {
 	switch typeName {
-	case "bigserial", "serial", "smallserial":
+	// serial2, serial4 and serial8 are exact aliases of smallserial, serial and
+	// bigserial respectively
+	case "bigserial", "serial", "smallserial", "serial8", "serial4", "serial2":
 		return ddl.AutoGenCol{
 			Name: constants.SERIAL,
 			GenerationType: constants.SERIAL,

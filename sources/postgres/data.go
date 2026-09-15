@@ -131,12 +131,10 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, l
 		return convInt64(val)
 	case ddl.Numeric:
 		return convNumeric(conv, val)
-	case ddl.String:
+	case ddl.String, ddl.JSON, ddl.UUID:
 		return val, nil
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, location, val)
-	case ddl.JSON:
-		return val, nil
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
 	}
@@ -378,7 +376,7 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 			r = append(r, spanner.NullInt64{Int64: i, Valid: true})
 		}
 		return r, nil
-	case ddl.String:
+	case ddl.String, ddl.JSON, ddl.UUID:
 		var r []spanner.NullString
 		for _, s := range a {
 			if s == "NULL" {

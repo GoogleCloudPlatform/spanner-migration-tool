@@ -38,7 +38,7 @@ import (
 func TestReport(t *testing.T) {
 	s := `
         CREATE TABLE bad_schema (
-            a numeric,
+            a numeric(38,9),
             b integer NOT NULL,
             c integer[4][2],
             d circle);

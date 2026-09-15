@@ -197,6 +197,7 @@ var DATATYPE_TO_STORAGE_SIZE = map[string]int{
 	ddl.JSON:      ddl.StringMaxLength,
 	ddl.Numeric:   22,
 	ddl.Timestamp: 12,
+	ddl.UUID:      16,
 }
 
 func getColumnSize(dataType string, length int64) int {
