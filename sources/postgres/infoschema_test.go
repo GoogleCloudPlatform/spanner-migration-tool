@@ -355,6 +355,8 @@ func TestProcessSchema(t *testing.T) {
 		"bs":    []internal.SchemaIssue{internal.DefaultValue},
 		"i4":    []internal.SchemaIssue{internal.Widened},
 		"i2":    []internal.SchemaIssue{internal.Widened},
+		// num has no precision or scale.
+		"num":   []internal.SchemaIssue{internal.Numeric},
 		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":    []internal.SchemaIssue{internal.Timestamp},
 		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},

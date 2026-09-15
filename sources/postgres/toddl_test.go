@@ -383,8 +383,11 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := internal.TableIssues{
-		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
-		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			// c5 is an unconstrained numeric, which may not fit GoogleSQL NUMERIC.
+			"c5": {internal.Numeric},
+		},
 	}
 	actualIssues := conv.SchemaIssues[tableId]
 	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
@@ -392,6 +395,79 @@ func TestToSpannerType(t *testing.T) {
 	})
 
 	assert.Equal(t, expectedIssues, actualIssues)
+}
+
+func TestToSpannerType_UnconstrainedNumeric(t *testing.T) {
+	tests := []struct {
+		name       string
+		dialect    string
+		srcType    schema.Type
+		spType     string
+		wantType   string
+		wantIssues []internal.SchemaIssue
+	}{
+		{
+			name:       "bare numeric warns under GoogleSQL",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "numeric"},
+			wantType:   ddl.Numeric,
+			wantIssues: []internal.SchemaIssue{internal.Numeric},
+		},
+		{
+			name:       "bare decimal warns under GoogleSQL",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "decimal"},
+			wantType:   ddl.Numeric,
+			wantIssues: []internal.SchemaIssue{internal.Numeric},
+		},
+		{
+			// Spanner's PG NUMERIC matches PostgreSQL's range, so nothing can overflow.
+			name:       "bare numeric is silent under the PostgreSQL dialect",
+			dialect:    constants.DIALECT_POSTGRESQL,
+			srcType:    schema.Type{Name: "numeric"},
+			wantType:   ddl.Numeric,
+			wantIssues: nil,
+		},
+		{
+			name:       "money reports its issue once",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "money"},
+			wantType:   ddl.Numeric,
+			wantIssues: []internal.SchemaIssue{internal.Numeric},
+		},
+		{
+			name:       "numeric(38,9) maps cleanly",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "numeric", Mods: []int64{38, 9}},
+			wantType:   ddl.Numeric,
+			wantIssues: nil,
+		},
+		{
+			name:       "numeric(39,9) spills to string",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "numeric", Mods: []int64{39, 9}},
+			wantType:   ddl.String,
+			wantIssues: []internal.SchemaIssue{internal.Numeric},
+		},
+		{
+			name:       "bare numeric overridden to STRING does not warn",
+			dialect:    constants.DIALECT_GOOGLESQL,
+			srcType:    schema.Type{Name: "numeric"},
+			spType:     ddl.String,
+			wantType:   ddl.String,
+			wantIssues: []internal.SchemaIssue{internal.Widened},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			conv.SpDialect = tc.dialect
+			ty, issues := ToDdlImpl{}.ToSpannerType(conv, tc.spType, tc.srcType, false)
+			assert.Equal(t, tc.wantType, ty.Name)
+			assert.Equal(t, tc.wantIssues, issues)
+		})
+	}
 }
 
 // This is just a very basic smoke-test for toExperimentalSpannerType.

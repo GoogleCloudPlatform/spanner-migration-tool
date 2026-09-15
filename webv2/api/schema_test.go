@@ -111,10 +111,10 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Numeric}},
 		"numeric": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
-			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Numeric].Brief, DisplayT: ddl.Numeric}},
 		"decimal": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
-			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
+			{T: ddl.Numeric, Brief: reports.IssueDB[internal.Numeric].Brief, DisplayT: ddl.Numeric}},
 		"smallint": {
 			{T: ddl.Float32, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float32},
 			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},

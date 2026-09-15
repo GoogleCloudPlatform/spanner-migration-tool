@@ -48,7 +48,22 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		ty, pg_issues = common.ToPGDialectType(ty, isPk)
 		issues = append(issues, pg_issues...)
 	}
+	if isUnconstrainedNumeric(srcType, ty, conv.SpDialect) {
+		issues = append(issues, internal.Numeric)
+	}
 	return ty, issues
+}
+
+// isUnconstrainedNumeric reports whether a numeric or decimal was declared without
+// precision or scale, so its value may not fit the Spanner NUMERIC it maps to.
+// Only GoogleSQL is at risk: its NUMERIC is capped at (38,9), while PostgreSQL
+// dialect NUMERIC has the same range as PostgreSQL itself. money also maps to
+// NUMERIC without mods, but is bounded and reports the issue from its own case.
+func isUnconstrainedNumeric(srcType schema.Type, ty ddl.Type, spDialect string) bool {
+	if ty.Name != ddl.Numeric || spDialect == constants.DIALECT_POSTGRESQL {
+		return false
+	}
+	return len(srcType.Mods) == 0 && (srcType.Name == "numeric" || srcType.Name == "decimal")
 }
 
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
