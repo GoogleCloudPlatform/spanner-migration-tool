@@ -174,6 +174,13 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		case ddl.Int64:
+			// MySQL BIT(N) stores at most 64 bits and is unsigned, while Spanner's
+			// INT64 is signed. Values of a BIT(64) column can therefore overflow.
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 63 {
+				return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow}
+			}
+			return ddl.Type{Name: ddl.Int64}, nil
 		default:
 			if len(srcType.Mods) > 0 && srcType.Mods[0] == 1 {
 				return ddl.Type{Name: ddl.Bool}, nil
@@ -215,10 +222,17 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
+		case ddl.Bytes:
+			// An explicit BYTES mapping preserves the length declared in the source.
 			if len(srcType.Mods) > 0 {
 				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			// MySQL right-pads BINARY(N) values with 0x00 and, outside of strict
+			// mode, silently truncates over-long values instead of rejecting them.
+			// Spanner enforces BYTES(N) strictly, so we default to BYTES(MAX) to
+			// avoid write failures during the data migration.
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
