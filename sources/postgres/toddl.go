@@ -34,7 +34,7 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(srcType, spType)
+	ty, issues := toSpannerTypeInternal(conv, srcType, spType)
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
@@ -48,22 +48,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		ty, pg_issues = common.ToPGDialectType(ty, isPk)
 		issues = append(issues, pg_issues...)
 	}
-	if isUnconstrainedNumeric(srcType, ty, conv.SpDialect) {
-		issues = append(issues, internal.Numeric)
-	}
 	return ty, issues
-}
-
-// isUnconstrainedNumeric reports whether a numeric or decimal was declared without
-// precision or scale, so its value may not fit the Spanner NUMERIC it maps to.
-// Only GoogleSQL is at risk: its NUMERIC is capped at (38,9), while PostgreSQL
-// dialect NUMERIC has the same range as PostgreSQL itself. money also maps to
-// NUMERIC without mods, but is bounded and reports the issue from its own case.
-func isUnconstrainedNumeric(srcType schema.Type, ty ddl.Type, spDialect string) bool {
-	if ty.Name != ddl.Numeric || spDialect == constants.DIALECT_POSTGRESQL {
-		return false
-	}
-	return len(srcType.Mods) == 0 && (srcType.Name == "numeric" || srcType.Name == "decimal")
 }
 
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
@@ -88,7 +73,7 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 // Spanner type name is specified and is a potential mapping for this source type,
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
-func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case "bool", "boolean":
 		switch spType {
@@ -190,6 +175,12 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 				if precision > 38 || scale > 9 || (precision-scale) > 29 {
 					return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Numeric}
 				}
+			} else if conv.SpDialect != constants.DIALECT_POSTGRESQL {
+				// Without precision or scale the source value can exceed GoogleSQL
+				// NUMERIC's fixed (38,9). PostgreSQL dialect NUMERIC holds
+				// (147455,16383) -- PostgreSQL's own 131072 digits before the point
+				// plus 16383 after -- so the source value always fits there.
+				return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
 			}
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
