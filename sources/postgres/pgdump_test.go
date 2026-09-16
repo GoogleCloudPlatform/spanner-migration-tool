@@ -97,6 +97,51 @@ func TestProcessPgDump_Serial(t *testing.T) {
 			},
 		},
 		{
+			name: "Serial4 column (alias of serial)",
+			input: "CREATE TABLE public.serial_test (id serial4 NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial8 column (alias of bigserial)",
+			input: "CREATE TABLE public.serial_test (id serial8 NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial2 column (alias of smallserial)",
+			input: "CREATE TABLE public.serial_test (id serial2 NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
 			name: "Serial column with owned by set in CREATE SEQUENCE statement",
 			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
 				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY public.serial_test.id;\n" +
