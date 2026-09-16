@@ -29,13 +29,13 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type spannerData struct {
@@ -84,6 +84,51 @@ func TestProcessPgDump_Serial(t *testing.T) {
 		{
 			name: "Smallserial column",
 			input: "CREATE TABLE public.serial_test (id smallserial NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial4 column (alias of serial)",
+			input: "CREATE TABLE public.serial_test (id serial4 NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial8 column (alias of bigserial)",
+			input: "CREATE TABLE public.serial_test (id serial8 NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial2 column (alias of smallserial)",
+			input: "CREATE TABLE public.serial_test (id serial2 NOT NULL PRIMARY KEY, col character varying(255));",
 			expectedSchema: map[string]ddl.CreateTable{
 				"serial_test": ddl.CreateTable{
 					Name:   "serial_test",

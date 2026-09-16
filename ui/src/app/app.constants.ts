@@ -125,8 +125,8 @@ export const ColLength = {
 }
 
 export const DataTypes = {
-  GoogleStandardSQL : ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON'],
-  PostgreSQL : ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB']
+  GoogleStandardSQL : ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON', 'UUID'],
+  PostgreSQL : ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB', 'UUID']
 }
 
 export enum PersistedFormValues {
@@ -137,6 +137,9 @@ export enum PersistedFormValues {
 export const defaultAndSequenceSupportedDbs: string[] = ['MySQL', 'Oracle']
 export const generatedColSupportedDbs: string[] = ['MySQL']
 export const identitySupportedDbs: string[] = ['MySQL', 'Postgres', 'Oracle']
+// Databases whose columns can be given a Spanner auto-generated value
+// (pre-defined UUID, identity or sequence) from the UI.
+export const autoGenSupportedDbs: string[] = ['MySQL', 'Postgres', 'Oracle']
 
 export const dialogConfigAddSequence: MatDialogConfig<any> = {
   width: '50%',
