@@ -23,45 +23,85 @@ This document details the default type mappings, user-selectable target type ove
 
 ## Data Type Mapping
 
-The table below summarizes the default mappings from MySQL data types to Cloud Spanner dialects, along with alternative types selectable in the web UI schema editor or via session file overrides.
+The table below details the mappings for each MySQL data type to Cloud Spanner dialects. For types with customizable targets, the table lists both the **Default** mapping and each selectable **Alternative** override available in the web UI schema editor or via session file overrides.
 
-| MySQL Type | GoogleSQL Default | PostgreSQL Default | Selectable Overrides | Notes & Conversion Issues |
+| MySQL Type | Mapping | GoogleSQL Target | PostgreSQL Target | Notes & Conversion Issues |
 |:---|:---|:---|:---|:---|
-| `BOOL`, `BOOLEAN` | `BOOL` | `boolean` | `INT64` / `bigint`, `STRING(MAX)` / `varchar` | `BOOLEAN` is a MySQL alias for `TINYINT(1)`. |
-| `TINYINT(1)` | `BOOL` | `boolean` | `INT64` / `bigint`, `STRING(MAX)` / `varchar` | Treated as boolean by default in MySQL conventions. |
-| `TINYINT` ($N \ne 1$) | `INT64` | `bigint` | `STRING(MAX)` / `varchar`, `BOOL` (if $N=1$) | Storage size widened to 64 bits (`Widened`). |
-| `SMALLINT`, `MEDIUMINT` | `INT64` | `bigint` | `STRING(MAX)` / `varchar` | Storage size widened to 64 bits (`Widened`). |
-| `INT`, `INTEGER` | `INT64` | `bigint` | `STRING(MAX)` / `varchar` | Storage size widened to 64 bits (`Widened`). |
-| `BIGINT` | `INT64` | `bigint` | `NUMERIC` / `numeric`, `STRING(MAX)` / `varchar` | Signed 64-bit integer. |
-| `BIGINT UNSIGNED` | `INT64` | `bigint` | `NUMERIC` / `numeric`, `STRING(MAX)` / `varchar` | Values $> 2^{63}-1$ may overflow (`PossibleOverflow`). |
-| `FLOAT` | `FLOAT32` | `real` | `FLOAT64` / `double precision`, `STRING(MAX)` / `varchar` | Can be widened to `FLOAT64` / `double precision`. |
-| `DOUBLE`, `DOUBLE PRECISION` | `FLOAT64` | `double precision` | `STRING(MAX)` / `varchar` | |
-| `DECIMAL`, `NUMERIC` | `NUMERIC` | `numeric` | `STRING(MAX)` / `varchar` | Spanner `NUMERIC` supports 29 integer and 9 scale digits. In PostgreSQL dialect, `NUMERIC` Primary Keys are not supported and widen to `varchar` (`NumericPKNotSupported`). |
-| `CHAR` | `STRING(1)` | `character varying (1)` | `BYTES(1)` / `bytea` | Defaults to length 1 in MySQL. |
-| `CHAR(N)` | `STRING(N)` | `character varying (N)` | `BYTES(N)` / `bytea` | Length $N$ is preserved. Space-padding semantics differ. |
-| `VARCHAR(N)` | `STRING(N)` | `character varying (N)` | `BYTES(N)` / `bytea` | Length $N$ is preserved. |
-| `VARCHAR` | `STRING(MAX)` | `character varying (2621440)` | `BYTES(MAX)` / `bytea` | Mapped to maximum allowed string length. |
-| `TINYTEXT`, `TEXT` | `STRING(MAX)` | `character varying (2621440)` | `BYTES(MAX)` / `bytea` | |
-| `MEDIUMTEXT`, `LONGTEXT` | `STRING(MAX)` | `character varying (2621440)` | `BYTES(MAX)` / `bytea` | |
-| `BINARY` | `BYTES(1)` | `bytea` | `STRING(MAX)` / `varchar` | Bare `BINARY` in MySQL defaults to `BINARY(1)`. PG `bytea` has no length parameter. |
-| `BINARY(N)` | `BYTES(N)` | `bytea` | `STRING(MAX)` / `varchar` | Length $N$ is preserved in GoogleSQL. |
-| `VARBINARY(N)` | `BYTES(N)` | `bytea` | `STRING(MAX)` / `varchar` | Length $N$ is preserved in GoogleSQL. |
-| `TINYBLOB` | `BYTES(255)` | `bytea` | `STRING(MAX)` / `varchar` | Fixed limit of 255 bytes. |
-| `BLOB` | `BYTES(65535)` | `bytea` | `STRING(MAX)` / `varchar` | Fixed limit of 65,535 bytes (64 KiB). |
-| `BLOB(N)` | `BYTES(N)` | `bytea` | `STRING(MAX)` / `varchar` | Preserved when migrating from a dump. Live MySQL servers report 65535. |
-| `MEDIUMBLOB` | `BYTES(10485760)` | `bytea` | `STRING(MAX)` / `varchar` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
-| `LONGBLOB` | `BYTES(10485760)` | `bytea` | `STRING(MAX)` / `varchar` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
-| `BIT(1)` | `BOOL` | `boolean` | `INT64` / `bigint`, `STRING(MAX)` / `varchar` | Single-bit fields map directly to boolean. |
-| `BIT(N)` ($N > 1$) | `BYTES(MAX)` | `bytea` | `INT64` / `bigint`, `STRING(MAX)` / `varchar` | Maps to `INT64` / `bigint` if selected; flags `PossibleOverflow` if $N = 64$. |
-| `DATE` | `DATE` | `date` | `STRING(MAX)` / `varchar` | |
-| `DATETIME` | `TIMESTAMP` | `timestamp with time zone` | `STRING(MAX)` / `varchar` | Flags `Datetime` issue due to MySQL absence of timezone storage. |
-| `TIMESTAMP` | `TIMESTAMP` | `timestamp with time zone` | `STRING(MAX)` / `varchar` | UTC conversion applied during migration. |
-| `TIME` | `STRING(MAX)` | `character varying (2621440)` | None | Spanner lacks a time-only type; flags `Time` issue. |
-| `YEAR` | `STRING(MAX)` | `character varying (2621440)` | None | Spanner lacks a year-only type; flags `Time` issue. |
-| `JSON` | `JSON` | `jsonb` | `STRING(MAX)` / `varchar`, `BYTES(MAX)` / `bytea` | |
-| `ENUM` | `STRING(MAX)` | `character varying (2621440)` | None | Allowed values are not enforced by Spanner DDL. |
-| `SET` | `ARRAY<STRING>` | `character varying (2621440)` | None | In PostgreSQL dialect, arrays are unsupported (`ArrayTypeNotSupported`) and map to `varchar`. |
-| `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`, `GEOMETRYCOLLECTION` | `STRING(MAX)` | `character varying (2621440)` | None | Spatial columns are exported as Well-Known Text (WKT) using `ST_AsText()` (`NoGoodType`). |
+| `BOOL`, `BOOLEAN` | **Default** | `BOOL` | `boolean` | `BOOLEAN` is a MySQL alias for `TINYINT(1)`. |
+| | Alternative | `INT64` | `bigint` | Widened to 64-bit integer (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TINYINT(1)` | **Default** | `BOOL` | `boolean` | Treated as boolean by default in MySQL conventions. |
+| | Alternative | `INT64` | `bigint` | Widened to 64-bit integer (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TINYINT(N)` (for $N \ne 1$) | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `SMALLINT` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `MEDIUMINT` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `INT`, `INTEGER` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `BIGINT` | **Default** | `INT64` | `bigint` | Signed 64-bit integer. |
+| | Alternative | `NUMERIC` | `numeric` | Widened (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `BIGINT UNSIGNED` | **Default** | `INT64` | `bigint` | Values $> 2^{63}-1$ may overflow (`PossibleOverflow`). |
+| | Alternative | `NUMERIC` | `numeric` | Recommended to preserve values $> 2^{63}-1$ without overflow (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `FLOAT` | **Default** | `FLOAT32` | `real` | 32-bit single-precision floating point. |
+| | Alternative | `FLOAT64` | `double precision` | Widened (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DOUBLE`, `DOUBLE PRECISION` | **Default** | `FLOAT64` | `double precision` | 64-bit double-precision floating point. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DECIMAL`, `NUMERIC` | **Default** | `NUMERIC` | `numeric` | Spanner `NUMERIC` supports 29 integer and 9 scale digits. In PostgreSQL dialect, `NUMERIC` Primary Keys are not supported and widen to `varchar` (`NumericPKNotSupported`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `CHAR` | **Default** | `STRING(1)` | `character varying (1)` | Defaults to length 1 in MySQL. Space padding differs from MySQL. |
+| | Alternative | `BYTES(1)` | `bytea` | Converts character data to raw bytes. |
+| `CHAR(N)` | **Default** | `STRING(N)` | `character varying (N)` | Preserves declared length $N$. Space padding differs from MySQL. |
+| | Alternative | `BYTES(N)` | `bytea` | Converts character data to raw bytes. |
+| `VARCHAR(N)` | **Default** | `STRING(N)` | `character varying (N)` | Preserves declared length $N$. |
+| | Alternative | `BYTES(N)` | `bytea` | Converts character data to raw bytes. |
+| `VARCHAR` (no length) | **Default** | `STRING(MAX)` | `character varying (2621440)` | Mapped to maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Mapped to maximum allowed bytes length. |
+| `TINYTEXT`, `TEXT` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Converts text to raw bytes. |
+| `MEDIUMTEXT`, `LONGTEXT` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Converts text to raw bytes. |
+| `BINARY` | **Default** | `BYTES(1)` | `bytea` | Bare `BINARY` in MySQL defaults to `BINARY(1)`. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `BINARY(N)` | **Default** | `BYTES(N)` | `bytea` | Preserves declared length $N$ in GoogleSQL. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `VARBINARY(N)` | **Default** | `BYTES(N)` | `bytea` | Preserves declared length $N$ in GoogleSQL. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `TINYBLOB` | **Default** | `BYTES(255)` | `bytea` | Fixed limit of 255 bytes. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BLOB` | **Default** | `BYTES(65535)` | `bytea` | Fixed limit of 65,535 bytes (64 KiB). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BLOB(N)` | **Default** | `BYTES(N)` | `bytea` | Preserved when migrating from a dump. Live MySQL servers report 65535. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `MEDIUMBLOB` | **Default** | `BYTES(10485760)` | `bytea` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `LONGBLOB` | **Default** | `BYTES(10485760)` | `bytea` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BIT(1)` | **Default** | `BOOL` | `boolean` | Single-bit fields map directly to boolean. |
+| | Alternative | `INT64` | `bigint` | Optional mapping to integer. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BIT(N)` (for $N > 1$) | **Default** | `BYTES(MAX)` | `bytea` | Stored as raw bytes. |
+| | Alternative | `INT64` | `bigint` | Optional integer mapping. Flags `PossibleOverflow` if $N = 64$. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `DATE` | **Default** | `DATE` | `date` | |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DATETIME` | **Default** | `TIMESTAMP` | `timestamp with time zone` | Stored in UTC. Flags `Datetime` issue due to absence of timezone storage in MySQL. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TIMESTAMP` | **Default** | `TIMESTAMP` | `timestamp with time zone` | Converted to UTC during migration. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TIME` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spanner lacks a time-only type; flags `Time` issue. |
+| `YEAR` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spanner lacks a year-only type; flags `Time` issue. |
+| `JSON` | **Default** | `JSON` | `jsonb` | Native JSON type. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | JSON stored as text. |
+| | Alternative | `BYTES(MAX)` | `bytea` | JSON stored as raw bytes. |
+| `ENUM` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Allowed values are not enforced by Spanner DDL. |
+| `SET` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Cloud Spanner does not support set data types; mapped to string with `ArrayTypeNotSupported` issue. |
+| `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`, `GEOMETRYCOLLECTION` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spatial columns are exported as Well-Known Text (WKT) using `ST_AsText()` (`NoGoodType`). |
 
 All other unrecognized data types map to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL) with a `NoGoodType` schema issue.
 
@@ -126,9 +166,7 @@ All other unrecognized data types map to `STRING(MAX)` (GoogleSQL) or `character
 ## ENUM and SET
 
 - **`ENUM`**: Mapped to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL). The list of allowed enumeration values is dropped from the Spanner schema; validation should be handled in your application.
-- **`SET`**:
-  - In **GoogleSQL dialect**, `SET` is mapped to `ARRAY<STRING>`.
-  - In **PostgreSQL dialect**, Spanner does not support array columns. SMT maps `SET` to `character varying (2621440)` and logs an `ArrayTypeNotSupported` schema issue.
+- **`SET`**: Cloud Spanner does not support a native set data type. In both GoogleSQL and PostgreSQL dialects, SMT maps `SET` to `STRING(MAX)` (or `character varying (2621440)`) and logs an `ArrayTypeNotSupported` schema issue.
 
 ## Spatial Data Types
 
