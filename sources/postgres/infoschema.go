@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -35,6 +36,15 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
+
+var postgresCastRegex = regexp.MustCompile(constants.POSTGRES_CAST_REGEX)
+
+// stripCasts removes PostgreSQL type casts, e.g. "(0)::numeric" -> "(0)". Postgres
+// reports stored expressions fully cast; Spanner has no cast syntax and already
+// knows the column type.
+func stripCasts(expr string) string {
+	return postgresCastRegex.ReplaceAllString(expr, "")
+}
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
@@ -299,7 +309,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				IsPresent: true,
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    common.SanitizeExpressionsValue(colDefault.String, ty.Name, false),
+					Statement:    common.SanitizeExpressionsValue(stripCasts(colDefault.String), ty.Name, false),
 				},
 			}
 		} else if colDefault.Valid && !isSerialColumn {
@@ -312,7 +322,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    common.SanitizeExpressionsValue(generationExpression.String, ty.Name, true),
+					Statement:    common.SanitizeExpressionsValue(stripCasts(generationExpression.String), ty.Name, true),
 				},
 			}
 		}
@@ -448,7 +458,7 @@ func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.
 		checkConstraints = append(checkConstraints, schema.CheckConstraint{
 			Id:     internal.GenerateCheckConstrainstId(),
 			Name:   name,
-			Expr:   common.SanitizeExpressionsValue(expr, "", true),
+			Expr:   common.SanitizeExpressionsValue(stripCasts(expr), "", true),
 			ExprId: internal.GenerateExpressionId(),
 		})
 	}

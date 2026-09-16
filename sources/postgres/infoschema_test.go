@@ -916,3 +916,32 @@ func TestToGeneratedColType(t *testing.T) {
 	assert.Equal(t, ddl.GeneratedColVirtual, toGeneratedColType(true))
 	assert.Equal(t, ddl.GeneratedColStored, toGeneratedColType(false))
 }
+
+func TestStripCasts(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple text cast", "'NEW'::bpchar", "'NEW'"},
+		{"cast with length", "'abc'::character varying(50)", "'abc'"},
+		{"numeric cast", "(0)::numeric", "(0)"},
+		{"numeric cast with precision", "(0)::numeric(10,2)", "(0)"},
+		{"function call", "(now())::date", "(now())"},
+		{"multiple casts", "((a)::text || (b)::text)", "((a) || (b))"},
+		{"no cast", "(a > 0)", "(a > 0)"},
+		{"schema qualified", "(0)::pg_catalog.int4", "(0)"},
+		{"array cast", "'{}'::text[]", "'{}'"},
+		{"timestamp with time zone", "(now())::timestamp with time zone", "(now())"},
+		{"double precision", "(1.0)::double precision", "(1.0)"},
+		// A space inside the type-name class would eat the AND/OR, yielding "((a)(b))".
+		{"cast followed by keyword", "((a)::text AND (b)::text)", "((a) AND (b))"},
+		{"cast followed by or", "((a)::text OR (b)::text)", "((a) OR (b))"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, stripCasts(test.input))
+		})
+	}
+}
+

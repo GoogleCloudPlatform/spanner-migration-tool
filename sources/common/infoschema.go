@@ -16,11 +16,9 @@ package common
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -28,10 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
-var postgresCastRegex = regexp.MustCompile(constants.POSTGRES_CAST_REGEX)
-
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
-
 // InfoSchema contains database information.
 type InfoSchema interface {
 	GetToDdl() ToDdl
@@ -210,7 +205,7 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 			cols := tableCols[t.Name]
 			constraints := tableConstraints[t.Name]
 			fks := tableForeignKeys[t.Name]
-
+			
 			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys)
 			conv.SrcSchema[tableObj.Id] = tableObj
 		}
@@ -391,10 +386,6 @@ func SanitizeExpressionsValue(expressionValue string, ty string, generated bool)
 	expressionValue = strings.ReplaceAll(expressionValue, "_utf8mb4", "")
 	expressionValue = strings.ReplaceAll(expressionValue, "\\\\", "\\")
 	expressionValue = strings.ReplaceAll(expressionValue, "\\'", "'")
-
-	// Strip PostgreSQL type casts like ::text or ::character varying(50)
-	expressionValue = postgresCastRegex.ReplaceAllString(expressionValue, "")
-
 	if !generated && stringType && !strings.HasPrefix(expressionValue, "'") && !strings.HasSuffix(expressionValue, "'") {
 		expressionValue = "'" + expressionValue + "'"
 	}
