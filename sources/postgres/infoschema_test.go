@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -439,7 +440,7 @@ func TestProcessSchema(t *testing.T) {
 		"i2":    []internal.SchemaIssue{internal.Widened},
 		// num has no precision or scale.
 		"num":   []internal.SchemaIssue{internal.Numeric},
-		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"s":     []internal.SchemaIssue{internal.Widened},
 		"ts":    []internal.SchemaIssue{internal.Timestamp},
 		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},
 	}
@@ -744,4 +745,174 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func newFalsePtr() *bool {
 	temp := false
 	return &temp
+}
+
+// mkInfoSchema builds an InfoSchemaImpl over a caller-configured sqlmock, for
+// tests that need to simulate query errors.
+func mkInfoSchema(t *testing.T) (InfoSchemaImpl, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	return InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, mock
+}
+
+func TestGetVirtualColumns(t *testing.T) {
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	cases := []struct {
+		name     string
+		setup    func(sqlmock.Sqlmock)
+		expected []string
+	}{
+		{
+			name: "virtual columns returned",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnRows(sqlmock.NewRows([]string{"attname"}).AddRow("vcol1").AddRow("vcol2"))
+			},
+			expected: []string{"vcol1", "vcol2"},
+		},
+		{
+			// attgenerated does not exist before PG 12.
+			name: "query error yields no virtual columns",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(errors.New("column a.attgenerated does not exist"))
+			},
+			expected: nil,
+		},
+		{
+			name: "scan error returns columns read so far",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnRows(sqlmock.NewRows([]string{"attname"}).AddRow("vcol1").AddRow(nil))
+			},
+			expected: []string{"vcol1"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isi, mock := mkInfoSchema(t)
+			tc.setup(mock)
+			assert.Equal(t, tc.expected, isi.getVirtualColumns(table))
+		})
+	}
+}
+
+func TestGetColumns_NoGenerationExpressionSupport(t *testing.T) {
+	// information_schema.columns.generation_expression was added in PG 12. On
+	// older servers the probe finds nothing and GetColumns must fall back to a
+	// query that does not reference it.
+	isi, mock := mkInfoSchema(t)
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	mock.ExpectQuery("SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name"}))
+	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+)").
+		WithArgs("public.test").
+		WillReturnRows(sqlmock.NewRows([]string{"attname"}))
+	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)").
+		WithArgs("public.test").
+		WillReturnError(errors.New("column a.attgenerated does not exist"))
+	mock.ExpectQuery("SELECT (.+) FROM information_schema.COLUMNS (.+)").
+		WithArgs("public", "test").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name", "data_type", "data_type", "is_nullable",
+			"column_default", "character_maximum_length", "numeric_precision", "numeric_scale",
+			"is_generated", "generation_expression"}).
+			AddRow("a", "bigint", nil, "NO", nil, nil, 64, 0, "NEVER", nil).
+			AddRow("b", "text", nil, "YES", "'x'::text", nil, nil, nil, "NEVER", nil))
+
+	conv := internal.MakeConv()
+	colDefs, colIds, err := isi.GetColumns(conv, table, nil, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(colIds))
+	for _, c := range colDefs {
+		assert.False(t, c.GeneratedColumn.IsPresent)
+	}
+	b := colDefs[colIds[1]]
+	assert.Equal(t, "b", b.Name)
+	assert.True(t, b.DefaultValue.IsPresent)
+}
+
+func TestGetCheckConstraints(t *testing.T) {
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	cases := []struct {
+		name          string
+		setup         func(sqlmock.Sqlmock)
+		expectedExprs []string
+		expectErr     bool
+		expectUnexpec int64
+	}{
+		{
+			name: "casts are stripped from the expression",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnRows(sqlmock.NewRows([]string{"conname", "pg_get_expr"}).
+						AddRow("chk_qty", "(quantity > 0)").
+						AddRow("chk_region", "((region)::text = 'US'::text)"))
+			},
+			expectedExprs: []string{"(quantity > 0)", "((region) = 'US')"},
+		},
+		{
+			name: "query error is propagated",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnError(errors.New("permission denied for table pg_constraint"))
+			},
+			expectErr: true,
+		},
+		{
+			name: "scan error skips the row",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnRows(sqlmock.NewRows([]string{"conname", "pg_get_expr"}).
+						AddRow("chk_qty", nil).
+						AddRow("chk_max", "(quantity < 100)"))
+			},
+			expectedExprs: []string{"(quantity < 100)"},
+			expectUnexpec: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isi, mock := mkInfoSchema(t)
+			tc.setup(mock)
+			conv := internal.MakeConv()
+			cc, err := isi.getCheckConstraints(conv, table)
+			if tc.expectErr {
+				assert.NotNil(t, err)
+				return
+			}
+			assert.Nil(t, err)
+			var exprs []string
+			for _, c := range cc {
+				exprs = append(exprs, c.Expr)
+			}
+			assert.Equal(t, tc.expectedExprs, exprs)
+			assert.Equal(t, tc.expectUnexpec, conv.Unexpecteds())
+		})
+	}
+}
+
+func TestGetConstraints_CheckConstraintError(t *testing.T) {
+	isi, mock := mkInfoSchema(t)
+	mock.ExpectQuery("SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)").
+		WithArgs("public", "test").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name", "constraint_type"}).
+			AddRow("id", "PRIMARY KEY"))
+	mock.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+		WithArgs("public", "test").
+		WillReturnError(errors.New("permission denied for table pg_constraint"))
+
+	conv := internal.MakeConv()
+	_, _, _, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "public", Name: "test"})
+	assert.NotNil(t, err)
+}
+
+func TestToGeneratedColType(t *testing.T) {
+	assert.Equal(t, ddl.GeneratedColVirtual, toGeneratedColType(true))
+	assert.Equal(t, ddl.GeneratedColStored, toGeneratedColType(false))
 }
