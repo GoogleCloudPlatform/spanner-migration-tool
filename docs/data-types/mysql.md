@@ -28,7 +28,9 @@ The Spanner migration tool maps MySQL types to Spanner types as follows:
 |:-------------------------------------------------:|:-----------------:|:--------------------------------------------------------:|
 |        `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`        |      `BOOL`       |                                                          |
 |                     `BIGINT`                      |      `INT64`      |                                                          |
-|               `BINARY`, `VARBINARY`               |   `BYTES(MAX)`    |                                                          |
+|                     `BINARY`                      |    `BYTES(1)`     | BINARY defaults to length 1                              |
+|                    `BINARY(N)`                    |    `BYTES(N)`     |                                                          |
+|                  `VARBINARY(N)`                   |    `BYTES(N)`     |                                                          |
 |                      `BLOB`                       |  `BYTES(65535)`   |                                                          |
 |                     `BLOB(N)`                     |    `BYTES(N)`     |                                                          |
 |                   `MEDIUMBLOB`                    |     `BYTES(10485760)`     |                                                          |
@@ -37,7 +39,7 @@ The Spanner migration tool maps MySQL types to Spanner types as follows:
 |                   `TINYBLOB(N)`                   |    `BYTES(N)`     |                                                          |
 |                    `LONGBLOB`                     | `BYTES(10485760)` |                                                          |
 |                   `LONGBLOB(N)`                   |    `BYTES(N)`     |                                                          |
-|                       `BIT`                       |   `BYTES(MAX)`    | BIT(1) converts to BOOL, other cases map to BYTES        |
+|                       `BIT`                       |   `BYTES(MAX)`    | BIT(1) converts to BOOL, other cases map to BYTES. Can optionally map to INT64 |
 |                      `CHAR`                       |    `STRING(1)`    | CHAR defaults to length 1                                |
 |                     `CHAR(N)`                     |    `STRING(N)`    | differences in treatment of fixed-length character types |
 |                      `DATE`                       |      `DATE`       |                                                          |

@@ -603,14 +603,14 @@ func TestToSpannerTypeInternalBinaryTypes(t *testing.T) {
 			want:    ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
 		},
 		{
-			name:    "binary with length maps to bytes(max)",
+			name:    "binary with length maps to bytes(n)",
 			srcType: schema.Type{Name: "binary", Mods: []int64{32}},
-			want:    ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 32},
 		},
 		{
-			name:    "varbinary with length maps to bytes(max)",
+			name:    "varbinary with length maps to bytes(n)",
 			srcType: schema.Type{Name: "varbinary", Mods: []int64{32}},
-			want:    ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 32},
 		},
 		{
 			name:    "binary keeps its length when bytes is explicitly selected",

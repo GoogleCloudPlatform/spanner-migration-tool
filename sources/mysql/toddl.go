@@ -222,17 +222,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		case ddl.Bytes:
-			// An explicit BYTES mapping preserves the length declared in the source.
+		default:
 			if len(srcType.Mods) > 0 {
 				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-		default:
-			// MySQL right-pads BINARY(N) values with 0x00 and, outside of strict
-			// mode, silently truncates over-long values instead of rejecting them.
-			// Spanner enforces BYTES(N) strictly, so we default to BYTES(MAX) to
-			// avoid write failures during the data migration.
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
