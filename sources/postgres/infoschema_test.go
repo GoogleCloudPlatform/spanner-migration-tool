@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -647,4 +648,66 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func newFalsePtr() *bool {
 	temp := false
 	return &temp
+}
+
+func TestPartitionParent(t *testing.T) {
+	testCases := []struct {
+		name string
+		row        []driver.Value
+		queryErr   bool
+		wantSchema string
+		wantTable  string
+		wantOK     bool
+	}{
+		{
+			name:       "child of a partitioned table",
+			row:        []driver.Value{"public", "orders"},
+			wantSchema: "public",
+			wantTable:  "orders",
+			wantOK:     true,
+		},
+		{
+			name:       "parent in a different schema",
+			row:        []driver.Value{"sales", "orders"},
+			wantSchema: "sales",
+			wantTable:  "orders",
+			wantOK:     true,
+		},
+		{
+			// Also covers pre-PostgreSQL-10 servers, where relkind 'p' cannot
+			// exist so the query is valid and simply matches nothing.
+			name:   "regular table",
+			row:    nil,
+			wantOK: false,
+		},
+		{
+			name:     "query error fails open",
+			queryErr: true,
+			wantOK:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.Nil(t, err)
+			defer db.Close()
+
+			q := mock.ExpectQuery("pg_inherits").WithArgs("orders_2024", "public")
+			switch {
+			case tc.queryErr:
+				q.WillReturnError(errors.New("connection lost"))
+			case tc.row == nil:
+				q.WillReturnRows(sqlmock.NewRows([]string{"nspname", "relname"}))
+			default:
+				q.WillReturnRows(sqlmock.NewRows([]string{"nspname", "relname"}).AddRow(tc.row...))
+			}
+
+			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+			gotSchema, gotTable, gotOK := isi.PartitionParent("public", "orders_2024")
+			assert.Equal(t, tc.wantOK, gotOK)
+			assert.Equal(t, tc.wantSchema, gotSchema)
+			assert.Equal(t, tc.wantTable, gotTable)
+		})
+	}
 }

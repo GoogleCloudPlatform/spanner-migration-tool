@@ -16,6 +16,7 @@ package reports
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -45,6 +46,31 @@ func AnalyzeTables(conv *internal.Conv, badWrites map[string]int64) (r []tableRe
 		}
 	}
 	return r
+}
+
+// PartitionNoticesByParent returns one notice per partitioned table whose child
+// partitions were skipped, keyed by the parent's table id.
+func PartitionNoticesByParent(conv *internal.Conv) map[string]Issue {
+	notices := make(map[string]Issue)
+	for tableId, srcTable := range conv.SrcSchema {
+		if _, converted := conv.SpSchema[tableId]; converted || srcTable.PartitionParent == "" {
+			continue
+		}
+		// The issue is cleared on restore, so its presence means we skipped the
+		// table rather than the user deleting it.
+		if !slices.Contains(conv.SchemaIssues[tableId].TableLevelIssues, internal.PartitionedTable) {
+			continue
+		}
+		parentId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTable.PartitionParent)
+		if err != nil {
+			continue
+		}
+		notices[parentId] = Issue{
+			Category:    IssueDB[internal.PartitionedTable].Category,
+			Description: fmt.Sprintf("Table '%s': %s", srcTable.PartitionParent, IssueDB[internal.PartitionedTable].Brief),
+		}
+	}
+	return notices
 }
 
 func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]int64) tableReport {
@@ -622,6 +648,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 }{
 	internal.DefaultValue:                         {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.GeneratedColumnValueError:            {Brief: "Some columns have generated expression which Spanner migration tool cannot not fix. Please add the expressions manually", Severity: warning, batch: false, Category: "MISSING_GENERATED_COL_VALUE_CONSTRAINTS"},
+	internal.PartitionedTable:                     {Brief: "Partitioned tables are ignored", Severity: warning, batch: true, Category: "PARTITIONED_TABLE_IGNORED"},
 	internal.TypeMismatch:                         {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
 	internal.TypeMismatchError:                    {Brief: "Type mismatch in check constraint mention in table", Severity: Errors, Category: "TYPE_MISMATCH_ERROR"},
 	internal.InvalidCondition:                     {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},

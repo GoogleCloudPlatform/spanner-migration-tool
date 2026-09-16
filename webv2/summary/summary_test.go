@@ -84,3 +84,69 @@ func TestGetSummary(t *testing.T) {
 
 	}
 }
+
+func TestGetSummary_PartitionedTables(t *testing.T) {
+	srcTable := func(id, name, parent string) schema.Table {
+		return schema.Table{
+			Name:            name,
+			ColIds:          []string{"c1"},
+			ColDefs:         map[string]schema.Column{"c1": {Name: "id", Type: schema.Type{Name: "bigint"}, NotNull: true, Id: "c1"}},
+			PrimaryKeys:     []schema.Key{{ColId: "c1", Order: 1}},
+			Id:              id,
+			PartitionParent: parent,
+		}
+	}
+
+	// t1 is the parent and converts; t2 and t3 are its partitions and are skipped.
+	conv := &internal.Conv{
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Name:        "orders",
+				ColIds:      []string{"c1"},
+				ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, Id: "c1"}},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+				Id:          "t1",
+			},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": srcTable("t1", "orders", ""),
+			"t2": srcTable("t2", "orders_2024", "orders"),
+			"t3": srcTable("t3", "orders_2023", "orders"),
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t2": {
+				TableLevelIssues:  []internal.SchemaIssue{internal.PartitionedTable},
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+			},
+			"t3": {
+				TableLevelIssues:  []internal.SchemaIssue{internal.PartitionedTable},
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+			},
+		},
+	}
+
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.POSTGRES
+	sessionState.Conv = conv
+
+	actualSummary := getSummary()
+
+	partitionWarnings := []reports.Issue{}
+	for _, w := range actualSummary["t1"].Warnings {
+		if w.Category == "PARTITIONED_TABLE_IGNORED" {
+			partitionWarnings = append(partitionWarnings, w)
+		}
+	}
+	assert.Equal(t, []reports.Issue{{
+		Category:    "PARTITIONED_TABLE_IGNORED",
+		Description: "Table 'orders': Partitioned tables are ignored",
+	}}, partitionWarnings)
+
+	assert.Equal(t, len(actualSummary["t1"].Warnings), actualSummary["t1"].WarningsCount)
+
+	assert.Empty(t, actualSummary["t2"].Warnings)
+	assert.Empty(t, actualSummary["t3"].Warnings)
+}

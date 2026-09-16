@@ -159,6 +159,7 @@ const (
 	PossibleOverflow
 	IdentitySkipRange
 	GeneratedColumnValueError
+	PartitionedTable
 )
 
 const (
