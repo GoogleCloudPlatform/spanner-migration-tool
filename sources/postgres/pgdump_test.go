@@ -156,7 +156,37 @@ func TestProcessPgDump_Serial(t *testing.T) {
 			},
 		},
 		{
-			name: "Bigserial column",
+			name:  "Identity column declared inline is implicitly NOT NULL",
+			input: "CREATE TABLE public.identity_test (pk integer PRIMARY KEY, id integer GENERATED ALWAYS AS IDENTITY);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"identity_test": ddl.CreateTable{
+					Name:   "identity_test",
+					ColIds: []string{"pk", "id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"pk": ddl.ColumnDef{Name: "pk", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "pk", Order: 1}},
+				},
+			},
+		},
+		{
+			name:  "Identity column with non-integer type",
+			input: "CREATE TABLE public.identity_test (pk integer PRIMARY KEY, id numeric GENERATED ALWAYS AS IDENTITY);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"identity_test": ddl.CreateTable{
+					Name:   "identity_test",
+					ColIds: []string{"pk", "id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"pk": ddl.ColumnDef{Name: "pk", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "pk", Order: 1}},
+				},
+			},
+		},
+		{
+			name:  "Bigserial column",
 			input: "CREATE TABLE public.serial_test (id bigserial NOT NULL PRIMARY KEY, col character varying(255));",
 			expectedSchema: map[string]ddl.CreateTable{
 				"serial_test": ddl.CreateTable{

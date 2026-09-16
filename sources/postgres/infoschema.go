@@ -16,6 +16,7 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/bits"
 	"reflect"
@@ -26,7 +27,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
+	// Used via database/sql; imported directly only to read the SQLSTATE off a
+	// server error, see sqlState.
+	"github.com/lib/pq"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -275,7 +278,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
 		isIdentityColumn := slices.Contains(identityCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn && !isIdentityColumn
+		ignored.Default = colDefault.Valid && !isSerialColumn
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
@@ -291,16 +294,37 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	return colDefs, colIds, nil
 }
 
+// undefinedColumn is the SQLSTATE for a reference to a column that doesn't exist.
+const undefinedColumn = "42703"
+
+// sqlState returns the SQLSTATE of a Postgres server error, or "" if err didn't
+// come from the server.
+func sqlState(err error) string {
+	var coded interface{ SQLState() string }
+	if errors.As(err, &coded) {
+		return coded.SQLState()
+	}
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return string(pqErr.Code)
+	}
+	return ""
+}
+
+// getIdentityColumns returns the columns of table declared GENERATED ALWAYS /
+// BY DEFAULT AS IDENTITY. These have no nextval() default to detect: Postgres
+// records them in pg_attribute.attidentity ('a' or 'd') and reports a NULL
+// column_default. Postgres already restricts identity to smallint/integer/
+// bigint; the type filter just keeps that in step with Spanner, whose identity
+// columns must be INT64.
 func (isi InfoSchemaImpl) getIdentityColumns(conv *internal.Conv, table common.SchemaAndName) []string {
 	identityColsQuery := `SELECT a.attname FROM pg_attribute a
-        WHERE attrelid = $1::regclass AND attnum > 0 AND a.attidentity IN ('a', 'd');`
+        WHERE attrelid = $1::regclass AND attnum > 0
+        AND a.atttypid = ANY ('{int,int8,int2}'::regtype[])
+        AND a.attidentity IN ('a', 'd');`
 	identityColsResult, err := isi.Db.Query(identityColsQuery, table.Schema+"."+table.Name)
 	if err != nil {
-		// Ignore error for backward compatibility: 'attidentity' was introduced in PostgreSQL 10
-		// to support SQL-standard identity columns (GENERATED ALWAYS / BY DEFAULT AS IDENTITY).
-		// In PostgreSQL 9.6 and older, this query fails because the 'attidentity' column does not exist.
-		// Since older versions do not have identity columns (they use SERIAL/sequences instead), we ignore it.
-		if strings.Contains(err.Error(), "attidentity") {
+		if sqlState(err) == undefinedColumn {
 			return []string{}
 		}
 
