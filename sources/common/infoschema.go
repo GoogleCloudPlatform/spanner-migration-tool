@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -27,6 +28,7 @@ import (
 )
 
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
+
 // InfoSchema contains database information.
 type InfoSchema interface {
 	GetToDdl() ToDdl
@@ -35,6 +37,7 @@ type InfoSchema interface {
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
+
 }
 
 // StandardInfoSchema supports per-table fetching of metadata.
@@ -344,6 +347,7 @@ func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schem
 		Indexes:          indexes,
 		ForeignKeys:      foreignKeys}
 }
+
 
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.

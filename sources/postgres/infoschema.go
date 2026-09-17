@@ -37,13 +37,28 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
-var postgresCastRegex = regexp.MustCompile(constants.POSTGRES_CAST_REGEX)
+// pgLiteral matches a string or numeric literal ('' escapes a quote).
+const pgLiteral = `'(?:[^']|'')*'|-?\d+(?:\.\d+)?`
 
-// stripCasts removes PostgreSQL type casts, e.g. "(0)::numeric" -> "(0)". Postgres
-// reports stored expressions fully cast; Spanner has no cast syntax and already
-// knows the column type.
-func stripCasts(expr string) string {
-	return postgresCastRegex.ReplaceAllString(expr, "")
+// pgCast matches "::text", "::character varying(50)", "::pg_catalog.int4[]".
+// Type names must not span whitespace beyond the listed suffixes, else
+// "(a)::text AND (b)" would swallow the AND.
+const pgCast = `::[\w.]+(?: varying| precision| with time zone| without time zone)?(?:\([0-9, ]+\))?(?:\[\])?`
+
+// pgLiteralCastRegex matches a cast on a literal, which Postgres may parenthesise
+// as "(0)::numeric". The char before the literal is captured (RE2 has no
+// lookbehind) so "col1::text" isn't read as the literal 1; replace puts it back.
+var pgLiteralCastRegex = regexp.MustCompile(
+	`(^|[^\w$.])(\((?:` + pgLiteral + `)\)|` + pgLiteral + `)` + pgCast)
+
+// stripLiteralCasts drops casts that only decorate a literal, e.g.
+// "'NEW'::character varying" -> "'NEW'". Casts on columns are kept: they convert
+// the operand, so dropping one changes what the expression computes. Spanner
+// rejects them and verification flags the column, which beats silently migrating
+// a different expression. Mirrors MySQL's dbcollationRegex, which likewise strips
+// only decoration glued to a literal.
+func stripLiteralCasts(expr string) string {
+	return pgLiteralCastRegex.ReplaceAllString(expr, "$1$2")
 }
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -309,7 +324,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				IsPresent: true,
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    common.SanitizeExpressionsValue(stripCasts(colDefault.String), ty.Name, false),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(colDefault.String), ty.Name, false),
 				},
 			}
 		} else if colDefault.Valid && !isSerialColumn {
@@ -322,7 +337,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    common.SanitizeExpressionsValue(stripCasts(generationExpression.String), ty.Name, true),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(generationExpression.String), ty.Name, true),
 				},
 			}
 		}
@@ -458,7 +473,7 @@ func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.
 		checkConstraints = append(checkConstraints, schema.CheckConstraint{
 			Id:     internal.GenerateCheckConstrainstId(),
 			Name:   name,
-			Expr:   common.SanitizeExpressionsValue(stripCasts(expr), "", true),
+			Expr:   common.SanitizeExpressionsValue(stripLiteralCasts(expr), "", true),
 			ExprId: internal.GenerateExpressionId(),
 		})
 	}

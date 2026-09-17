@@ -955,7 +955,7 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 				cd.DefaultValue.IsPresent = true
 				cd.DefaultValue.Value = ddl.Expression{
 					ExpressionId: c.exprId,
-					Statement:    common.SanitizeExpressionsValue(stripCasts(c.rawExpr), cd.Type.Name, false),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, false),
 				}
 			} else {
 				cd.Ignored.Default = true
@@ -965,7 +965,7 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 				cd.GeneratedColumn.IsPresent = true
 				cd.GeneratedColumn.Value = ddl.Expression{
 					ExpressionId: c.exprId,
-					Statement:    common.SanitizeExpressionsValue(stripCasts(c.rawExpr), cd.Type.Name, true),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, true),
 				}
 				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory;
 				// PG 18 VIRTUAL fails to parse before reaching here.

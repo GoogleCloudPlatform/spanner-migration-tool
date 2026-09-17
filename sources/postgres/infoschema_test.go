@@ -844,15 +844,15 @@ func TestGetCheckConstraints(t *testing.T) {
 		expectUnexpec int64
 	}{
 		{
-			name: "casts are stripped from the expression",
+			name: "casts on literals are stripped, casts on columns are kept",
 			setup: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
 					WithArgs("public", "test").
 					WillReturnRows(sqlmock.NewRows([]string{"conname", "pg_get_expr"}).
-						AddRow("chk_qty", "(quantity > 0)").
+						AddRow("chk_qty", "(quantity > (0)::numeric)").
 						AddRow("chk_region", "((region)::text = 'US'::text)"))
 			},
-			expectedExprs: []string{"(quantity > 0)", "((region) = 'US')"},
+			expectedExprs: []string{"(quantity > (0))", "((region)::text = 'US')"},
 		},
 		{
 			name: "query error is propagated",
@@ -917,30 +917,40 @@ func TestToGeneratedColType(t *testing.T) {
 	assert.Equal(t, ddl.GeneratedColStored, toGeneratedColType(false))
 }
 
-func TestStripCasts(t *testing.T) {
+func TestStripLiteralCasts(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
 		expected string
 	}{
-		{"simple text cast", "'NEW'::bpchar", "'NEW'"},
-		{"cast with length", "'abc'::character varying(50)", "'abc'"},
-		{"numeric cast", "(0)::numeric", "(0)"},
-		{"numeric cast with precision", "(0)::numeric(10,2)", "(0)"},
-		{"function call", "(now())::date", "(now())"},
-		{"multiple casts", "((a)::text || (b)::text)", "((a) || (b))"},
+		// Dropped: the cast only decorates a literal.
+		{"string literal", "'NEW'::bpchar", "'NEW'"},
+		{"string literal with length", "'abc'::character varying(50)", "'abc'"},
+		{"numeric literal", "(0)::numeric", "(0)"},
+		{"numeric literal with precision", "(0)::numeric(10,2)", "(0)"},
+		{"float literal", "(1.0)::double precision", "(1.0)"},
+		{"schema qualified type", "(0)::pg_catalog.int4", "(0)"},
+		{"array literal", "'{}'::text[]", "'{}'"},
+		{"unparenthesised literal", "0::numeric", "0"},
+		{"negative literal", "(-1)::integer", "(-1)"},
+		{"literal containing colons", "'::1'::inet", "'::1'"},
+		{"literal inside expression", "a::text || '-'::text || b::text", "a::text || '-' || b::text"},
+
+		// Kept: the cast converts an operand.
+		{"identifier", "a::text", "a::text"},
+		{"identifier ending in digit", "col1::text", "col1::text"},
+		{"parenthesised identifier", "(price * (qty)::numeric)", "(price * (qty)::numeric)"},
+		{"function call", "(now())::date", "(now())::date"},
+		{"timestamp with time zone", "(now())::timestamp with time zone", "(now())::timestamp with time zone"},
+		{"arithmetic", "(a + 0)::numeric", "(a + 0)::numeric"},
+		{"concatenation", "((a)::text || (b)::text)", "((a)::text || (b)::text)"},
+		{"boolean operands", "((a)::text AND (b)::text)", "((a)::text AND (b)::text)"},
+
 		{"no cast", "(a > 0)", "(a > 0)"},
-		{"schema qualified", "(0)::pg_catalog.int4", "(0)"},
-		{"array cast", "'{}'::text[]", "'{}'"},
-		{"timestamp with time zone", "(now())::timestamp with time zone", "(now())"},
-		{"double precision", "(1.0)::double precision", "(1.0)"},
-		// A space inside the type-name class would eat the AND/OR, yielding "((a)(b))".
-		{"cast followed by keyword", "((a)::text AND (b)::text)", "((a) AND (b))"},
-		{"cast followed by or", "((a)::text OR (b)::text)", "((a) OR (b))"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, stripCasts(test.input))
+			assert.Equal(t, test.expected, stripLiteralCasts(test.input))
 		})
 	}
 }
