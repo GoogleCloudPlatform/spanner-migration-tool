@@ -360,32 +360,12 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 // converts an AST expression node to its string representation.
 func expressionToString(expr ast.Node) string {
 	var sb strings.Builder
-	// RestoreStringWithoutCharset drops charset introducers like `_UTF8MB4'x'`.
-	flags := format.RestoreStringSingleQuotes | format.RestoreKeyWordUppercase | format.RestoreStringWithoutCharset
-	restoreCtx := format.NewRestoreCtx(flags, &sb)
+	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase, &sb)
 	if err := expr.Restore(restoreCtx); err != nil {
 		logger.Log.Warn(fmt.Sprintf("Error restoring expression: %v\n", err))
 		return ""
 	}
 	return sb.String()
-}
-
-// isNullDefault reports whether a DEFAULT clause is the literal NULL, which
-// mysqldump emits for every nullable column.
-func isNullDefault(expr ast.ExprNode) bool {
-	v, ok := expr.(*driver.ValueExpr)
-	return ok && v.GetValue() == nil
-}
-
-// defaultStatement returns the text of a non-NULL DEFAULT clause, and false if it
-// cannot be restored. mysqldump quotes every literal, so literals use the parsed
-// value: Spanner rejects the STRING '42' as a default on an INT64 column.
-func defaultStatement(expr ast.ExprNode) (string, bool) {
-	if v, ok := expr.(*driver.ValueExpr); ok {
-		return fmt.Sprintf("%v", v.GetValue()), true
-	}
-	statement := expressionToString(expr)
-	return statement, statement != ""
 }
 
 // toSchemaKeys converts a string list of MySQL keys to schema keys.
@@ -581,19 +561,13 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 				GenerationType: constants.AUTO_INCREMENT,
 			}
 		case ast.ColumnOptionDefaultValue:
-			if isNullDefault(elem.Expr) {
-				continue
-			}
-			if statement, ok := defaultStatement(elem.Expr); ok {
-				column.DefaultValue = ddl.DefaultValue{
-					IsPresent: true,
-					Value: ddl.Expression{
-						ExpressionId: internal.GenerateExpressionId(),
-						Statement:    common.SanitizeExpressionsValue(statement, column.Type.Name, false),
-					},
-				}
-			} else {
-				// Nothing to migrate; report for manual follow-up.
+			// If a data type specification includes no explicit DEFAULT
+			// value, MySQL determines if the column can take NULL as a value
+			// and the column is defined with DEFAULT NULL clause in mysqldump.
+			// This case is ignored from issue reporting of 'Default' value.
+			v, ok := elem.Expr.(*driver.ValueExpr)
+			nullDefault := ok && v.GetValue() == nil
+			if !nullDefault {
 				column.Ignored.Default = true
 			}
 		case ast.ColumnOptionUniqKey:
@@ -622,7 +596,7 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			column.GeneratedColumn.IsPresent = true
 			column.GeneratedColumn.Value = ddl.Expression{
 				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeExpressionsValue(expressionToString(elem.Expr), column.Type.Name, true),
+				Statement:    common.SanitizeExpressionsValue(expressionToString(elem.Expr), "", false),
 			}
 			column.GeneratedColumn.Type = ddl.GeneratedColVirtual
 			if elem.Stored {

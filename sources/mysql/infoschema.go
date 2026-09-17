@@ -245,7 +245,8 @@ func buildColumn(conv *internal.Conv, colId, colName, dataType, columnType, isNu
 		colGeneratedExpression.Valid = false
 	}
 	ignored := schema.Ignored{}
-
+	ignored.Default = colDefault.Valid
+	
 	var colAutoGen ddl.AutoGenCol
 	if colExtra.String == "auto_increment" {
 		colAutoGen = ddl.AutoGenCol{
