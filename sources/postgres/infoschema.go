@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -38,6 +39,30 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
+
+// pgLiteral matches a string or numeric literal ('' escapes a quote).
+const pgLiteral = `'(?:[^']|'')*'|-?\d+(?:\.\d+)?`
+
+// pgCast matches "::text", "::character varying(50)", "::pg_catalog.int4[]".
+// Type names must not span whitespace beyond the listed suffixes, else
+// "(a)::text AND (b)" would swallow the AND.
+const pgCast = `::[\w.]+(?: varying| precision| with time zone| without time zone)?(?:\([0-9, ]+\))?(?:\[\])?`
+
+// pgLiteralCastRegex matches a cast on a literal, which Postgres may parenthesise
+// as "(0)::numeric". The char before the literal is captured (RE2 has no
+// lookbehind) so "col1::text" isn't read as the literal 1; replace puts it back.
+var pgLiteralCastRegex = regexp.MustCompile(
+	`(^|[^\w$.])(\((?:` + pgLiteral + `)\)|` + pgLiteral + `)` + pgCast)
+
+// stripLiteralCasts drops casts that only decorate a literal, e.g.
+// "'NEW'::character varying" -> "'NEW'". Casts on columns are kept: they convert
+// the operand, so dropping one changes what the expression computes. Spanner
+// rejects them and verification flags the column, which beats silently migrating
+// a different expression. Mirrors MySQL's dbcollationRegex, which likewise strips
+// only decoration glued to a literal.
+func stripLiteralCasts(expr string) string {
+	return pgLiteralCastRegex.ReplaceAllString(expr, "$1$2")
+}
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
@@ -166,6 +191,9 @@ func convertSQLRow(conv *internal.Conv, tableId string, colIds []string, srcSche
 		if !ok1 || !ok2 {
 			return nil, nil, fmt.Errorf("data conversion: can't find schema for column id %s of table %s", colId, conv.SrcSchema[tableId].Name)
 		}
+		if spCd.GeneratedColumn.IsPresent {
+			continue // Spanner will automatically compute generated columns.
+		}
 		if srcVals[i] == nil {
 			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
 		}
@@ -241,12 +269,27 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
+	qCheck := `SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema' AND table_name = 'columns' AND column_name = 'generation_expression'`
+	var colCheck string
+	errCheck := isi.Db.QueryRow(qCheck).Scan(&colCheck)
+	hasGenerationExpression := (errCheck == nil && colCheck == "generation_expression")
+
+	var q string
+	if hasGenerationExpression {
+		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.is_generated, c.generation_expression
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+	} else {
+		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, 'NEVER', NULL
+              FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
+                 ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
+                     = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
+              where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+	}
 	serialCols := isi.getSerialColumns(conv, table)
+	virtualCols := isi.getVirtualColumns(table)
 	identityCols := isi.getIdentityColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
@@ -256,10 +299,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	colDefs := make(map[string]schema.Column)
 	var colIds []string
 	var colName, dataType, isNullable string
-	var colDefault, elementDataType sql.NullString
+	var colDefault, elementDataType, isGenerated, generationExpression sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &isGenerated, &generationExpression)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -278,20 +321,69 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
 		isIdentityColumn := slices.Contains(identityCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn
+
+		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
+		var defaultVal ddl.DefaultValue
+		if colDefault.Valid && !isSerialColumn && colDefault.String != "" {
+			defaultVal = ddl.DefaultValue{
+				IsPresent: true,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(colDefault.String), ty.Name, false),
+				},
+			}
+		} else if colDefault.Valid && !isSerialColumn {
+			ignored.Default = true
+		}
+		var generatedCol ddl.GeneratedColumn
+		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid && generationExpression.String != "" {
+			generatedCol = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(generationExpression.String), ty.Name, true),
+				},
+			}
+		}
+
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: toAutoGen(isSerialColumn || isIdentityColumn),
+			Id:              colId,
+			Name:            colName,
+			Type:            ty,
+			NotNull:         common.ToNotNull(conv, isNullable),
+			Ignored:         ignored,
+			AutoGen:         toAutoGen(isSerialColumn || isIdentityColumn),
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedCol,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+// getVirtualColumns returns a table's VIRTUAL generated columns (PostgreSQL 18+).
+// information_schema cannot distinguish VIRTUAL from STORED; pg_attribute can.
+// attgenerated is absent before PG 12, where the query fails and nil is correct.
+func (isi InfoSchemaImpl) getVirtualColumns(table common.SchemaAndName) []string {
+	q := `SELECT attname FROM pg_attribute
+              WHERE attrelid = $1::regclass AND attnum > 0 AND attgenerated = 'v';`
+	rows, err := isi.Db.Query(q, table.Schema+"."+table.Name)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var virtualCols []string
+	for rows.Next() {
+		var colName string
+		if err := rows.Scan(&colName); err != nil {
+			return virtualCols
+		}
+		virtualCols = append(virtualCols, colName)
+	}
+	return virtualCols
 }
 
 // undefinedColumn is the SQLSTATE for a reference to a column that doesn't exist.
@@ -401,7 +493,43 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, nil, m, nil
+	checkConstraints, err := isi.getCheckConstraints(conv, table)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return primaryKeys, checkConstraints, m, nil
+}
+
+// getCheckConstraints returns a table's CHECK constraints. Uses pg_catalog because
+// information_schema also lists the NOT NULL constraints Postgres synthesizes per
+// column; pg_get_expr returns the bare expression, unlike pg_get_constraintdef.
+func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.SchemaAndName) ([]schema.CheckConstraint, error) {
+	q := `SELECT con.conname, pg_get_expr(con.conbin, con.conrelid)
+              FROM pg_constraint con
+                JOIN pg_class rel ON rel.oid = con.conrelid
+                JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+              WHERE con.contype = 'c' AND nsp.nspname = $1 AND rel.relname = $2
+              ORDER BY con.conname;`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var checkConstraints []schema.CheckConstraint
+	var name, expr string
+	for rows.Next() {
+		if err := rows.Scan(&name, &expr); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan check constraint: %v", err))
+			continue
+		}
+		checkConstraints = append(checkConstraints, schema.CheckConstraint{
+			Id:     internal.GenerateCheckConstrainstId(),
+			Name:   name,
+			Expr:   common.SanitizeExpressionsValue(stripLiteralCasts(expr), "", true),
+			ExprId: internal.GenerateExpressionId(),
+		})
+	}
+	return checkConstraints, nil
 }
 
 // GetForeignKeys returns a list of all the foreign key constraints.
@@ -565,6 +693,13 @@ func toAutoGen(isSerial bool) ddl.AutoGenCol {
 		autoGen.GenerationType = constants.SERIAL
 	}
 	return autoGen
+}
+
+func toGeneratedColType(isVirtual bool) ddl.GeneratedColType {
+	if isVirtual {
+		return ddl.GeneratedColVirtual
+	}
+	return ddl.GeneratedColStored
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {

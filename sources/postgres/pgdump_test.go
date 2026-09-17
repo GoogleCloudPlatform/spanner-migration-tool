@@ -371,7 +371,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -387,7 +387,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -427,6 +427,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 }
 
 // Identity columns carry IdentitySkipRange only, like serial -- not DefaultValue.
+// A plain DEFAULT is migrated onto the Spanner column, so it raises no issue either.
 func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 	input := "CREATE TABLE public.identity_test (id bigint NOT NULL, ser serial, plain integer DEFAULT 7);\n" +
 		"ALTER TABLE public.identity_test ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (\n" +
@@ -437,10 +438,11 @@ func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 	wantIssues := map[string]struct {
 		identitySkipRange bool
 		defaultValue      bool
+		defaultMigrated   bool
 	}{
-		"id":    {identitySkipRange: true, defaultValue: false},
-		"ser":   {identitySkipRange: true, defaultValue: false},
-		"plain": {identitySkipRange: false, defaultValue: true},
+		"id":    {identitySkipRange: true, defaultValue: false, defaultMigrated: false},
+		"ser":   {identitySkipRange: true, defaultValue: false, defaultMigrated: false},
+		"plain": {identitySkipRange: false, defaultValue: false, defaultMigrated: true},
 	}
 
 	for tableId, tbl := range conv.SpSchema {
@@ -455,6 +457,8 @@ func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 				"column %s: unexpected IdentitySkipRange state, issues=%v", colName, issues)
 			assert.Equal(t, want.defaultValue, slices.Contains(issues, internal.DefaultValue),
 				"column %s: unexpected DefaultValue state, issues=%v", colName, issues)
+			assert.Equal(t, want.defaultMigrated, tbl.ColDefs[colId].DefaultValue.IsPresent,
+				"column %s: unexpected migrated default", colName)
 		}
 	}
 }
@@ -560,7 +564,7 @@ func TestProcessPgDump(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"id":          {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"integer_col": {Name: "integer_col", T: ddl.Type{Name: ddl.Int64}},
-						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}},
+						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'NEW'"}}},
 					},
 					PrimaryKeys:      []ddl.IndexKey{{ColId: "id", Order: 1}},
 					CheckConstraints: []ddl.CheckConstraint{},
@@ -868,6 +872,50 @@ func TestProcessPgDump(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
+		},
+		{
+			name: "Create table with generated column",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text," +
+				"d text GENERATED ALWAYS AS ((b || c)) STORED," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c", "d"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(b || c)"}, Type: ddl.GeneratedColStored}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
+		},
+		{
+			name: "Create table with default value",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text DEFAULT 'xyz'::text," +
+				"c text," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'xyz'"}}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Multiple statements on one line",
@@ -1972,17 +2020,23 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 
 func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("RefreshSpannerClient", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ctx := context.Background()
 	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
 		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
@@ -2005,8 +2059,11 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(

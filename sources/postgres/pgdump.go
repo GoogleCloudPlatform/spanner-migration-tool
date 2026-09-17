@@ -318,7 +318,15 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 						updateSchema(conv, tbl.Id, []constraint{c}, "ALTER TABLE")
 						conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
 					} else {
-						conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+						expr, err := deparseExpression(a.Def)
+						if err != nil {
+							conv.Unexpected(fmt.Sprintf("Failed to deparse default expression: %v", err))
+							conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+						} else {
+							c := constraint{ct: pg_query.ConstrType_CONSTR_DEFAULT, cols: []string{a.Name}, rawExpr: expr, exprId: internal.GenerateExpressionId()}
+							updateSchema(conv, tbl.Id, []constraint{c}, "ALTER TABLE")
+							conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+						}
 					}
 				case a.Subtype == pg_query.AlterTableType_AT_AddIdentity && a.Name != "":
 					// pg_dump emits identity columns as a separate ALTER TABLE, not
@@ -753,6 +761,8 @@ type constraint struct {
 	onUpdate   string
 	/* Fields used for DEFAULT constraint: */
 	sequenceName string // only when value is generated from sequence using nextval()
+	rawExpr      string
+	exprId       string
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
@@ -764,7 +774,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 			c := d.Constraint
 			var cols, referCols []string
 			var referTable, onDelete, onUpdate string
-			var conName, sequenceName string
+			var conName, sequenceName, rawExpr, exprId string
 			switch c.Contype {
 			case pg_query.ConstrType_CONSTR_FOREIGN:
 				t, err := getTableName(conv, c.Pktable)
@@ -833,6 +843,25 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 
 			case pg_query.ConstrType_CONSTR_DEFAULT:
 				sequenceName = getSeqNameFromDefaultExpression(c.RawExpr)
+				if sequenceName == "" && c.RawExpr != nil {
+					expr, err := deparseExpression(c.RawExpr)
+					if err != nil {
+						conv.Unexpected(fmt.Sprintf("Failed to deparse default expression: %v", err))
+					} else {
+						rawExpr = expr
+						exprId = internal.GenerateExpressionId()
+					}
+				}
+			case pg_query.ConstrType_CONSTR_GENERATED:
+				if c.RawExpr != nil {
+					expr, err := deparseExpression(c.RawExpr)
+					if err != nil {
+						conv.Unexpected(fmt.Sprintf("Failed to deparse generated expression: %v", err))
+					} else {
+						rawExpr = expr
+						exprId = internal.GenerateExpressionId()
+					}
+				}
 			default:
 				if c.Conname != "" {
 					conName = c.Conname
@@ -847,7 +876,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate, sequenceName: sequenceName})
+			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate, sequenceName: sequenceName, rawExpr: rawExpr, exprId: exprId})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", stmtType, printNodeType(d)))
 		}
@@ -886,7 +915,7 @@ func updateSchema(conv *internal.Conv, tableId string, cs []constraint, stmtType
 			// In PostgreSQL, the primary key constraint is a combination of
 			// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
-			updateCols(pg_query.ConstrType_CONSTR_NOTNULL, c.cols, ct.ColDefs, colNameIdMap)
+			updateCols(constraint{ct: pg_query.ConstrType_CONSTR_NOTNULL, cols: c.cols}, ct.ColDefs, colNameIdMap)
 			conv.SrcSchema[tableId] = ct
 		case pg_query.ConstrType_CONSTR_FOREIGN:
 			ct := conv.SrcSchema[tableId]
@@ -907,29 +936,48 @@ func updateSchema(conv *internal.Conv, tableId string, cs []constraint, stmtType
 				updateColsAutoGen(c.sequenceName, c.cols, ct.ColDefs, colNameIdMap)
 				checkForSerial(c.sequenceName, ct.Name, c.cols, ct.ColDefs, colNameIdMap, conv.SrcSequences)
 			} else {
-				updateCols(c.ct, c.cols, ct.ColDefs, colNameIdMap)
+				updateCols(c, ct.ColDefs, colNameIdMap)
 			}
 			conv.SrcSchema[tableId] = ct
 		default:
 			ct := conv.SrcSchema[tableId]
-			updateCols(c.ct, c.cols, ct.ColDefs, colNameIdMap)
+			updateCols(c, ct.ColDefs, colNameIdMap)
 			conv.SrcSchema[tableId] = ct
 		}
 	}
 }
 
 // updateCols updates colDef with new constraints. Specifically, we apply
-// 'ct' to each column in colNames.
-func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]schema.Column, colNameIdMap map[string]string) {
+// 'c.ct' to each column in colNames.
+func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[string]string) {
 	// TODO: add cases for other constraints.
-	for _, cn := range colNames {
+	for _, cn := range c.cols {
 		cid := colNameIdMap[cn]
 		cd := colDef[cid]
-		switch ct {
+		switch c.ct {
 		case pg_query.ConstrType_CONSTR_NOTNULL:
 			cd.NotNull = true
 		case pg_query.ConstrType_CONSTR_DEFAULT:
-			cd.Ignored.Default = true
+			if c.rawExpr != "" {
+				cd.DefaultValue.IsPresent = true
+				cd.DefaultValue.Value = ddl.Expression{
+					ExpressionId: c.exprId,
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, false),
+				}
+			} else {
+				cd.Ignored.Default = true
+			}
+		case pg_query.ConstrType_CONSTR_GENERATED:
+			if c.rawExpr != "" {
+				cd.GeneratedColumn.IsPresent = true
+				cd.GeneratedColumn.Value = ddl.Expression{
+					ExpressionId: c.exprId,
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, true),
+				}
+				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory;
+				// PG 18 VIRTUAL fails to parse before reaching here.
+				cd.GeneratedColumn.Type = ddl.GeneratedColStored
+			}
 		case pg_query.ConstrType_CONSTR_IDENTITY:
 			cd.NotNull = true
 			switch cd.Type.Name {
@@ -1111,4 +1159,33 @@ func trimQuote(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func deparseExpression(node *pg_query.Node) (string, error) {
+	result := &pg_query.ParseResult{
+		Stmts: []*pg_query.RawStmt{
+			{
+				Stmt: &pg_query.Node{
+					Node: &pg_query.Node_SelectStmt{
+						SelectStmt: &pg_query.SelectStmt{
+							TargetList: []*pg_query.Node{
+								{
+									Node: &pg_query.Node_ResTarget{
+										ResTarget: &pg_query.ResTarget{
+											Val: node,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	sql, err := pg_query.Deparse(result)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(strings.TrimPrefix(sql, "SELECT ")), nil
 }

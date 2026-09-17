@@ -134,8 +134,8 @@ export enum PersistedFormValues {
     IsConnectionSuccessful = 'isConnectionSuccessful'
 }
 
-export const defaultAndSequenceSupportedDbs: string[] = ['MySQL', 'Oracle']
-export const generatedColSupportedDbs: string[] = ['MySQL']
+export const defaultAndSequenceSupportedDbs: string[] = ['MySQL', 'Postgres', 'Oracle']
+export const generatedColSupportedDbs: string[] = ['MySQL', 'Postgres']
 export const identitySupportedDbs: string[] = ['MySQL', 'Postgres', 'Oracle']
 // Databases whose columns can be given a Spanner auto-generated value
 // (pre-defined UUID, identity or sequence) from the UI.

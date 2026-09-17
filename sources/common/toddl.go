@@ -99,8 +99,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		conv.AddShardIdColumn()
 	}
 
-	if ss.DdlV != nil && (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
-		// Process and verify Spanner DDL expressions for MYSQL
+	if ss.DdlV != nil && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Spanner DDL expressions
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
 		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
@@ -115,9 +115,9 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		applyExpressionGeneratedColumnPKErrors(conv, expressions)
 	}
 
-	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+	if conv.SpProjectId != "" && conv.SpInstanceId != "" {
 		if ss.ExpressionVerificationAccessor != nil {
-			// Process and verify Check constraints for MySQL and MySQLDump flow only
+			// Process and verify Check constraints
 			err := ss.VerifyExpressions(conv)
 			if err != nil {
 				return err
