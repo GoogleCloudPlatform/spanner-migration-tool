@@ -75,7 +75,7 @@ Detailed description of optional flags can be found [here](./flags.md).
         Cloud Spanner database.
 
      --log-level=LOG_LEVEL
-        To configure the log level for the execution (INFO, VERBOSE).
+        To configure the log level for the execution (INFO, DEBUG).
 
      --prefix=PREFIX
         File prefix for generated files.
