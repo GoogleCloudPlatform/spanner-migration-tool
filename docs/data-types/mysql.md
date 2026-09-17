@@ -8,8 +8,9 @@ nav_order: 2
 # Schema migration for MySQL
 {: .no_toc }
 
-Spanner migration tool makes some assumptions while performing data type conversion from MySQL to Spanner.
-There are also nuances to handling certain specific data types. These are captured below.
+Spanner migration tool (SMT) supports schema and data migrations from MySQL to Cloud Spanner for both **GoogleSQL** (default) and **PostgreSQL** dialects.
+
+This document details the default type mappings, user-selectable target type overrides, dialect-specific nuances, and schema conversion rules applied by SMT.
 
 <details open markdown="block">
   <summary>
@@ -22,135 +23,177 @@ There are also nuances to handling certain specific data types. These are captur
 
 ## Data Type Mapping
 
-The Spanner migration tool maps MySQL types to Spanner types as follows:
+The table below details the mappings for each MySQL data type to Cloud Spanner dialects. For types with customizable targets, the table lists both the **Default** mapping and each selectable **Alternative** override available in the web UI schema editor or via session file overrides.
 
-|                  **MySQL Type**                   | **Spanner Type**  | **Notes**                                                |
-|:-------------------------------------------------:|:-----------------:|:--------------------------------------------------------:|
-|        `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`        |      `BOOL`       |                                                          |
-|                     `BIGINT`                      |      `INT64`      |                                                          |
-|               `BINARY`, `VARBINARY`               |   `BYTES(MAX)`    |                                                          |
-|                      `BLOB`                       |  `BYTES(65535)`   |                                                          |
-|                     `BLOB(N)`                     |    `BYTES(N)`     |                                                          |
-|                   `MEDIUMBLOB`                    |     `BYTES(10485760)`     |                                                          |
-|                  `MEDIUMBLOB(N)`                  |    `BYTES(N)`     |                                                          |
-|                    `TINYBLOB`                     |   `BYTES(255)`    |                                                          |
-|                   `TINYBLOB(N)`                   |    `BYTES(N)`     |                                                          |
-|                    `LONGBLOB`                     | `BYTES(10485760)` |                                                          |
-|                   `LONGBLOB(N)`                   |    `BYTES(N)`     |                                                          |
-|                       `BIT`                       |   `BYTES(MAX)`    | BIT(1) converts to BOOL, other cases map to BYTES        |
-|                      `CHAR`                       |    `STRING(1)`    | CHAR defaults to length 1                                |
-|                     `CHAR(N)`                     |    `STRING(N)`    | differences in treatment of fixed-length character types |
-|                      `DATE`                       |      `DATE`       |                                                          |
-|                    `DATETIME`                     |    `TIMESTAMP`    | differences in treatment of timezones                    |
-|               `DECIMAL`, `NUMERIC`                |     `NUMERIC`     | potential changes of precision                           |
-|                     `DOUBLE`                      |     `FLOAT64`     |                                                          |
-|                      `ENUM`                       |   `STRING(MAX)`   |                                                          |
-|                      `FLOAT`                      |     `FLOAT32`     |                                                          |
-| `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` |      `INT64`      | changes in storage size                                  |
-|                      `JSON`                       |      `JSON`       |                                                          |
-|                       `SET`                       |  `ARRAY<STRING>`  | SET only supports string values                          |
-| `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  |   `STRING(MAX)`   |                                                          |
-|                    `TIMESTAMP`                    |    `TIMESTAMP`    |                                                          |
-|                     `VARCHAR`                     |   `STRING(MAX)`   |                                                          |
-|                   `VARCHAR(N)`                    |    `STRING(N)`    | differences in treatment of fixed-length character types |
+| MySQL Type | Mapping | GoogleSQL Target | PostgreSQL Target | Notes & Conversion Issues |
+|:---|:---|:---|:---|:---|
+| `BOOL`, `BOOLEAN` | **Default** | `BOOL` | `boolean` | `BOOLEAN` is a MySQL alias for `TINYINT(1)`. |
+| | Alternative | `INT64` | `bigint` | Widened to 64-bit integer (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TINYINT(1)` | **Default** | `BOOL` | `boolean` | Treated as boolean by default in MySQL conventions. |
+| | Alternative | `INT64` | `bigint` | Widened to 64-bit integer (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TINYINT(N)` (for $N \ne 1$) | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `SMALLINT` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `MEDIUMINT` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `INT`, `INTEGER` | **Default** | `INT64` | `bigint` | Storage size widened to 64 bits (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `BIGINT` | **Default** | `INT64` | `bigint` | Signed 64-bit integer. |
+| | Alternative | `NUMERIC` | `numeric` | Widened (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `BIGINT UNSIGNED` | **Default** | `INT64` | `bigint` | Values $> 2^{63}-1$ may overflow (`PossibleOverflow`). |
+| | Alternative | `NUMERIC` | `numeric` | Recommended to preserve values $> 2^{63}-1$ without overflow (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `FLOAT` | **Default** | `FLOAT32` | `real` | 32-bit single-precision floating point. |
+| | Alternative | `FLOAT64` | `double precision` | Widened (`Widened`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DOUBLE`, `DOUBLE PRECISION` | **Default** | `FLOAT64` | `double precision` | 64-bit double-precision floating point. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DECIMAL`, `NUMERIC` | **Default** | `NUMERIC` | `numeric` | Spanner `NUMERIC` supports 29 integer and 9 scale digits. In PostgreSQL dialect, `NUMERIC` Primary Keys are not supported and widen to `varchar` (`NumericPKNotSupported`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `CHAR` | **Default** | `STRING(1)` | `character varying (1)` | Defaults to length 1 in MySQL. Space padding differs from MySQL. |
+| | Alternative | `BYTES(1)` | `bytea` | Converts character data to raw bytes. |
+| `CHAR(N)` | **Default** | `STRING(N)` | `character varying (N)` | Preserves declared length $N$. Space padding differs from MySQL. |
+| | Alternative | `BYTES(N)` | `bytea` | Converts character data to raw bytes. |
+| `VARCHAR(N)` | **Default** | `STRING(N)` | `character varying (N)` | Preserves declared length $N$. |
+| | Alternative | `BYTES(N)` | `bytea` | Converts character data to raw bytes. |
+| `VARCHAR` (no length) | **Default** | `STRING(MAX)` | `character varying (2621440)` | Mapped to maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Mapped to maximum allowed bytes length. |
+| `TINYTEXT`, `TEXT` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Converts text to raw bytes. |
+| `MEDIUMTEXT`, `LONGTEXT` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Maximum allowed string length. |
+| | Alternative | `BYTES(MAX)` | `bytea` | Converts text to raw bytes. |
+| `BINARY` | **Default** | `BYTES(1)` | `bytea` | Bare `BINARY` in MySQL defaults to `BINARY(1)`. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `BINARY(N)` | **Default** | `BYTES(N)` | `bytea` | Preserves declared length $N$ in GoogleSQL. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `VARBINARY(N)` | **Default** | `BYTES(N)` | `bytea` | Preserves declared length $N$ in GoogleSQL. PG `bytea` has no length parameter. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Hex or string representation. |
+| `TINYBLOB` | **Default** | `BYTES(255)` | `bytea` | Fixed limit of 255 bytes. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BLOB` | **Default** | `BYTES(65535)` | `bytea` | Fixed limit of 65,535 bytes (64 KiB). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BLOB(N)` | **Default** | `BYTES(N)` | `bytea` | Preserved when migrating from a dump. Live MySQL servers report 65535. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `MEDIUMBLOB` | **Default** | `BYTES(10485760)` | `bytea` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `LONGBLOB` | **Default** | `BYTES(10485760)` | `bytea` | Capped at Spanner's 10 MiB cell limit (`PossibleOverflow`). |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BIT(1)` | **Default** | `BOOL` | `boolean` | Single-bit fields map directly to boolean. |
+| | Alternative | `INT64` | `bigint` | Optional mapping to integer. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `BIT(N)` (for $N > 1$) | **Default** | `BYTES(MAX)` | `bytea` | Stored as raw bytes. |
+| | Alternative | `INT64` | `bigint` | Optional integer mapping. Flags `PossibleOverflow` if $N = 64$. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | |
+| `DATE` | **Default** | `DATE` | `date` | |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `DATETIME` | **Default** | `TIMESTAMP` | `timestamp with time zone` | Stored in UTC. Flags `Datetime` issue due to absence of timezone storage in MySQL. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TIMESTAMP` | **Default** | `TIMESTAMP` | `timestamp with time zone` | Converted to UTC during migration. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | Widened (`Widened`). |
+| `TIME` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spanner lacks a time-only type; flags `Time` issue. |
+| `YEAR` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spanner lacks a year-only type; flags `Time` issue. |
+| `JSON` | **Default** | `JSON` | `jsonb` | Native JSON type. |
+| | Alternative | `STRING(MAX)` | `character varying (2621440)` | JSON stored as text. |
+| | Alternative | `BYTES(MAX)` | `bytea` | JSON stored as raw bytes. |
+| `ENUM` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Allowed values are not enforced by Spanner DDL. |
+| `SET` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Cloud Spanner does not support set data types; mapped to string with `ArrayTypeNotSupported` issue. |
+| `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`, `GEOMETRYCOLLECTION` | **Default** | `STRING(MAX)` | `character varying (2621440)` | Spatial columns are exported as Well-Known Text (WKT) using `ST_AsText()` (`NoGoodType`). |
 
+All other unrecognized data types map to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL) with a `NoGoodType` schema issue.
 
-Spanner does not support `spatial` datatypes of MySQL. Along with `spatial`
-datatypes, all other types map to `STRING(MAX)`.
+## BINARY, VARBINARY, and BLOBs
+
+1. **Length Preservation**:
+   - In MySQL, `BINARY` without an explicit length defaults to `BINARY(1)`. SMT maps it to `BYTES(1)` in GoogleSQL.
+   - `BINARY(N)` and `VARBINARY(N)` retain their declared length $N$, mapping to `BYTES(N)` in GoogleSQL.
+   - `BLOB(N)` declared with an explicit length in mysqldump (e.g., `BLOB(500)`) maps to `BYTES(500)` in GoogleSQL. Note that live MySQL servers discard length modifiers for blobs in `information_schema`, so live migrations fall back to the standard `BLOB` capacity (`BYTES(65535)`).
+
+2. **Spanner Cell Size Limit (10 MiB)**:
+   - MySQL `MEDIUMBLOB` supports up to 16 MiB ($2^{24}-1$ bytes) and `LONGBLOB` supports up to 4 GiB ($2^{32}-1$ bytes).
+   - Cloud Spanner enforces a hard maximum of **10 MiB (10,485,760 bytes)** per column value.
+   - SMT caps `MEDIUMBLOB` and `LONGBLOB` at `BYTES(10485760)` and raises a `PossibleOverflow` schema warning. If your MySQL database stores values exceeding 10 MiB, those writes will fail in Spanner and should instead be stored externally (e.g., in Google Cloud Storage).
+
+3. **PostgreSQL Dialect (`BYTEA`)**:
+   - In Cloud Spanner's PostgreSQL dialect (as well as native PostgreSQL), `BYTEA` is a variable-length binary type that does not support length modifiers (e.g. `BYTEA(N)` is invalid syntax).
+   - All MySQL binary and blob types map to unparameterized `BYTEA` in the PostgreSQL dialect.
+
+## BIT and Boolean Types
+
+1. **Single-bit Columns**:
+   - `BIT(1)`, `BOOL`, and `BOOLEAN` (which in MySQL is an alias for `TINYINT(1)`) map to Spanner `BOOL` (GoogleSQL) or `boolean` (PostgreSQL).
+2. **Multi-bit Columns (`BIT(N)`)**:
+   - By default, `BIT(N)` for $N > 1$ maps to `BYTES(MAX)` (GoogleSQL) or `BYTEA` (PostgreSQL).
+3. **Optional Mapping to `INT64` / `bigint`**:
+   - In the web UI schema editor or via session file overrides, users can choose to map `BIT(N)` to `INT64` (GoogleSQL) or `bigint` (PostgreSQL).
+   - Because MySQL `BIT(64)` is unsigned (values up to $2^{64}-1$) while Spanner's `INT64` is signed (maximum value $2^{63}-1$), mapping a `BIT(64)` column to `INT64` generates a `PossibleOverflow` schema warning.
+
+## Integers and Unsigned Types
+
+1. **Integer Widening**:
+   - MySQL integer types smaller than 64-bit (`TINYINT` for $N \ne 1$, `SMALLINT`, `MEDIUMINT`, `INT`, `INTEGER`) are widened to Spanner's 64-bit `INT64` (GoogleSQL) or `bigint` (PostgreSQL), generating a `Widened` warning.
+2. **`BIGINT UNSIGNED`**:
+   - MySQL `BIGINT UNSIGNED` supports values from `0` to `18,446,744,073,709,551,615` ($2^{64}-1$).
+   - Spanner `INT64` supports signed values up to `9,223,372,036,854,775,807` ($2^{63}-1$).
+   - SMT maps `BIGINT UNSIGNED` to `INT64` by default and logs a `PossibleOverflow` issue. To avoid data loss or write errors during data migration for values $> 2^{63}-1$, users can override the column mapping to `NUMERIC` or `STRING(MAX)` in the schema editor or session file.
 
 ## DECIMAL and NUMERIC
 
-[Spanner's NUMERIC
-type](https://cloud.google.com/spanner/docs/data-types#decimal_type) can store
-up to 29 digits before the decimal point and up to 9 after the decimal point.
-MySQL's NUMERIC type can potentially support higher precision than this, so
-please verify that Spanner's NUMERIC support meets your application needs.  Note
-that in MySQL, NUMERIC is implemented as DECIMAL, so the remarks about DECIMAL
-apply equally to NUMERIC.
+- [Spanner's NUMERIC type](https://cloud.google.com/spanner/docs/data-types#decimal_type) supports exact fixed-point numbers with up to 29 digits of integer precision and up to 9 digits of fractional scale (`NUMERIC(38, 9)`).
+- MySQL `DECIMAL(M, D)` supports precision up to $M = 65$ digits and scale up to $D = 30$ digits. If your MySQL schema uses higher precision than Spanner `NUMERIC`, consider mapping to `STRING(MAX)`.
+- **PostgreSQL Dialect Primary Key Restriction**: In Cloud Spanner's PostgreSQL dialect, `NUMERIC` columns cannot be used in primary keys. When a primary key column is `DECIMAL` or `NUMERIC`, SMT automatically widens it to `character varying (2621440)` and logs a `NumericPKNotSupported` issue.
 
 ## TIMESTAMP and DATETIME
 
-MySQL has two timestamp types: `TIMESTAMP` and `DATETIME`. Both provide
-microsecond resolution, but neither actually stores a timezone with the data.
-The key difference between the two types is that MySQL converts `TIMESTAMP` values
-from the current time zone to UTC for storage, and back from UTC to the current time
-zone for retrieval. This does not occur for `DATETIME` and data is returned without a
-timezone. For `TIMESTAMP`, timezone can be set by time zone offset parameter.
+- **MySQL `DATETIME`**: Stores calendar date and wall-clock time without timezone information. SMT maps `DATETIME` to Spanner `TIMESTAMP` (or `timestamp with time zone`) and logs a `Datetime` warning, because Spanner always converts and stores timestamps in UTC.
+- **MySQL `TIMESTAMP`**: Converts values from the connection's time zone to UTC for storage and back to local time on retrieval. SMT tracks `SET TIME_ZONE` statements in mysqldump files and converts values to UTC timestamps in Spanner.
+- In both cases, Spanner client libraries convert timestamps to UTC before sending them to Spanner, and values are returned in UTC.
 
-Spanner has a single timestamp type. Data is stored as UTC (there is no separate
-timezone) Spanner client libraries convert timestamps to UTC before sending them
-to Spanner. Data is always returned as UTC. Spanner's timestamp type is
-essentially the same as `TIMESTAMP`, except that there is no analog of
-MySQL's timezone offset parameter.
+## TIME and YEAR
 
-In other words, mapping MySQL `DATETIME` to `TIMESTAMP` is fairly
-straightforward, but care should be taken with MySQL `DATETIME` data
-because Spanner clients will not drop the timezone.
+- Cloud Spanner does not support a standalone `TIME` (time-of-day without date) or `YEAR` data type.
+- SMT converts both types to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL) and logs a `Time` schema issue.
 
-## CHAR(n) and VARCHAR(n)
+## CHAR(N) and VARCHAR(N)
 
-The semantics of fixed-length character types differ between MySQL and
-Spanner. The `CHAR(n)` type in MySQL is right-padded with spaces. If a string
-value smaller than the limit is stored, spaces will be added to pad it out to
-the specified length. If a string longer than the specified length is stored,
-and the extra characters are all spaces, then it will be silently
-truncated. Moreover, trailing spaces are ignored when comparing two values. In
-constrast, Spanner does not give special treatment to spaces, and the specified
-length simply represents the maximum length that can be stored. This is close to
-the semantics of MySQL's `VARCHAR(n)`. However there are some minor
-differences. For example, even `VARCHAR(n)` has some special treatment of
-spaces: string with trailing spaces in excess of the column length are truncated
-prior to insertion and a warning is generated.
+- In MySQL, `CHAR(N)` right-pads stored strings with spaces and strips trailing spaces on retrieval.
+- Cloud Spanner `STRING(N)` treats trailing spaces as significant characters and does not perform padding or stripping. The length $N$ in Spanner represents the maximum number of characters (not bytes).
+- Both `CHAR(N)` and `VARCHAR(N)` map to `STRING(N)` (GoogleSQL) or `character varying (N)` (PostgreSQL), preserving the declared length $N$.
 
-## SET
+## ENUM and SET
 
-MySQL `SET` is a string object that can hold muliple values, each of which must be
-chosen from a list of permitted values specified when the table is created. `SET`
-is being mapped to Spanner type `ARRAY<STRING>`. Validation of `SET` element values
-will be dropped in Spanner. Thus for production use, validation needs to be done
-in the application.
+- **`ENUM`**: Mapped to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL). The list of allowed enumeration values is dropped from the Spanner schema; validation should be handled in your application.
+- **`SET`**: Cloud Spanner does not support a native set data type. In both GoogleSQL and PostgreSQL dialects, SMT maps `SET` to `STRING(MAX)` (or `character varying (2621440)`) and logs an `ArrayTypeNotSupported` schema issue.
 
-## Spatial datatypes
+## Spatial Data Types
 
-MySQL spatial datatypes are used to represent geographic feature.
-It includes `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTIPOLYGON`
-and `GEOMETRYCOLLECTION` datatypes. Spanner does not support spatial data types.
-This datatype are currently mapped to standard `STRING` Spanner datatype.
-
-## Storage Use
-
-The tool maps several MySQL types to Spanner types that use more storage.
-For example, `SMALLINT` is a two-byte integer, but it maps to Spanner's `INT64`,
-an eight-byte integer.
+- MySQL spatial data types (`GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTILINESTRING`, `MULTIPOLYGON`, `GEOMETRYCOLLECTION`) are mapped to `STRING(MAX)` (GoogleSQL) or `character varying (2621440)` (PostgreSQL) with a `NoGoodType` issue.
+- During data migration, SMT queries spatial columns using `ST_AsText(column)` to export them in Well-Known Text (WKT) format for storage in Spanner.
 
 ## Primary Keys
 
-Spanner requires primary keys for all tables. MySQL recommends the use of
-primary keys for all tables, but does not enforce this. When converting a table
-without a primary key, Spanner migration tool will create a new primary key of type
-INT64. By default, the name of the new column is `synth_id`. If there is already
-a column with that name, then a variation is used to avoid collisions.
+Spanner requires primary keys for all tables. MySQL recommends the use of primary keys for all tables, but does not enforce this. When converting a table without a primary key, Spanner migration tool creates a synthetic primary key column:
+- **GoogleSQL**: `synth_id INT64`
+- **PostgreSQL**: `synth_id bigint`
+
+By default, the name of the new column is `synth_id`. If there is already a column with that name, a variation (e.g. `synth_id_0`) is used to avoid collisions.
 
 ## NOT NULL Constraints
 
-The tool preserves `NOT NULL` constraints. Note that Spanner does not require
-primary key columns to be `NOT NULL`. However, in MySQL, a primary key is a
-combination of `NOT NULL` and `UNIQUE`, and so primary key columns from
-MySQL will be mapped to Spanner columns that are both primary keys and `NOT NULL`.
+The tool preserves `NOT NULL` constraints from the source table. In MySQL, a primary key is implicitly `NOT NULL` and `UNIQUE`, so all primary key columns mapped from MySQL are configured as `NOT NULL` in Spanner.
 
 ## Foreign Keys
 
-The tool maps MySQL foreign key constraints into Spanner foreign key constraints, and
-preserves constraint names where possible. Since Spanner doesn't support `ON UPDATE` action, we drop it.
+The tool maps MySQL foreign key constraints into Spanner foreign key constraints and ensures constraint names are globally unique within the database:
+- **`ON DELETE`**: Actions (`CASCADE`, `SET NULL`, `RESTRICT`, `NO ACTION`) are preserved where supported by Spanner.
+- **`ON UPDATE`**: Spanner does not support `ON UPDATE` actions, so these are dropped during schema migration.
 
 ## Default Values
 
-The Spanner Migration Tool automatically migrates all `DEFAULT` values from a MySQL source
-to a GoogleSQL destination, provided they can be mapped without modification.
-Any `DEFAULT` constraints that cannot be mapped are dropped, and a warning is issued. 
-Users can edit the column to change the `DEFAULT` constraints. The validity of the `DEFAULT`
-constraints will be verified when users try to move to the Prepare Migration page. In case
-of any errors users will not be able to proceed until all `DEFAULT` constraints are valid.
+The Spanner Migration Tool migrates `DEFAULT` values from MySQL columns whenever they can be mapped to valid Spanner expressions or literal constants. Any `DEFAULT` constraints that cannot be mapped to Spanner are dropped, and a `DefaultValue` warning is logged in the schema report. Users can review and edit default values in the Spanner draft editor before executing the migration.
 
 ## Check Constraints
 
@@ -233,13 +276,21 @@ spanner-migration-tool schema -dry-run ...
 spanner-migration-tool schema -session=<path to session file> ...
 ```
 
-## Other MySQL features
+## Generated Columns
 
-MySQL has many other features we haven't discussed, including functions procedures, triggers, (non-primary) indexes and views. The tool does
-not support these and the relevant statements are dropped during schema
-conversion.
+MySQL `STORED` and `VIRTUAL` generated columns are converted to Spanner generated columns:
+- **GoogleSQL**: `AS (expression) STORED` (or virtual)
+- **PostgreSQL**: `GENERATED ALWAYS AS (expression) STORED`
 
-See [Migrating from MySQL to Cloud Spanner](https://cloud.google.com/solutions/migrating-mysql-to-spanner)
-for a general discussion of MySQL to Spanner migration issues.
-Spanner migration tool follows most of the recommendations in that guide. The main
-difference is that we map a few more types to `STRING(MAX)`.
+SMT sanitizes expression syntax to conform to Spanner's expression requirements. If an expression cannot be converted, the column is created without generation or flagged with an issue.
+
+## Unsupported MySQL Features
+
+The following MySQL database objects and features have no direct Cloud Spanner equivalent and are dropped or skipped during schema conversion:
+- Stored procedures and functions
+- Triggers
+- Views
+- Table partitioning definitions
+- Non-standard character sets and collations (Spanner natively uses UTF-8)
+
+For a general discussion of architectural differences and best practices, see [Migrating from MySQL to Cloud Spanner](https://cloud.google.com/solutions/migrating-mysql-to-spanner).
