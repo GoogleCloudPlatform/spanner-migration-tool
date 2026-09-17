@@ -33,6 +33,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -83,6 +85,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"attname"},
 		},
 		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
+			args:  []driver.Value{"public.user"},
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -116,6 +123,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.cart"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
 			args:  []driver.Value{"public.cart"},
 			cols:  []string{"attname"},
 		},
@@ -158,6 +170,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"attname"},
 		},
 		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
+			args:  []driver.Value{"public.product"},
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -190,6 +207,11 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
 			rows: [][]driver.Value{{"id"}},
+		},
+		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -239,6 +261,11 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test_ref"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
 			args:  []driver.Value{"public.test_ref"},
 			cols:  []string{"attname"},
 		},
@@ -547,6 +574,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"attname"},
 		},
 		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -647,4 +679,69 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func newFalsePtr() *bool {
 	temp := false
 	return &temp
+}
+
+func TestGetIdentityColumns(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.my_table"},
+			cols:  []string{"attname"},
+			rows: [][]driver.Value{
+				{"id"},
+				{"user_id"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{Db: db}
+
+	identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
+	assert.Equal(t, []string{"id", "user_id"}, identityCols)
+}
+
+// PG 9.6 has no pg_attribute.attidentity. lib/pq (direct) and pgx (Cloud SQL)
+// report the resulting undefined_column on different error types.
+func TestGetIdentityColumnsUndefinedColumn(t *testing.T) {
+	msg := "column a.attidentity does not exist"
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{"lib/pq", &pq.Error{Code: "42703", Message: msg}},
+		{"pgx", &pgconn.PgError{Code: "42703", Message: msg}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.Nil(t, err)
+			defer db.Close()
+			mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+)").
+				WithArgs("public.my_table").WillReturnError(tc.err)
+
+			conv := internal.MakeConv()
+			isi := InfoSchemaImpl{Db: db}
+
+			identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
+			assert.Equal(t, []string{}, identityCols)
+			assert.Equal(t, int64(0), conv.Unexpecteds())
+		})
+	}
+}
+
+func TestGetIdentityColumnsQueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	defer db.Close()
+	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+)").
+		WithArgs("public.my_table").
+		WillReturnError(&pq.Error{Code: "42P01", Message: "relation does not exist"})
+
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{Db: db}
+
+	identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
+	assert.Equal(t, []string{}, identityCols)
+	assert.Equal(t, int64(1), conv.Unexpecteds())
 }
