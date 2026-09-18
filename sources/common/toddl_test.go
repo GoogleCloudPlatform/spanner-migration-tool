@@ -899,6 +899,93 @@ func TestSchemaToSpannerDDLHelper_CassandraOpts(t *testing.T) {
 	mockToddl.AssertCalled(t, "GetTypeOption", "uuid", expectedSpannerType)
 }
 
+// Child partitions must be left out of the Spanner schema by default, since the
+// parent table already yields all of their rows.
+func TestSchemaToSpannerDDLHelper_PartitionedTables(t *testing.T) {
+	makeSrcTable := func(partitionParent string) schema.Table {
+		return schema.Table{
+			Name:   "orders_2024",
+			Id:     "t1",
+			ColIds: []string{"c1"},
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "order_id", Id: "c1", Type: schema.Type{Name: "bigint"}},
+			},
+			PartitionParent: partitionParent,
+		}
+	}
+
+	testCases := []struct {
+		name            string
+		partitionParent string
+		isRestore       bool
+		wantConverted   bool
+		wantIssue       bool
+	}{
+		{
+			name:            "child partition is skipped and flagged by default",
+			partitionParent: "orders",
+			isRestore:       false,
+			wantConverted:   false,
+			wantIssue:       true,
+		},
+		{
+			name:            "child partition is converted when explicitly restored",
+			partitionParent: "orders",
+			isRestore:       true,
+			wantConverted:   true,
+			wantIssue:       false,
+		},
+		{
+			name:            "regular table is unaffected",
+			partitionParent: "",
+			isRestore:       false,
+			wantConverted:   true,
+			wantIssue:       false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			srcTable := makeSrcTable(tc.partitionParent)
+			conv.SrcSchema[srcTable.Id] = srcTable
+
+			mockToddl := new(MockToDdl)
+			mockToddl.On("ToSpannerType", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil)).Maybe()
+
+			ss := SchemaToSpannerImpl{}
+			err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, tc.isRestore)
+			assert.Nil(t, err)
+
+			_, converted := conv.SpSchema[srcTable.Id]
+			assert.Equal(t, tc.wantConverted, converted)
+
+			hasIssue := IsSchemaIssuePresent(
+				conv.SchemaIssues[srcTable.Id].TableLevelIssues, internal.PartitionedTable)
+			assert.Equal(t, tc.wantIssue, hasIssue)
+
+			// A skipped partition stays in SrcSchema so the UI can grey it out and
+			// offer Restore.
+			assert.Contains(t, conv.SrcSchema, srcTable.Id)
+		})
+	}
+}
+
+func TestBuildSchemaTable_PropagatesPartitionParent(t *testing.T) {
+	for _, parent := range []string{"orders", ""} {
+		table := BuildSchemaTable(
+			SchemaAndName{Schema: "public", Name: "orders_2024"},
+			"orders_2024",
+			map[string]schema.Column{"c1": {Name: "order_id", Id: "c1"}},
+			[]string{"c1"},
+			nil, nil, nil, nil,
+			parent,
+		)
+		assert.Equal(t, parent, table.PartitionParent)
+	}
+}
+
 func TestCreatePrimaryKeyExpressionVerifyInput(t *testing.T) {
 	expressions := internal.VerifyExpressionsOutput{
 		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
