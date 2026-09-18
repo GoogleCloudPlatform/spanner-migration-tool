@@ -52,6 +52,8 @@ func AnalyzeTables(conv *internal.Conv, badWrites map[string]int64) (r []tableRe
 // partitions were skipped, keyed by the parent's table id.
 func PartitionNoticesByParent(conv *internal.Conv) map[string]Issue {
 	notices := make(map[string]Issue)
+	tableNameToIdMap := srcTableNameToIdMap(conv)
+	issue := IssueDB[internal.PartitionedTable]
 	for tableId, srcTable := range conv.SrcSchema {
 		if _, converted := conv.SpSchema[tableId]; converted || srcTable.PartitionParent == "" {
 			continue
@@ -61,16 +63,43 @@ func PartitionNoticesByParent(conv *internal.Conv) map[string]Issue {
 		if !slices.Contains(conv.SchemaIssues[tableId].TableLevelIssues, internal.PartitionedTable) {
 			continue
 		}
-		parentId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTable.PartitionParent)
-		if err != nil {
+		rootId, rootName, ok := partitionRoot(conv, tableNameToIdMap, srcTable)
+		if !ok {
 			continue
 		}
-		notices[parentId] = Issue{
-			Category:    IssueDB[internal.PartitionedTable].Category,
-			Description: fmt.Sprintf("Table '%s': %s", srcTable.PartitionParent, IssueDB[internal.PartitionedTable].Brief),
+		notices[rootId] = Issue{
+			Category:    issue.Category,
+			Description: fmt.Sprintf("Table '%s': %s", rootName, issue.Brief),
 		}
 	}
 	return notices
+}
+
+// srcTableNameToIdMap indexes SrcSchema by table name
+func srcTableNameToIdMap(conv *internal.Conv) map[string]string {
+	m := make(map[string]string, len(conv.SrcSchema))
+	for tableId, srcTable := range conv.SrcSchema {
+		m[srcTable.Name] = tableId
+	}
+	return m
+}
+
+// partitionRoot returns the id and name of the top-most table in srcTable's
+// partition chain. Partitions can be nested (a partition may itself be
+// partitioned), and only the root is migrated
+func partitionRoot(conv *internal.Conv, tableNameToIdMap map[string]string, srcTable schema.Table) (string, string, bool) {
+	for i := 0; i <= len(conv.SrcSchema); i++ {
+		parentId, ok := tableNameToIdMap[srcTable.PartitionParent]
+		if !ok {
+			return "", "", false
+		}
+		parent := conv.SrcSchema[parentId]
+		if parent.PartitionParent == "" {
+			return parentId, parent.Name, true
+		}
+		srcTable = parent
+	}
+	return "", "", false
 }
 
 func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]int64) tableReport {

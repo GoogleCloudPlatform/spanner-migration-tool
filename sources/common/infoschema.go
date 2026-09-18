@@ -141,8 +141,6 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	if err != nil {
 		return err
 	}
-	// Partitions are absent from SpSchema by design, so discount them from the
-	// count check that guards against tables silently failing to load.
 	skipped := countSkippedPartitions(conv)
 	if tableCount-skipped != len(conv.SpSchema) {
 		logger.Log.Info(fmt.Sprintf("Failed to load all the source tables, source table count: %v, processed tables:%v, intentionally skipped partitions:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema), skipped))
@@ -155,12 +153,23 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	return nil
 }
 
+// isSkippedPartition reports whether tableId is a child partition that was left
+// out of the Spanner schema.
+func isSkippedPartition(conv *internal.Conv, tableId string) bool {
+	srcTable, ok := conv.SrcSchema[tableId]
+	if !ok || srcTable.PartitionParent == "" {
+		return false
+	}
+	_, converted := conv.SpSchema[tableId]
+	return !converted
+}
+
 // countSkippedPartitions returns the number of child partitions left out of the
 // Spanner schema.
 func countSkippedPartitions(conv *internal.Conv) int {
 	skipped := 0
-	for tableId, srcTable := range conv.SrcSchema {
-		if _, converted := conv.SpSchema[tableId]; !converted && srcTable.PartitionParent != "" {
+	for tableId := range conv.SrcSchema {
+		if isSkippedPartition(conv, tableId) {
 			skipped++
 		}
 	}
@@ -328,6 +337,9 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 	}
 	for _, t := range tables {
 		tableName := infoSchema.GetTableName(t.Schema, t.Name)
+		if tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName); err == nil && isSkippedPartition(conv, tableId) {
+			continue
+		}
 		count, err := infoSchema.GetRowCount(t)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
