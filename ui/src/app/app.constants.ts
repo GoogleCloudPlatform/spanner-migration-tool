@@ -19,6 +19,7 @@ export enum SourceDbNames {
   SQLServer = 'SQL Server',
   Oracle = 'Oracle',
   Cassandra = 'cassandra',
+  Neo4j = 'neo4j',
 }
 
 export enum ObjectExplorerNodeType {
