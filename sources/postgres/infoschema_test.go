@@ -790,9 +790,10 @@ func mkInfoSchema(t *testing.T) (InfoSchemaImpl, sqlmock.Sqlmock) {
 func TestGetVirtualColumns(t *testing.T) {
 	table := common.SchemaAndName{Schema: "public", Name: "test"}
 	cases := []struct {
-		name     string
-		setup    func(sqlmock.Sqlmock)
-		expected []string
+		name          string
+		setup         func(sqlmock.Sqlmock)
+		expected      []string
+		expectUnexpec int64
 	}{
 		{
 			name: "virtual columns returned",
@@ -804,14 +805,32 @@ func TestGetVirtualColumns(t *testing.T) {
 			expected: []string{"vcol1", "vcol2"},
 		},
 		{
-			// attgenerated does not exist before PG 12.
-			name: "query error yields no virtual columns",
+			name: "undefined column is expected on old servers (lib/pq)",
 			setup: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
 					WithArgs("public.test").
-					WillReturnError(errors.New("column a.attgenerated does not exist"))
+					WillReturnError(&pq.Error{Code: "42703", Message: "column attgenerated does not exist"})
 			},
 			expected: nil,
+		},
+		{
+			name: "undefined column is expected on old servers (pgx)",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(&pgconn.PgError{Code: "42703", Message: "column attgenerated does not exist"})
+			},
+			expected: nil,
+		},
+		{
+			name: "other query errors are reported",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(&pq.Error{Code: "42501", Message: "permission denied"})
+			},
+			expected:      nil,
+			expectUnexpec: 1,
 		},
 		{
 			name: "scan error returns columns read so far",
@@ -820,14 +839,17 @@ func TestGetVirtualColumns(t *testing.T) {
 					WithArgs("public.test").
 					WillReturnRows(sqlmock.NewRows([]string{"attname"}).AddRow("vcol1").AddRow(nil))
 			},
-			expected: []string{"vcol1"},
+			expected:      []string{"vcol1"},
+			expectUnexpec: 1,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			isi, mock := mkInfoSchema(t)
 			tc.setup(mock)
-			assert.Equal(t, tc.expected, isi.getVirtualColumns(table))
+			conv := internal.MakeConv()
+			assert.Equal(t, tc.expected, isi.getVirtualColumns(conv, table))
+			assert.Equal(t, tc.expectUnexpec, conv.Unexpecteds())
 		})
 	}
 }
@@ -955,18 +977,24 @@ func TestStripLiteralCasts(t *testing.T) {
 		input    string
 		expected string
 	}{
-		// Dropped: the cast only decorates a literal.
+		// Dropped: cast only decorates a literal of the same kind.
 		{"string literal", "'NEW'::bpchar", "'NEW'"},
 		{"string literal with length", "'abc'::character varying(50)", "'abc'"},
+		{"array literal", "'{}'::text[]", "'{}'"},
+		{"literal inside expression", "a::text || '-'::text || b::text", "a::text || '-' || b::text"},
 		{"numeric literal", "(0)::numeric", "(0)"},
 		{"numeric literal with precision", "(0)::numeric(10,2)", "(0)"},
 		{"float literal", "(1.0)::double precision", "(1.0)"},
 		{"schema qualified type", "(0)::pg_catalog.int4", "(0)"},
-		{"array literal", "'{}'::text[]", "'{}'"},
 		{"unparenthesised literal", "0::numeric", "0"},
 		{"negative literal", "(-1)::integer", "(-1)"},
-		{"literal containing colons", "'::1'::inet", "'::1'"},
-		{"literal inside expression", "a::text || '-'::text || b::text", "a::text || '-' || b::text"},
+		{"int8 not matched as int", "0::int8", "0"},
+
+		// Unquoted: the cast carries the type, so the quotes go with it.
+		{"quoted bigint", "'9000000000'::bigint", "9000000000"},
+		{"quoted negative integer", "'-7'::integer", "-7"},
+		{"quoted numeric", "'3.14'::numeric", "3.14"},
+		{"quoted bigint in expression", "(a + '9000000000'::bigint)", "(a + 9000000000)"},
 
 		// Kept: the cast converts an operand.
 		{"identifier", "a::text", "a::text"},
@@ -977,6 +1005,11 @@ func TestStripLiteralCasts(t *testing.T) {
 		{"arithmetic", "(a + 0)::numeric", "(a + 0)::numeric"},
 		{"concatenation", "((a)::text || (b)::text)", "((a)::text || (b)::text)"},
 		{"boolean operands", "((a)::text AND (b)::text)", "((a)::text AND (b)::text)"},
+
+		// Kept: dropping the cast would change the type.
+		{"date literal", "'2020-01-01'::date", "'2020-01-01'::date"},
+		{"timestamp literal", "'2020-01-01 00:00:00+00'::timestamp with time zone", "'2020-01-01 00:00:00+00'::timestamp with time zone"},
+		{"literal containing colons", "'::1'::inet", "'::1'::inet"},
 
 		{"no cast", "(a > 0)", "(a > 0)"},
 	}

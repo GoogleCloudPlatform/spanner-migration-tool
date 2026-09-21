@@ -40,28 +40,33 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
-// pgLiteral matches a string or numeric literal ('' escapes a quote).
-const pgLiteral = `'(?:[^']|'')*'|-?\d+(?:\.\d+)?`
+// Type names are longest-first so "int8" isn't matched as "int".
+const (
+	pgStringType = `(?:character varying|character|varchar|bpchar|char|text|name)`
+	pgNumberType = `(?:double precision|numeric|decimal|real|float4|float8|float|bigint|smallint|integer|int2|int4|int8|int)`
+	pgTypeSuffix = `(?:\([0-9, ]+\))?(?:\[\])?`
+)
 
-// pgCast matches "::text", "::character varying(50)", "::pg_catalog.int4[]".
-// Type names must not span whitespace beyond the listed suffixes, else
-// "(a)::text AND (b)" would swallow the AND.
-const pgCast = `::[\w.]+(?: varying| precision| with time zone| without time zone)?(?:\([0-9, ]+\))?(?:\[\])?`
+// 'NEW'::character varying -> 'NEW'
+var pgStringCastRegex = regexp.MustCompile(
+	`('(?:[^']|'')*')::(?:pg_catalog\.)?` + pgStringType + pgTypeSuffix)
 
-// pgLiteralCastRegex matches a cast on a literal, which Postgres may parenthesise
-// as "(0)::numeric". The char before the literal is captured (RE2 has no
-// lookbehind) so "col1::text" isn't read as the literal 1; replace puts it back.
-var pgLiteralCastRegex = regexp.MustCompile(
-	`(^|[^\w$.])(\((?:` + pgLiteral + `)\)|` + pgLiteral + `)` + pgCast)
+// '9000000000'::bigint -> 9000000000, quotes included.
+var pgQuotedNumberCastRegex = regexp.MustCompile(
+	`'(-?\d+(?:\.\d+)?)'::(?:pg_catalog\.)?` + pgNumberType + pgTypeSuffix)
 
-// stripLiteralCasts drops casts that only decorate a literal, e.g.
-// "'NEW'::character varying" -> "'NEW'". Casts on columns are kept: they convert
-// the operand, so dropping one changes what the expression computes. Spanner
-// rejects them and verification flags the column, which beats silently migrating
-// a different expression. Mirrors MySQL's dbcollationRegex, which likewise strips
-// only decoration glued to a literal.
+// (0)::numeric -> (0). The leading char is captured, and put back by replace,
+// because RE2 has no lookbehind to stop "col1::text" matching the literal 1.
+var pgNumberCastRegex = regexp.MustCompile(
+	`(^|[^\w$.'])(\(-?\d+(?:\.\d+)?\)|-?\d+(?:\.\d+)?)::(?:pg_catalog\.)?` + pgNumberType + pgTypeSuffix)
+
+// stripLiteralCasts drops casts that only decorate a literal. Casts on columns,
+// and casts that change the type, are kept: dropping those would change what the
+// expression computes.
 func stripLiteralCasts(expr string) string {
-	return pgLiteralCastRegex.ReplaceAllString(expr, "$1$2")
+	expr = pgStringCastRegex.ReplaceAllString(expr, "$1")
+	expr = pgQuotedNumberCastRegex.ReplaceAllString(expr, "$1")
+	return pgNumberCastRegex.ReplaceAllString(expr, "$1$2")
 }
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -289,7 +294,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
 	}
 	serialCols := isi.getSerialColumns(conv, table)
-	virtualCols := isi.getVirtualColumns(table)
+	virtualCols := isi.getVirtualColumns(conv, table)
 	identityCols := isi.getIdentityColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
@@ -366,12 +371,16 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 
 // getVirtualColumns returns a table's VIRTUAL generated columns (PostgreSQL 18+).
 // information_schema cannot distinguish VIRTUAL from STORED; pg_attribute can.
-// attgenerated is absent before PG 12, where the query fails and nil is correct.
-func (isi InfoSchemaImpl) getVirtualColumns(table common.SchemaAndName) []string {
+func (isi InfoSchemaImpl) getVirtualColumns(conv *internal.Conv, table common.SchemaAndName) []string {
 	q := `SELECT attname FROM pg_attribute
               WHERE attrelid = $1::regclass AND attnum > 0 AND attgenerated = 'v';`
 	rows, err := isi.Db.Query(q, table.Schema+"."+table.Name)
 	if err != nil {
+		// attgenerated is absent before PG 12, where no column can be virtual.
+		if sqlState(err) == undefinedColumn {
+			return nil
+		}
+		conv.Unexpected(fmt.Sprintf("Couldn't get information about virtual columns for table %s.%s: %s", table.Schema, table.Name, err))
 		return nil
 	}
 	defer rows.Close()
@@ -379,6 +388,7 @@ func (isi InfoSchemaImpl) getVirtualColumns(table common.SchemaAndName) []string
 	for rows.Next() {
 		var colName string
 		if err := rows.Scan(&colName); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan virtual column for table %s.%s: %s", table.Schema, table.Name, err))
 			return virtualCols
 		}
 		virtualCols = append(virtualCols, colName)

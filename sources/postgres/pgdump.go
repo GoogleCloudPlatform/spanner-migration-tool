@@ -958,14 +958,18 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 		case pg_query.ConstrType_CONSTR_NOTNULL:
 			cd.NotNull = true
 		case pg_query.ConstrType_CONSTR_DEFAULT:
-			if c.rawExpr != "" {
+			switch {
+			case c.rawExpr == "":
+				cd.Ignored.Default = true
+			case strings.EqualFold(c.rawExpr, "NULL"):
+				// Postgres discards DEFAULT NULL, so there is nothing to migrate.
+				// Emitting it aborts PG-dialect Spanner, which types NULL as STRING.
+			default:
 				cd.DefaultValue.IsPresent = true
 				cd.DefaultValue.Value = ddl.Expression{
 					ExpressionId: c.exprId,
 					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, false),
 				}
-			} else {
-				cd.Ignored.Default = true
 			}
 		case pg_query.ConstrType_CONSTR_GENERATED:
 			if c.rawExpr != "" {
@@ -974,8 +978,7 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 					ExpressionId: c.exprId,
 					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, true),
 				}
-				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory;
-				// PG 18 VIRTUAL fails to parse before reaching here.
+				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory
 				cd.GeneratedColumn.Type = ddl.GeneratedColStored
 			}
 		case pg_query.ConstrType_CONSTR_IDENTITY:
