@@ -506,8 +506,8 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 				"`valid_gc` INT64 AS ((col1 + col2)) STORED",
 				// Cast on a column is unsupported, so the generation clause is dropped.
 				"`invalid_gc` STRING(50),",
-				"`invalid_gc_a` INT64 NOT NULL  AS ((col1 + col2)) STORED,",
-				"`invalid_gc_b` INT64 NOT NULL  AS ((col1 + 1)) STORED,",
+				"`invalid_gc_a` INT64 NOT NULL ,",
+				"`invalid_gc_b` INT64 NOT NULL ,",
 				"`valid_pk_gc` INT64 NOT NULL  AS ((col1 + 1)) STORED,",
 				"`valid_pk` INT64 NOT NULL ,",
 				"`d_int` INT64 DEFAULT (42),",
@@ -529,8 +529,8 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 			wantDDL: []string{
 				`"valid_gc" INT8 GENERATED ALWAYS AS ((col1 + col2)) STORED`,
 				`"invalid_gc" VARCHAR(50) GENERATED ALWAYS AS ((upper(name::text))) STORED`,
-				`"invalid_gc_a" INT8 NOT NULL  GENERATED ALWAYS AS ((col1 + col2)) STORED,`,
-				`"invalid_gc_b" INT8 NOT NULL  GENERATED ALWAYS AS ((col1 + 1)) STORED,`,
+				`"invalid_gc_a" INT8 NOT NULL ,`,
+				`"invalid_gc_b" INT8 NOT NULL ,`,
 				`"valid_pk_gc" INT8 NOT NULL  GENERATED ALWAYS AS ((col1 + 1)) STORED,`,
 				`"valid_pk" INT8 NOT NULL ,`,
 				`"d_int" INT8 DEFAULT (42),`,
