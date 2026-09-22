@@ -197,7 +197,7 @@ func Test_getCreateTableStmt(t *testing.T) {
 				{"col2", "STRING(MAX)", false, 2},
 			},
 			dialect: constants.DIALECT_POSTGRESQL,
-			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
+			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX) PRIMARY KEY (`col1`,`col2`))",
 		},
 	}
 
