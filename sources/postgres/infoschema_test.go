@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -206,7 +207,7 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
-			rows: [][]driver.Value{{"id"}},
+			rows:  [][]driver.Value{{"id"}},
 		},
 		{
 			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
@@ -377,11 +378,11 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"id":  []internal.SchemaIssue{internal.IdentitySkipRange},
-		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
-		"bs":    []internal.SchemaIssue{internal.DefaultValue},
-		"i4":    []internal.SchemaIssue{internal.Widened},
-		"i2":    []internal.SchemaIssue{internal.Widened},
+		"id":   []internal.SchemaIssue{internal.IdentitySkipRange},
+		"aint": []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
+		"bs":   []internal.SchemaIssue{internal.DefaultValue},
+		"i4":   []internal.SchemaIssue{internal.Widened},
+		"i2":   []internal.SchemaIssue{internal.Widened},
 		// num has no precision or scale.
 		"num":   []internal.SchemaIssue{internal.Numeric},
 		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
@@ -744,4 +745,135 @@ func TestGetIdentityColumnsQueryError(t *testing.T) {
 	identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
 	assert.Equal(t, []string{}, identityCols)
 	assert.Equal(t, int64(1), conv.Unexpecteds())
+}
+
+func TestGetInheritedTables(t *testing.T) {
+	cases := []struct {
+		name      string
+		setup     func(sqlmock.Sqlmock)
+		expected  map[string][]string
+		expectErr bool
+	}{
+		{
+			name: "inheritance relationships returned",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnRows(
+					sqlmock.NewRows([]string{"child_schema", "child_name", "parent_schema", "parent_name"}).
+						AddRow("public", "child", "public", "p1").
+						AddRow("public", "child", "public", "p2").
+						AddRow("public", "capitals", "public", "cities").
+						AddRow("other", "shape", "other", "base"))
+			},
+			expected: map[string][]string{
+				"child":       {"p1", "p2"},
+				"capitals":    {"cities"},
+				"other.shape": {"other.base"},
+			},
+		},
+		{
+			name: "no inheritance in the database",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnRows(
+					sqlmock.NewRows([]string{"child_schema", "child_name", "parent_schema", "parent_name"}))
+			},
+			expected: map[string][]string{},
+		},
+		{
+			name: "query error is returned",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnError(errors.New("permission denied"))
+			},
+			expectErr: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.Nil(t, err)
+			defer db.Close()
+			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+			tc.setup(mock)
+			got, err := isi.GetInheritedTables()
+			if tc.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestGetRowsFromTable_OnlyForInheritanceParents(t *testing.T) {
+	cases := []struct {
+		name      string
+		isParent  bool
+		wantQuery string
+	}{
+		{
+			name:      "inheritance parent is read with ONLY",
+			isParent:  true,
+			wantQuery: `SELECT [*] FROM ONLY "public"."cities"`,
+		},
+		{
+			name:      "non-parent (e.g. a partitioned table) is read normally",
+			isParent:  false,
+			wantQuery: `SELECT [*] FROM "public"."cities"`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.Nil(t, err)
+			defer db.Close()
+
+			mock.ExpectQuery("SELECT EXISTS").WillReturnRows(
+				sqlmock.NewRows([]string{"exists"}).AddRow(tc.isParent))
+			mock.ExpectQuery(tc.wantQuery).WillReturnRows(
+				sqlmock.NewRows([]string{"name"}).AddRow("Mariposa"))
+
+			conv := internal.MakeConv()
+			conv.SrcSchema["t1"] = schema.Table{
+				Name: "cities", Schema: "public", Id: "t1",
+				ColIds:  []string{"c1"},
+				ColDefs: map[string]schema.Column{"c1": {Name: "name", Id: "c1", Type: schema.Type{Name: "text"}}},
+			}
+
+			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+			rows, err := isi.GetRowsFromTable(conv, "t1")
+			assert.NoError(t, err)
+			rows.(*sql.Rows).Close()
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestGetRowCount_OnlyForInheritanceParents(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'").WillReturnRows(
+		sqlmock.NewRows([]string{"table_schema", "table_name"}).
+			AddRow("public", "cities").
+			AddRow("public", "capitals"))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs("public", "cities").WillReturnRows(
+		sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM ONLY "public"\."cities"`).WillReturnRows(
+		sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+	mock.ExpectQuery("SELECT EXISTS").WithArgs("public", "capitals").WillReturnRows(
+		sqlmock.NewRows([]string{"exists"}).AddRow(false))
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM "public"\."capitals"`).WillReturnRows(
+		sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+	commonIsi := common.InfoSchemaImpl{}
+	commonIsi.SetRowStats(conv, isi)
+
+	assert.Equal(t, int64(3), conv.Stats.Rows["cities"])
+	assert.Equal(t, int64(2), conv.Stats.Rows["capitals"])
+	assert.Equal(t, int64(5), conv.Rows())
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

@@ -120,6 +120,9 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 			break
 		}
 	}
+	if conv.SchemaMode() {
+		resolveInheritedTables(conv)
+	}
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	// We don't actually support migration of sequences for Postgres, but some get set in order to properly
 	// identify SERIAL columns. In order to avoid migrating these sequences, we unset them here.
@@ -357,13 +360,11 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if len(n.InhRelations) > 0 {
-		// Skip inherited tables.
+	if n.Partbound != nil {
 		conv.SkipStatement(printNodeType(n))
-		conv.Unexpected(fmt.Sprintf("Found inherited table %s -- we do not currently handle inherited tables", table))
-		internal.VerbosePrintf("Processing %v statement: table %s is inherited table", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
-
+		conv.Unexpected(fmt.Sprintf("Found partition %s -- we do not currently handle partitioned tables in dump files", table))
+		internal.VerbosePrintf("Processing %v statement: table %s is a partition", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is a partition", printNodeType(n), table))
 		return
 	}
 	var constraints []constraint
@@ -400,6 +401,7 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		ColNameIdMap: colNameIdMap,
 		ColDefs:      colDef,
 	}
+	registerInheritedTable(conv, tableId, getInheritedTableNames(conv, n.InhRelations))
 	// Note: constraints contains all info about primary keys, not-null keys
 	// and foreign keys.
 	updateSchema(conv, tableId, constraints, "CREATE TABLE")
@@ -450,11 +452,11 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 	if _, ok := conv.SrcSchema[tableId]; !ok {
 		// If we don't have schema information for a table, we drop all insert
-		// statements for it. The most likely reason we don't have schema information
-		// for a table is that it is an inherited table - we skip all inherited tables.
+		// statements for it. This can happen if we failed to parse the table's
+		// CREATE TABLE statement.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
 
 		return nil
 	}
@@ -500,11 +502,11 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all copy
-		// statements for it. The most likely reason we don't have schema information
-		// for a table is that it is an inherited table - we skip all inherited tables.
+		// statements for it. This can happen if we failed to parse the table's
+		// CREATE TABLE statement.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
 		return &copyOrInsert{stmt: copyFrom, table: table, cols: []string{}}
 	}
 	var cols []string
@@ -1111,4 +1113,166 @@ func trimQuote(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func getInheritedTableNames(conv *internal.Conv, inhRelations []*pg_query.Node) []string {
+	var parents []string
+	for _, r := range inhRelations {
+		rangeVar := r.GetRangeVar()
+		if rangeVar == nil {
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt InhRelations", printNodeType(r)))
+			continue
+		}
+		name, err := getTableName(conv, rangeVar)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't get parent table name while processing inherited table: %s", err))
+			continue
+		}
+		parents = append(parents, name)
+	}
+	return parents
+}
+
+func registerInheritedTable(conv *internal.Conv, childId string, parents []string) {
+	if len(parents) == 0 {
+		return
+	}
+	child := conv.SrcSchema[childId]
+	child.InheritedFrom = parents
+	conv.SrcSchema[childId] = child
+	flattenInheritedTable(conv, childId)
+}
+
+// resolveInheritedTables flattens any inherited table whose parents appeared
+// later in the dump.
+func resolveInheritedTables(conv *internal.Conv) {
+	for {
+		progress := false
+		var unresolved []string
+		for tableId, table := range conv.SrcSchema {
+			if len(table.InheritedFrom) == 0 || hasAllParentColumns(conv, table) {
+				continue
+			}
+			if flattenInheritedTable(conv, tableId) {
+				progress = true
+			} else {
+				unresolved = append(unresolved, tableId)
+			}
+		}
+		if len(unresolved) == 0 {
+			return
+		}
+		if !progress {
+			for _, tableId := range unresolved {
+				table := conv.SrcSchema[tableId]
+				conv.Unexpected(fmt.Sprintf("Table %s inherits from %s, but the parent table(s) could not be resolved: inherited columns will be missing",
+					table.Name, strings.Join(table.InheritedFrom, ", ")))
+			}
+			return
+		}
+	}
+}
+
+func hasAllParentColumns(conv *internal.Conv, table schema.Table) bool {
+	for _, name := range table.InheritedFrom {
+		parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name)
+		if !ok || parent == nil {
+			return false
+		}
+		for _, colId := range parent.ColIds {
+			if _, exists := table.ColNameIdMap[parent.ColDefs[colId].Name]; !exists {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// flattenInheritedTable copies each parent's columns into childId ahead of the
+// child's own columns, matching PostgreSQL column ordering.
+func flattenInheritedTable(conv *internal.Conv, childId string) bool {
+	child := conv.SrcSchema[childId]
+	var parentIds []string
+	for _, name := range child.InheritedFrom {
+		parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name)
+		if !ok || parent == nil || parent.Id == childId || !hasAllParentColumns(conv, *parent) {
+			return false
+		}
+		parentIds = append(parentIds, parent.Id)
+	}
+
+	if child.ColDefs == nil {
+		child.ColDefs = make(map[string]schema.Column)
+	}
+	if child.ColNameIdMap == nil {
+		child.ColNameIdMap = make(map[string]string)
+	}
+
+	var colIds []string
+	placed := make(map[string]bool)
+	for _, parentId := range parentIds {
+		parent := conv.SrcSchema[parentId]
+		for _, parentColId := range parent.ColIds {
+			parentCol := parent.ColDefs[parentColId]
+			colId, exists := child.ColNameIdMap[parentCol.Name]
+			if exists {
+				child.ColDefs[colId] = mergeInheritedColumn(child.ColDefs[colId], parentCol)
+			} else {
+				col := copyInheritedColumn(parentCol)
+				colId = col.Id
+				child.ColDefs[colId] = col
+				child.ColNameIdMap[col.Name] = colId
+			}
+			if !placed[colId] {
+				colIds = append(colIds, colId)
+				placed[colId] = true
+			}
+		}
+	}
+	for _, colId := range child.ColIds {
+		if !placed[colId] {
+			colIds = append(colIds, colId)
+			placed[colId] = true
+		}
+	}
+	child.ColIds = colIds
+	conv.SrcSchema[childId] = child
+
+	internal.VerbosePrintf("Flattened inherited table %s: copied columns from %s\n", child.Name, strings.Join(child.InheritedFrom, ", "))
+	logger.Log.Debug(fmt.Sprintf("Flattened inherited table %s: copied columns from %s", child.Name, strings.Join(child.InheritedFrom, ", ")))
+	return true
+}
+
+func copyInheritedColumn(parentCol schema.Column) schema.Column {
+	col := parentCol
+	col.Id = internal.GenerateColumnId()
+	col.Type = schema.Type{
+		Name:        parentCol.Type.Name,
+		Mods:        append([]int64(nil), parentCol.Type.Mods...),
+		ArrayBounds: append([]int64(nil), parentCol.Type.ArrayBounds...),
+	}
+	if col.DefaultValue.IsPresent {
+		col.DefaultValue.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	if col.GeneratedColumn.IsPresent {
+		col.GeneratedColumn.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	return col
+}
+
+func mergeInheritedColumn(childCol, parentCol schema.Column) schema.Column {
+	childCol.NotNull = childCol.NotNull || parentCol.NotNull
+	childCol.Ignored.Default = childCol.Ignored.Default || parentCol.Ignored.Default
+	if !childCol.DefaultValue.IsPresent && parentCol.DefaultValue.IsPresent {
+		childCol.DefaultValue = parentCol.DefaultValue
+		childCol.DefaultValue.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	if !childCol.GeneratedColumn.IsPresent && parentCol.GeneratedColumn.IsPresent {
+		childCol.GeneratedColumn = parentCol.GeneratedColumn
+		childCol.GeneratedColumn.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	if childCol.AutoGen.Name == "" {
+		childCol.AutoGen = parentCol.AutoGen
+	}
+	return childCol
 }

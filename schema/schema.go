@@ -45,6 +45,7 @@ type Table struct {
 	CheckConstraints []CheckConstraint
 	Indexes          []Index
 	Id               string
+	InheritedFrom    []string `json:",omitempty"` // Direct parent table names (PostgreSQL INHERITS).
 }
 
 // Column represents a database column.

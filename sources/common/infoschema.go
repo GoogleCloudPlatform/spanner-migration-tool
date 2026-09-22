@@ -88,6 +88,11 @@ type BatchedInfoSchema interface {
 	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colDefs map[string]TableColumns) (map[string][]schema.Index, error)
 }
 
+// TableInheritanceProvider is an optional interface for sources that support table inheritance.
+type TableInheritanceProvider interface {
+	GetInheritedTables() (map[string][]string, error)
+}
+
 // SchemaAndName contains the schema and name for a table
 type SchemaAndName struct {
 	Schema string
@@ -169,8 +174,27 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		return 0, e
 	}
 
+	annotateInheritedTables(conv, infoSchema)
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return tableCount, nil
+}
+
+func annotateInheritedTables(conv *internal.Conv, infoSchema InfoSchema) {
+	provider, ok := infoSchema.(TableInheritanceProvider)
+	if !ok {
+		return
+	}
+	inherited, err := provider.GetInheritedTables()
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Couldn't get table inheritance information: %s", err))
+		return
+	}
+	for tableId, table := range conv.SrcSchema {
+		if parents, ok := inherited[table.Name]; ok && len(parents) > 0 {
+			table.InheritedFrom = parents
+			conv.SrcSchema[tableId] = table
+		}
+	}
 }
 
 func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis BatchedInfoSchema, tables []SchemaAndName, numWorkers int) (int, error) {
