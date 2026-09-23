@@ -62,7 +62,7 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		tr.Cols = cols
 		tr.Warnings = warnings
 		schemaIssues := conv.SchemaIssues[tableId].TableLevelIssues
-		tr.Errors = countNonNoteIssues(schemaIssues)
+		tr.Errors = countActionableIssues(schemaIssues)
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
 			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
@@ -112,15 +112,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 
 		if p.severity == note {
-			for _, issue := range tableLevelIssues {
-				if IssueDB[issue].Severity != note {
-					continue
-				}
-				l = append(l, Issue{
-					Category:    IssueDB[issue].Category,
-					Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, IssueDB[issue].Brief),
-				})
-			}
+			l = append(l, buildTableLevelIssues(conv, tableId, tableLevelIssues, note)...)
 		}
 
 		// added if condition to add table level warnings
@@ -710,15 +702,31 @@ const (
 	Errors
 )
 
-// countNonNoteIssues counts schema issues excluding informational notes.
-func countNonNoteIssues(issues []internal.SchemaIssue) int64 {
+// countActionableIssues counts the table level issues that require user
+// attention.
+func countActionableIssues(issues []internal.SchemaIssue) int64 {
 	var count int64
 	for _, issue := range issues {
-		if IssueDB[issue].Severity != note {
+		if IssueDB[issue].Severity != note { // Notes are purely informational and are excluded.
 			count++
 		}
 	}
 	return count
+}
+
+// buildTableLevelIssues renders the table level issues matching severity.
+func buildTableLevelIssues(conv *internal.Conv, tableId string, issues []internal.SchemaIssue, severity Severity) []Issue {
+	var l []Issue
+	for _, issue := range issues {
+		if IssueDB[issue].Severity != severity {
+			continue
+		}
+		l = append(l, Issue{
+			Category:    IssueDB[issue].Category,
+			Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, IssueDB[issue].Brief),
+		})
+	}
+	return l
 }
 
 // AnalyzeCols returns information about the quality of schema mappings
