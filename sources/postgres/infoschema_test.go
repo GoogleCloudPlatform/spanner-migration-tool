@@ -207,7 +207,7 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
-			rows:  [][]driver.Value{{"id"}},
+			rows: [][]driver.Value{{"id"}},
 		},
 		{
 			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
@@ -378,11 +378,11 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"id":   []internal.SchemaIssue{internal.IdentitySkipRange},
-		"aint": []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
-		"bs":   []internal.SchemaIssue{internal.DefaultValue},
-		"i4":   []internal.SchemaIssue{internal.Widened},
-		"i2":   []internal.SchemaIssue{internal.Widened},
+		"id":  []internal.SchemaIssue{internal.IdentitySkipRange},
+		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
+		"bs":    []internal.SchemaIssue{internal.DefaultValue},
+		"i4":    []internal.SchemaIssue{internal.Widened},
+		"i2":    []internal.SchemaIssue{internal.Widened},
 		// num has no precision or scale.
 		"num":   []internal.SchemaIssue{internal.Numeric},
 		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
@@ -782,6 +782,16 @@ func TestGetInheritedTables(t *testing.T) {
 			name: "query error is returned",
 			setup: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnError(errors.New("permission denied"))
+			},
+			expectErr: true,
+		},
+		{
+			name: "scan error is returned",
+			setup: func(m sqlmock.Sqlmock) {
+				// Fewer columns than the scan expects.
+				m.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnRows(
+					sqlmock.NewRows([]string{"child_schema", "child_name", "parent_schema"}).
+						AddRow("public", "child", "public"))
 			},
 			expectErr: true,
 		},
