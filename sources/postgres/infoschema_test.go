@@ -73,6 +73,11 @@ func TestProcessSchema(t *testing.T) {
 				{"ref", "FOREIGN KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "user"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -81,7 +86,17 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.user"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.user"},
 			cols:  []string{"attname"},
 		},
@@ -93,11 +108,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "user"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"name", "text", nil, "NO", nil, nil, nil, nil},
-				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
+				{"user_id", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"name", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"ref", "bigint", nil, "YES", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -115,6 +130,13 @@ func TestProcessSchema(t *testing.T) {
 				{"userid", "PRIMARY KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "cart"},
+			cols:  []string{"conname", "pg_get_expr"},
+			rows: [][]driver.Value{
+				{"cart_quantity_check", "(quantity > 0)"}},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -123,7 +145,17 @@ func TestProcessSchema(t *testing.T) {
 				{"public", "user", "userid", "user_id", "fk_test3", constants.FK_SET_NULL, constants.FK_RESTRICT}},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.cart"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.cart"},
 			cols:  []string{"attname"},
 		},
@@ -135,11 +167,13 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"productid", "text", nil, "NO", nil, nil, nil, nil},
-				{"userid", "text", nil, "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
+				{"productid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"userid", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil},
+				{"gen_col", "text", nil, "YES", nil, nil, nil, nil, "ALWAYS", "((productid || userid))"},
+			},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -161,12 +195,27 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "PRIMARY KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.product"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.product"},
 			cols:  []string{"attname"},
 		},
@@ -178,10 +227,10 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "product"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
+				{"product_id", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"product_name", "text", nil, "NO", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -195,7 +244,13 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
@@ -204,10 +259,20 @@ func TestProcessSchema(t *testing.T) {
 		},
 
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
 			rows: [][]driver.Value{{"id"}},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
@@ -217,29 +282,29 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"id", "bigint", nil, "NO", "nextval('public.test_id_seq'::regclass)", nil, 64, 0},
-				{"aint", "ARRAY", "integer", "YES", nil, nil, nil, nil},
-				{"atext", "ARRAY", "text", "YES", nil, nil, nil, nil},
-				{"b", "boolean", nil, "YES", nil, nil, nil, nil},
-				{"bs", "bigint", nil, "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0},
-				{"by", "bytea", nil, "YES", nil, nil, nil, nil},
-				{"c", "character", nil, "YES", nil, 1, nil, nil},
-				{"c_8", "character", nil, "YES", nil, 8, nil, nil},
-				{"d", "date", nil, "YES", nil, nil, nil, nil},
-				{"f8", "double precision", nil, "YES", nil, nil, 53, nil},
-				{"f4", "real", nil, "YES", nil, nil, 24, nil},
-				{"i8", "bigint", nil, "YES", nil, nil, 64, 0},
-				{"i4", "integer", nil, "YES", nil, nil, 32, 0},
-				{"i2", "smallint", nil, "YES", nil, nil, 16, 0},
-				{"num", "numeric", nil, "YES", nil, nil, nil, nil},
-				{"s", "integer", nil, "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0},
-				{"ts", "timestamp without time zone", nil, "YES", nil, nil, nil, nil},
-				{"tz", "timestamp with time zone", nil, "YES", nil, nil, nil, nil},
-				{"txt", "text", nil, "NO", nil, nil, nil, nil},
-				{"vc", "character varying", nil, "YES", nil, nil, nil, nil},
-				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
+				{"id", "bigint", nil, "NO", "nextval('public.test_id_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"aint", "ARRAY", "integer", "YES", nil, nil, nil, nil, nil, nil},
+				{"atext", "ARRAY", "text", "YES", nil, nil, nil, nil, nil, nil},
+				{"b", "boolean", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"bs", "bigint", nil, "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil, nil},
+				{"by", "bytea", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"c", "character", nil, "YES", nil, 1, nil, nil, nil, nil},
+				{"c_8", "character", nil, "YES", nil, 8, nil, nil, nil, nil},
+				{"d", "date", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"f8", "double precision", nil, "YES", nil, nil, 53, nil, nil, nil},
+				{"f4", "real", nil, "YES", nil, nil, 24, nil, nil, nil},
+				{"i8", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil},
+				{"i4", "integer", nil, "YES", nil, nil, 32, 0, nil, nil},
+				{"i2", "smallint", nil, "YES", nil, nil, 16, 0, nil, nil},
+				{"num", "numeric", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"s", "integer", nil, "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil, nil},
+				{"ts", "timestamp without time zone", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"tz", "timestamp with time zone", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"txt", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"vc", "character varying", nil, "YES", nil, nil, nil, nil, nil, nil},
+				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -255,13 +320,29 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"ref_id", "PRIMARY KEY"},
 				{"ref_txt", "PRIMARY KEY"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test_ref"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.test_ref"},
 			cols:  []string{"attname"},
 		},
@@ -273,11 +354,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
-				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
-				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
+				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0, nil, nil},
+				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"abc", "text", nil, "NO", nil, nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -315,18 +396,20 @@ func TestProcessSchema(t *testing.T) {
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}},
 		"cart": ddl.CreateTable{
 			Name:   "cart",
-			ColIds: []string{"productid", "userid", "quantity"},
+			ColIds: []string{"productid", "userid", "quantity", "gen_col"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+				"gen_col":   ddl.ColumnDef{Name: "gen_col", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Order: 1}, ddl.IndexKey{ColId: "userid", Order: 2}},
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
 				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}}},
 				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}, ddl.IndexKey{ColId: "productid", Desc: true, Order: 2}}},
-				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}}},
+				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}},
+			CheckConstraints: []ddl.CheckConstraint{ddl.CheckConstraint{Name: "cart_quantity_check", Expr: "(quantity > 0)"}}},
 		"product": ddl.CreateTable{
 			Name:   "product",
 			ColIds: []string{"product_id", "product_name"},
@@ -380,12 +463,11 @@ func TestProcessSchema(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"id":  []internal.SchemaIssue{internal.IdentitySkipRange},
 		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
-		"bs":    []internal.SchemaIssue{internal.DefaultValue},
 		"i4":    []internal.SchemaIssue{internal.Widened},
 		"i2":    []internal.SchemaIssue{internal.Widened},
 		// num has no precision or scale.
 		"num":   []internal.SchemaIssue{internal.Numeric},
-		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"s":     []internal.SchemaIssue{internal.Widened},
 		"ts":    []internal.SchemaIssue{internal.Timestamp},
 		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},
 	}
@@ -419,7 +501,7 @@ func TestProcessData(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1": ddl.ColumnDef{Name: "a_a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": ddl.ColumnDef{Name: "Ab", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
-				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true}},
 			}},
 		schema.Table{
 			Name:   "te st",
@@ -442,8 +524,8 @@ func TestProcessData(t *testing.T) {
 
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab"}, vals: []interface{}{float64(42.3), int64(3)}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab"}, vals: []interface{}{float64(6.6), int64(22)}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
@@ -565,12 +647,27 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
 		},
 		{
+			query: "SELECT (.+) FROM pg_constraint (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"conname", "pg_get_expr"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows: [][]driver.Value{{"generation_expression"}},
+		},
+		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
 		},
@@ -582,11 +679,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
 			rows: [][]driver.Value{
-				{"a", "text", nil, "NO", nil, nil, nil, nil},
-				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
-				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
+				{"a", "text", nil, "NO", nil, nil, nil, nil, nil, nil},
+				{"b", "double precision", nil, "YES", nil, nil, 53, nil, nil, nil},
+				{"c", "bigint", nil, "YES", nil, nil, 64, 0, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -763,6 +860,247 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func newFalsePtr() *bool {
 	temp := false
 	return &temp
+}
+
+// mkInfoSchema builds an InfoSchemaImpl over a caller-configured sqlmock, for
+// tests that need to simulate query errors.
+func mkInfoSchema(t *testing.T) (InfoSchemaImpl, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	return InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, mock
+}
+
+func TestGetVirtualColumns(t *testing.T) {
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	cases := []struct {
+		name          string
+		setup         func(sqlmock.Sqlmock)
+		expected      []string
+		expectUnexpec int64
+	}{
+		{
+			name: "virtual columns returned",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnRows(sqlmock.NewRows([]string{"attname"}).AddRow("vcol1").AddRow("vcol2"))
+			},
+			expected: []string{"vcol1", "vcol2"},
+		},
+		{
+			name: "undefined column is expected on old servers (lib/pq)",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(&pq.Error{Code: "42703", Message: "column attgenerated does not exist"})
+			},
+			expected: nil,
+		},
+		{
+			name: "undefined column is expected on old servers (pgx)",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(&pgconn.PgError{Code: "42703", Message: "column attgenerated does not exist"})
+			},
+			expected: nil,
+		},
+		{
+			name: "other query errors are reported",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnError(&pq.Error{Code: "42501", Message: "permission denied"})
+			},
+			expected:      nil,
+			expectUnexpec: 1,
+		},
+		{
+			name: "scan error returns columns read so far",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT attname FROM pg_attribute (.+) attgenerated (.+)").
+					WithArgs("public.test").
+					WillReturnRows(sqlmock.NewRows([]string{"attname"}).AddRow("vcol1").AddRow(nil))
+			},
+			expected:      []string{"vcol1"},
+			expectUnexpec: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isi, mock := mkInfoSchema(t)
+			tc.setup(mock)
+			conv := internal.MakeConv()
+			assert.Equal(t, tc.expected, isi.getVirtualColumns(conv, table))
+			assert.Equal(t, tc.expectUnexpec, conv.Unexpecteds())
+		})
+	}
+}
+
+func TestGetColumns_NoGenerationExpressionSupport(t *testing.T) {
+	// information_schema.columns.generation_expression was added in PG 12. On
+	// older servers the probe finds nothing and GetColumns must fall back to a
+	// query that does not reference it.
+	isi, mock := mkInfoSchema(t)
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	mock.ExpectQuery("SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name"}))
+	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+)").
+		WithArgs("public.test").
+		WillReturnRows(sqlmock.NewRows([]string{"attname"}))
+	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)").
+		WithArgs("public.test").
+		WillReturnError(errors.New("column a.attgenerated does not exist"))
+	mock.ExpectQuery("SELECT (.+) FROM information_schema.COLUMNS (.+)").
+		WithArgs("public", "test").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name", "data_type", "data_type", "is_nullable",
+			"column_default", "character_maximum_length", "numeric_precision", "numeric_scale",
+			"is_generated", "generation_expression"}).
+			AddRow("a", "bigint", nil, "NO", nil, nil, 64, 0, "NEVER", nil).
+			AddRow("b", "text", nil, "YES", "'x'::text", nil, nil, nil, "NEVER", nil))
+
+	conv := internal.MakeConv()
+	colDefs, colIds, err := isi.GetColumns(conv, table, nil, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(colIds))
+	for _, c := range colDefs {
+		assert.False(t, c.GeneratedColumn.IsPresent)
+	}
+	b := colDefs[colIds[1]]
+	assert.Equal(t, "b", b.Name)
+	assert.True(t, b.DefaultValue.IsPresent)
+}
+
+func TestGetCheckConstraints(t *testing.T) {
+	table := common.SchemaAndName{Schema: "public", Name: "test"}
+	cases := []struct {
+		name          string
+		setup         func(sqlmock.Sqlmock)
+		expectedExprs []string
+		expectErr     bool
+		expectUnexpec int64
+	}{
+		{
+			name: "casts on literals are stripped, casts on columns are kept",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnRows(sqlmock.NewRows([]string{"conname", "pg_get_expr"}).
+						AddRow("chk_qty", "(quantity > (0)::numeric)").
+						AddRow("chk_region", "((region)::text = 'US'::text)"))
+			},
+			expectedExprs: []string{"(quantity > (0))", "((region)::text = 'US')"},
+		},
+		{
+			name: "query error is propagated",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnError(errors.New("permission denied for table pg_constraint"))
+			},
+			expectErr: true,
+		},
+		{
+			name: "scan error skips the row",
+			setup: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+					WithArgs("public", "test").
+					WillReturnRows(sqlmock.NewRows([]string{"conname", "pg_get_expr"}).
+						AddRow("chk_qty", nil).
+						AddRow("chk_max", "(quantity < 100)"))
+			},
+			expectedExprs: []string{"(quantity < 100)"},
+			expectUnexpec: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isi, mock := mkInfoSchema(t)
+			tc.setup(mock)
+			conv := internal.MakeConv()
+			cc, err := isi.getCheckConstraints(conv, table)
+			if tc.expectErr {
+				assert.NotNil(t, err)
+				return
+			}
+			assert.Nil(t, err)
+			var exprs []string
+			for _, c := range cc {
+				exprs = append(exprs, c.Expr)
+			}
+			assert.Equal(t, tc.expectedExprs, exprs)
+			assert.Equal(t, tc.expectUnexpec, conv.Unexpecteds())
+		})
+	}
+}
+
+func TestGetConstraints_CheckConstraintError(t *testing.T) {
+	isi, mock := mkInfoSchema(t)
+	mock.ExpectQuery("SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)").
+		WithArgs("public", "test").
+		WillReturnRows(sqlmock.NewRows([]string{"column_name", "constraint_type"}).
+			AddRow("id", "PRIMARY KEY"))
+	mock.ExpectQuery("SELECT (.+) FROM pg_constraint (.+)").
+		WithArgs("public", "test").
+		WillReturnError(errors.New("permission denied for table pg_constraint"))
+
+	conv := internal.MakeConv()
+	_, _, _, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "public", Name: "test"})
+	assert.NotNil(t, err)
+}
+
+func TestToGeneratedColType(t *testing.T) {
+	assert.Equal(t, ddl.GeneratedColVirtual, toGeneratedColType(true))
+	assert.Equal(t, ddl.GeneratedColStored, toGeneratedColType(false))
+}
+
+func TestStripLiteralCasts(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Dropped: cast only decorates a literal of the same kind.
+		{"string literal", "'NEW'::bpchar", "'NEW'"},
+		{"string literal with length", "'abc'::character varying(50)", "'abc'"},
+		{"array literal", "'{}'::text[]", "'{}'"},
+		{"literal inside expression", "a::text || '-'::text || b::text", "a::text || '-' || b::text"},
+		{"numeric literal", "(0)::numeric", "(0)"},
+		{"numeric literal with precision", "(0)::numeric(10,2)", "(0)"},
+		{"float literal", "(1.0)::double precision", "(1.0)"},
+		{"schema qualified type", "(0)::pg_catalog.int4", "(0)"},
+		{"unparenthesised literal", "0::numeric", "0"},
+		{"negative literal", "(-1)::integer", "(-1)"},
+		{"int8 not matched as int", "0::int8", "0"},
+
+		// Unquoted: the cast carries the type, so the quotes go with it.
+		{"quoted bigint", "'9000000000'::bigint", "9000000000"},
+		{"quoted negative integer", "'-7'::integer", "-7"},
+		{"quoted numeric", "'3.14'::numeric", "3.14"},
+		{"quoted bigint in expression", "(a + '9000000000'::bigint)", "(a + 9000000000)"},
+
+		// Kept: the cast converts an operand.
+		{"identifier", "a::text", "a::text"},
+		{"identifier ending in digit", "col1::text", "col1::text"},
+		{"parenthesised identifier", "(price * (qty)::numeric)", "(price * (qty)::numeric)"},
+		{"function call", "(now())::date", "(now())::date"},
+		{"timestamp with time zone", "(now())::timestamp with time zone", "(now())::timestamp with time zone"},
+		{"arithmetic", "(a + 0)::numeric", "(a + 0)::numeric"},
+		{"concatenation", "((a)::text || (b)::text)", "((a)::text || (b)::text)"},
+		{"boolean operands", "((a)::text AND (b)::text)", "((a)::text AND (b)::text)"},
+
+		// Kept: dropping the cast would change the type.
+		{"date literal", "'2020-01-01'::date", "'2020-01-01'::date"},
+		{"timestamp literal", "'2020-01-01 00:00:00+00'::timestamp with time zone", "'2020-01-01 00:00:00+00'::timestamp with time zone"},
+		{"literal containing colons", "'::1'::inet", "'::1'::inet"},
+
+		{"no cast", "(a > 0)", "(a > 0)"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, stripLiteralCasts(test.input))
+		})
+	}
 }
 
 func TestPartitionParent(t *testing.T) {

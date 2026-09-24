@@ -9,7 +9,7 @@ import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MatDividerModule } from '@angular/material/divider'
 import { MatIconModule } from '@angular/material/icon'
-import { MatSnackBar} from '@angular/material/snack-bar'
+import { MatSnackBar } from '@angular/material/snack-bar'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { createMockIConv } from 'src/mocks/conv'
@@ -42,30 +42,30 @@ describe('ObjectDetailComponent', () => {
     })
 
     await TestBed.configureTestingModule({
-    declarations: [ObjectDetailComponent],
-    imports: [MatDialogModule,
+      declarations: [ObjectDetailComponent],
+      imports: [MatDialogModule,
         MatTableModule,
         MatTabsModule,
         BrowserAnimationsModule,
         MatDividerModule,
         MatIconModule],
-    providers: [
+      providers: [
         MatSnackBar,
         {
-            provide: DataService,
-            useValue: dataServiceSpy
+          provide: DataService,
+          useValue: dataServiceSpy
         },
         {
-            provide: MatDialog,
-            useValue: dialogSpyObj
+          provide: MatDialog,
+          useValue: dialogSpyObj
         },
         {
           provide: ConversionService,
           useValue: conversionServiceSpy,
         },
         provideHttpClient(withInterceptorsFromDi())
-    ]
-}).compileComponents()
+      ]
+    }).compileComponents()
     dataServiceSpy.conv = of(mockIConv);
     dataServiceSpy.tableInterleaveStatus = of({});
     dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
@@ -218,6 +218,45 @@ describe('ObjectDetailComponent', () => {
     expect(title.nativeElement.textContent).toEqual('OBJECT VIEWER')
   })
 
+  describe('displayed default value columns', () => {
+    beforeEach(() => {
+      conversionServiceSpy.getPkMapping = jasmine.createSpy('getPkMapping').and.returnValue([])
+      dataServiceSpy.getSummary = jasmine.createSpy('getSummary').and.returnValue(of({}))
+    })
+
+    it('should not be shown when the source does not support defaults', () => {
+      component.supportsDefaultAndSequence = false
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns).not.toContain('spDefaultValue')
+      expect(component.srcDisplayedColumns).not.toContain('srcDefaultValue')
+    })
+
+    it('should be shown alongside the auto generated columns', () => {
+      component.supportsAutoGen = true
+      component.supportsDefaultAndSequence = true
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns).toContain('spAutoGen')
+      expect(component.spDisplayedColumns).toContain('spDefaultValue')
+      expect(component.srcDisplayedColumns).toContain('srcDefaultValue')
+    })
+
+    it('should not be added twice when changes are reapplied', () => {
+      component.supportsAutoGen = true
+      component.supportsDefaultAndSequence = true
+      component.ngOnChanges({})
+      const spColspan = component.spColspan
+      const srcColspan = component.srcColspan
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns.filter((c) => c === 'spDefaultValue').length).toEqual(1)
+      expect(component.srcDisplayedColumns.filter((c) => c === 'srcDefaultValue').length).toEqual(1)
+      expect(component.spColspan).toEqual(spColspan)
+      expect(component.srcColspan).toEqual(srcColspan)
+    })
+  })
+
   it('should save sequence', () => {
     let formBuilder = new FormBuilder();
     component.spRowArray = formBuilder.array([
@@ -272,7 +311,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -295,7 +334,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -316,7 +355,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -326,7 +365,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'contraintName',
         spConstraintCondition: 'test',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -346,7 +385,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -367,7 +406,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -377,7 +416,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '2',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age >= 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc2',
       },
     ]
@@ -403,7 +442,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -427,7 +466,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -453,7 +492,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -476,7 +515,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId:'expr1',
+        spExprId: 'expr1',
         deleteIndex: 'cc1',
       }
     ]

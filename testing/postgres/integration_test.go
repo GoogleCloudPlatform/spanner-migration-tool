@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -478,6 +479,173 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	defer iter.Stop()
 	row, err = iter.Next()
 	assert.NotNil(t, row, "Expected rows in table 'cart' with productid '1YMWWN1N4O' to still exist")
+}
+
+// TestIntegration_PGDUMP_GeneratedColumnsAndDefaults migrates generated columns
+// and defaults, then reads the rows back. Expectations differ per dialect: the
+// PostgreSQL dialect accepts "::" casts and GoogleSQL does not.
+func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
+	// Defaults Spanner rejects at CreateDatabase, aborting the whole migration.
+	notWantDDL := []string{
+		"DEFAULT ('9000000000')",
+		"DEFAULT ('-7')",
+		"DEFAULT (NULL)",
+	}
+
+	tests := []struct {
+		dialect string
+		wantDDL []string
+		// upper(name::text) and '2020-01-01'::date survive only in the
+		// PostgreSQL dialect; GoogleSQL degrades both.
+		wantInvalidGC spanner.NullString
+		wantDate      spanner.NullDate
+	}{
+		{
+			dialect: "google_standard_sql",
+			wantDDL: []string{
+				"`valid_gc` INT64 AS ((col1 + col2)) STORED",
+				// Cast on a column is unsupported, so the generation clause is dropped.
+				"`invalid_gc` STRING(50),",
+				"`invalid_gc_a` INT64 NOT NULL ,",
+				"`invalid_gc_b` INT64 NOT NULL ,",
+				"`valid_pk_gc` INT64 NOT NULL  AS ((col1 + 1)) STORED,",
+				"`valid_pk` INT64 NOT NULL ,",
+				"`d_int` INT64 DEFAULT (42),",
+				// Quotes must come off with the cast, else INT64 gets a STRING.
+				"`d_bigint` INT64 DEFAULT (9000000000),",
+				"`d_neg` INT64 DEFAULT (-7),",
+				"`d_str` STRING(20) DEFAULT ('NEW'),",
+				"`d_bool` BOOL DEFAULT (CAST(true AS BOOL)),",
+				"`d_numeric` NUMERIC DEFAULT (CAST(3.14 AS NUMERIC)),",
+				// Cast types the literal but is unsupported, so the default goes.
+				"`d_date` DATE,",
+				"`d_null` INT64,",
+			},
+			wantInvalidGC: spanner.NullString{},
+			wantDate:      spanner.NullDate{},
+		},
+		{
+			dialect: "postgresql",
+			wantDDL: []string{
+				`"valid_gc" INT8 GENERATED ALWAYS AS ((col1 + col2)) STORED`,
+				`"invalid_gc" VARCHAR(50) GENERATED ALWAYS AS ((upper(name::text))) STORED`,
+				`"invalid_gc_a" INT8 NOT NULL ,`,
+				`"invalid_gc_b" INT8 NOT NULL ,`,
+				`"valid_pk_gc" INT8 NOT NULL  GENERATED ALWAYS AS ((col1 + 1)) STORED,`,
+				`"valid_pk" INT8 NOT NULL ,`,
+				`"d_int" INT8 DEFAULT (42),`,
+				`"d_bigint" INT8 DEFAULT (9000000000),`,
+				`"d_neg" INT8 DEFAULT (-7),`,
+				`"d_str" VARCHAR(20) DEFAULT ('NEW'),`,
+				`"d_bool" BOOL DEFAULT (CAST(true AS BOOL)),`,
+				`"d_numeric" NUMERIC DEFAULT (CAST(3.14 AS NUMERIC)),`,
+				`"d_date" DATE DEFAULT ('2020-01-01'::date),`,
+				`"d_null" INT8,`,
+			},
+			wantInvalidGC: spanner.NullString{StringVal: "ABC", Valid: true},
+			wantDate:      spanner.NullDate{Date: civil.Date{Year: 2020, Month: time.January, Day: 1}, Valid: true},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.dialect, func(t *testing.T) {
+			onlyRunForOmniTest(t)
+			t.Parallel()
+
+			tmpdir := prepareIntegrationTest(t)
+			defer os.RemoveAll(tmpdir)
+
+			g := utils.GetUtilInfoImpl{}
+			dbName, _ := g.GetDatabaseName(constants.PGDUMP, time.Now())
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+			filePrefix := filepath.Join(tmpdir, dbName)
+			dumpFilePath := "../../test_data/postgres_generated_column.sql"
+
+			args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s' < %s",
+				filePrefix, instanceID, dbName, projectID, tc.dialect, dumpFilePath)
+			if err := common.RunCommand(args, projectID); err != nil {
+				t.Fatal(err)
+			}
+			defer dropDatabase(t, dbURI)
+
+			content, err := ioutil.ReadFile(fmt.Sprintf("%s.schema.ddl.txt", filePrefix))
+			if err != nil {
+				t.Fatalf("failed to read DDL file: %v", err)
+			}
+			ddl := string(content)
+			for _, want := range tc.wantDDL {
+				assert.Contains(t, ddl, want, "DDL: %s", ddl)
+			}
+			for _, notWant := range notWantDDL {
+				assert.NotContains(t, ddl, notWant, "DDL: %s", ddl)
+			}
+
+			checkGeneratedColumnsAndDefaults(t, dbURI, tc.wantInvalidGC, tc.wantDate)
+		})
+	}
+}
+
+// checkGeneratedColumnsAndDefaults verifies what Spanner materialised. The dump's
+// COPY omits generated and defaulted columns, so any value present came from
+// Spanner rather than the data migration.
+func checkGeneratedColumnsAndDefaults(t *testing.T, dbURI string, wantInvalidGC spanner.NullString, wantDate spanner.NullDate) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	iter := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT valid_gc, invalid_gc FROM test_generated_columns WHERE id = 1"})
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		t.Fatalf("failed to read test_generated_columns: %v", err)
+	}
+	var validGC int64
+	var invalidGC spanner.NullString
+	if err := row.Columns(&validGC, &invalidGC); err != nil {
+		t.Fatalf("failed to parse test_generated_columns: %v", err)
+	}
+	assert.Equal(t, int64(30), validGC, "valid_gc should be computed by Spanner as col1+col2")
+	assert.Equal(t, wantInvalidGC, invalidGC)
+
+	iter2 := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT valid_pk_gc FROM test_generated_columns_valid_pk WHERE valid_pk = 100"})
+	defer iter2.Stop()
+	row, err = iter2.Next()
+	if err != nil {
+		t.Fatalf("failed to read test_generated_columns_valid_pk: %v", err)
+	}
+	var validPkGC int64
+	if err := row.Column(0, &validPkGC); err != nil {
+		t.Fatalf("failed to parse test_generated_columns_valid_pk: %v", err)
+	}
+	assert.Equal(t, int64(11), validPkGC, "a generated column in the primary key should still be computed")
+
+	iter3 := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT d_int, d_bigint, d_neg, d_str, d_bool, d_date, d_null FROM test_default_values WHERE id = 1"})
+	defer iter3.Stop()
+	row, err = iter3.Next()
+	if err != nil {
+		t.Fatalf("failed to read test_default_values: %v", err)
+	}
+	var dInt, dBigint, dNeg int64
+	var dStr string
+	var dBool bool
+	var dDate spanner.NullDate
+	var dNull spanner.NullInt64
+	if err := row.Columns(&dInt, &dBigint, &dNeg, &dStr, &dBool, &dDate, &dNull); err != nil {
+		t.Fatalf("failed to parse test_default_values: %v", err)
+	}
+	assert.Equal(t, int64(42), dInt)
+	assert.Equal(t, int64(9000000000), dBigint)
+	assert.Equal(t, int64(-7), dNeg)
+	assert.Equal(t, "NEW", dStr)
+	assert.True(t, dBool)
+	assert.Equal(t, wantDate, dDate)
+	assert.Equal(t, spanner.NullInt64{}, dNull, "DEFAULT NULL should leave the column null")
 }
 
 func onlyRunForOmniTest(t *testing.T) {

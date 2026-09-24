@@ -54,6 +54,10 @@ func assertSpColDef(conv *Conv, t *testing.T, tableId string, expectedColDef, ac
 		actualCol := actualColDef[colId]
 		actualCol.Id = ""
 		actualCol.Comment = ""
+		actualCol.DefaultValue.Value.ExpressionId = ""
+		actualCol.GeneratedColumn.Value.ExpressionId = ""
+		col.DefaultValue.Value.ExpressionId = ""
+		col.GeneratedColumn.Value.ExpressionId = ""
 		assert.Equal(t, col, actualCol)
 	}
 }
