@@ -41,6 +41,10 @@ type SourceDBConnDetails struct {
 	DataCenter     string
 	Path           string
 	ConnectionType string
+	Sslmode        string
+	Sslrootcert    string
+	Sslcert        string
+	Sslkey         string
 }
 
 // SessionState stores information for the current migration session.
