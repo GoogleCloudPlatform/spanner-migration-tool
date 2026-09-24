@@ -142,7 +142,7 @@ func TestGetSummary_PartitionedTables(t *testing.T) {
 	}
 	assert.Equal(t, []reports.Issue{{
 		Category:    "PARTITIONED_TABLE_IGNORED",
-		Description: "Table 'orders': Partitioned tables are ignored",
+		Description: "Table 'orders': Its partitioned tables are ignored",
 	}}, partitionWarnings)
 
 	assert.Equal(t, len(actualSummary["t1"].Warnings), actualSummary["t1"].WarningsCount)
@@ -212,7 +212,7 @@ func TestGetSummary_NestedPartitions(t *testing.T) {
 	// tables sit at two different depths.
 	assert.Equal(t, []reports.Issue{{
 		Category:    "PARTITIONED_TABLE_IGNORED",
-		Description: "Table 'ml': Partitioned tables are ignored",
+		Description: "Table 'ml': Its partitioned tables are ignored",
 	}}, partitionWarnings)
 
 	assert.Empty(t, actualSummary["t2"].Warnings)
