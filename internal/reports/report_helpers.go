@@ -16,6 +16,7 @@ package reports
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -45,6 +46,60 @@ func AnalyzeTables(conv *internal.Conv, badWrites map[string]int64) (r []tableRe
 		}
 	}
 	return r
+}
+
+// PartitionNoticesByParent returns one notice per partitioned table whose child
+// partitions were skipped, keyed by the parent's table id.
+func PartitionNoticesByParent(conv *internal.Conv) map[string]Issue {
+	notices := make(map[string]Issue)
+	tableNameToIdMap := srcTableNameToIdMap(conv)
+	issue := IssueDB[internal.PartitionedTable]
+	for tableId, srcTable := range conv.SrcSchema {
+		if _, converted := conv.SpSchema[tableId]; converted || srcTable.PartitionParent == "" {
+			continue
+		}
+		// The issue is cleared on restore, so its presence means we skipped the
+		// table rather than the user deleting it.
+		if !slices.Contains(conv.SchemaIssues[tableId].TableLevelIssues, internal.PartitionedTable) {
+			continue
+		}
+		rootId, rootName, ok := partitionRoot(conv, tableNameToIdMap, srcTable)
+		if !ok {
+			continue
+		}
+		notices[rootId] = Issue{
+			Category:    issue.Category,
+			Description: fmt.Sprintf("Table '%s': %s", rootName, issue.Brief),
+		}
+	}
+	return notices
+}
+
+// srcTableNameToIdMap indexes SrcSchema by table name
+func srcTableNameToIdMap(conv *internal.Conv) map[string]string {
+	m := make(map[string]string, len(conv.SrcSchema))
+	for tableId, srcTable := range conv.SrcSchema {
+		m[srcTable.Name] = tableId
+	}
+	return m
+}
+
+// partitionRoot returns the id and name of the top-most table in srcTable's
+// partition chain. Partitions can be nested (a partition may itself be
+// partitioned), and only the root is migrated
+func partitionRoot(conv *internal.Conv, tableNameToIdMap map[string]string, srcTable schema.Table) (string, string, bool) {
+	for i := 0; i <= len(conv.SrcSchema); i++ {
+		parentId, ok := tableNameToIdMap[srcTable.PartitionParent]
+		if !ok {
+			return "", "", false
+		}
+		parent := conv.SrcSchema[parentId]
+		if parent.PartitionParent == "" {
+			return parentId, parent.Name, true
+		}
+		srcTable = parent
+	}
+	return "", "", false
 }
 
 func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]int64) tableReport {
@@ -622,6 +677,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 }{
 	internal.DefaultValue:                         {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.GeneratedColumnValueError:            {Brief: "Some columns have generated expression which Spanner migration tool cannot not fix. Please add the expressions manually", Severity: warning, batch: false, Category: "MISSING_GENERATED_COL_VALUE_CONSTRAINTS"},
+	internal.PartitionedTable:                     {Brief: "Its partitioned tables are ignored", Severity: warning, batch: true, Category: "PARTITIONED_TABLE_IGNORED"},
 	internal.TypeMismatch:                         {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
 	internal.TypeMismatchError:                    {Brief: "Type mismatch in check constraint mention in table", Severity: Errors, Category: "TYPE_MISMATCH_ERROR"},
 	internal.InvalidCondition:                     {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
