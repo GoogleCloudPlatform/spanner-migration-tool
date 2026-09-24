@@ -2227,12 +2227,52 @@ func TestProcessPgDump_InheritedTable_ColumnAttributes(t *testing.T) {
 		assert.NotEqual(t, parentCol.Id, childCol.Id)
 		assert.Equal(t, parentCol.Type, childCol.Type)
 		assert.Equal(t, parentCol.NotNull, childCol.NotNull)
-		assert.Equal(t, parentCol.AutoGen, childCol.AutoGen)
 	}
+
+	idCol := child.ColDefs[child.ColNameIdMap["id"]]
+	assert.Empty(t, idCol.AutoGen)
+	assert.True(t, idCol.Ignored.Default)
 
 	sharedCol := child.ColDefs[child.ColNameIdMap["shared"]]
 	assert.True(t, sharedCol.NotNull)
 	assert.True(t, sharedCol.Ignored.Default)
+}
+
+func TestProcessPgDump_InheritedTable_IdentityIsNotInherited(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "inline identity",
+			input: "CREATE TABLE parent (id bigint GENERATED ALWAYS AS IDENTITY, x bigint);\n" +
+				"CREATE TABLE child (y bigint) INHERITS (parent);\n",
+		},
+		{
+			name: "identity added before an out-of-order child is flattened",
+			input: "CREATE TABLE child (y bigint) INHERITS (parent);\n" +
+				"CREATE TABLE parent (id bigint NOT NULL, x bigint);\n" +
+				"ALTER TABLE parent ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME parent_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1);\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			noIssues(conv, t, tc.name)
+
+			parentId, _ := srcTable(t, conv, "parent")
+			childId, _ := srcTable(t, conv, "child")
+			parent, child := conv.SrcSchema[parentId], conv.SrcSchema[childId]
+			parentCol := parent.ColDefs[parent.ColNameIdMap["id"]]
+			childCol := child.ColDefs[child.ColNameIdMap["id"]]
+
+			assert.Equal(t, constants.SERIAL, parentCol.AutoGen.GenerationType)
+			assert.Empty(t, childCol.AutoGen)
+			assert.False(t, childCol.Ignored.Default)
+			assert.True(t, childCol.NotNull)
+			assert.Empty(t, conv.SpSchema[childId].ColDefs[childCol.Id].AutoGen)
+		})
+	}
 }
 
 func TestProcessPgDump_InheritedTable_ConstraintsAreNotInherited(t *testing.T) {

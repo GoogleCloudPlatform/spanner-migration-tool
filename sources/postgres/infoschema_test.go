@@ -402,6 +402,12 @@ func TestProcessSchema(t *testing.T) {
 func TestProcessData(t *testing.T) {
 	ms := []mockSpec{
 		{
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "te st"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		},
+		{
 			query: `SELECT [*] FROM "public"."te st"`, // query is a regexp!
 			cols:  []string{"a a", " b", " c "},
 			rows: [][]driver.Value{
@@ -595,6 +601,12 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 		{
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		},
+		{
 			query: `SELECT [*] FROM "public"."test"`, // query is a regexp!
 			cols:  []string{"a", "b", "c"},
 			rows: [][]driver.Value{
@@ -640,9 +652,19 @@ func TestSetRowStats(t *testing.T) {
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "test1"}, {"public", "test2"}},
 		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test1"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."test1"`,
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{5}},
+		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test2"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
 		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."test2"`,
 			cols:  []string{"count"},
@@ -885,5 +907,25 @@ func TestGetRowCount_OnlyForInheritanceParents(t *testing.T) {
 	assert.Equal(t, int64(3), conv.Stats.Rows["cities"])
 	assert.Equal(t, int64(2), conv.Stats.Rows["capitals"])
 	assert.Equal(t, int64(5), conv.Rows())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestParentLookupError_FailsInsteadOfReadingWithoutOnly(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	defer db.Close()
+	isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnError(errors.New("permission denied for table pg_inherits"))
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{Name: "cities", Schema: "public", Id: "t1"}
+	_, err = isi.GetRowsFromTable(conv, "t1")
+	assert.ErrorContains(t, err, "permission denied")
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnError(errors.New("permission denied for table pg_inherits"))
+	_, err = isi.GetRowCount(common.SchemaAndName{Schema: "public", Name: "cities"})
+	assert.ErrorContains(t, err, "permission denied")
+
+	// No SELECT * or COUNT(*) was issued.
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

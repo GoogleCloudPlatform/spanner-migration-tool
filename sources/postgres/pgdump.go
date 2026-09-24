@@ -1251,6 +1251,8 @@ func copyInheritedColumn(parentCol schema.Column) schema.Column {
 		Mods:        append([]int64(nil), parentCol.Type.Mods...),
 		ArrayBounds: append([]int64(nil), parentCol.Type.ArrayBounds...),
 	}
+	col.AutoGen = ddl.AutoGenCol{}
+	inheritAutoGen(&col, parentCol)
 	if col.DefaultValue.IsPresent {
 		col.DefaultValue.Value.ExpressionId = internal.GenerateExpressionId()
 	}
@@ -1271,8 +1273,19 @@ func mergeInheritedColumn(childCol, parentCol schema.Column) schema.Column {
 		childCol.GeneratedColumn = parentCol.GeneratedColumn
 		childCol.GeneratedColumn.Value.ExpressionId = internal.GenerateExpressionId()
 	}
+	inheritAutoGen(&childCol, parentCol)
+	return childCol
+}
+
+// inheritAutoGen gives childCol the parent's AutoGen, except serial and identity.
+// PostgreSQL doesn't inherit identity, and a serial child only shares the
+// parent's sequence default, which is reported as unmigrated, as on a live DB.
+func inheritAutoGen(childCol *schema.Column, parentCol schema.Column) {
+	if parentCol.AutoGen.GenerationType == constants.SERIAL {
+		childCol.Ignored.Default = childCol.Ignored.Default || getAutoGenFromTypeName(parentCol.Type.Name).Name != ""
+		return
+	}
 	if childCol.AutoGen.Name == "" {
 		childCol.AutoGen = parentCol.AutoGen
 	}
-	return childCol
 }

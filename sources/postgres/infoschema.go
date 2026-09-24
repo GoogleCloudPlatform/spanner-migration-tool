@@ -33,7 +33,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -92,7 +91,11 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	} else {
 		tableName = conv.SrcSchema[tableId].Name
 	}
-	q := fmt.Sprintf(`SELECT * FROM %s;`, isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, tableName))
+	extractionTableName, err := isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, tableName)
+	if err != nil {
+		return nil, err
+	}
+	q := fmt.Sprintf(`SELECT * FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -197,7 +200,11 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, isi.getExtractionTableName(table.Schema, table.Name))
+	extractionTableName, err := isi.getExtractionTableName(table.Schema, table.Name)
+	if err != nil {
+		return 0, err
+	}
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -776,7 +783,7 @@ func valsToStrings(vals []interface{}) []string {
 
 // getExtractionTableName quotes schema.table and prefixes ONLY for inheritance
 // parents (relkind = 'r') so child table rows are not read twice.
-func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) string {
+func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) (string, error) {
 	name := fmt.Sprintf(`"%s"."%s"`, schemaName, tableName)
 	q := `SELECT EXISTS (
 	        SELECT 1
@@ -786,11 +793,11 @@ func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) s
 	        WHERE p.relkind = 'r' AND pn.nspname = $1 AND p.relname = $2)`
 	var isParent bool
 	if err := isi.Db.QueryRow(q, schemaName, tableName).Scan(&isParent); err != nil {
-		logger.Log.Warn(fmt.Sprintf("couldn't determine whether %s is an inheritance parent, reading it without ONLY: %s", name, err))
-		return name
+		// Reading without ONLY would migrate the child tables' rows twice.
+		return "", fmt.Errorf("couldn't determine whether %s is an inheritance parent: %w", name, err)
 	}
 	if isParent {
-		return "ONLY " + name
+		return "ONLY " + name, nil
 	}
-	return name
+	return name, nil
 }
