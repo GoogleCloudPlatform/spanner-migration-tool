@@ -68,12 +68,10 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 	if cmd.validate {
 		return subcommands.ExitSuccess
 	}
-	var err error
-	defer func() {
-		if err != nil {
-			logger.Log.Info(fmt.Sprintf("FATAL error, unable to start webapp: %s", err))
-		}
-	}()
-	err = App(cmd.logLevel, cmd.open, cmd.port)
+	err := App(cmd.logLevel, cmd.open, cmd.port)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("FATAL error, unable to start webapp: %s", err))
+		return subcommands.ExitFailure
+	}
 	return subcommands.ExitSuccess
 }
