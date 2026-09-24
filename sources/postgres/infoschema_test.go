@@ -756,6 +756,89 @@ func TestSetRowStats(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
+// Selecting from a partitioned table returns the rows held by its partitions, so
+// counting the partitions as well would report the same rows several times.
+func TestSetRowStats_SkipsPartitions(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "ml"}, {"public", "ml_b"}, {"public", "ml_c"}, {"public", "plain"}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."ml"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{3}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."plain"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{7}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	conv.SetDataMode()
+	conv.SrcSchema = map[string]schema.Table{
+		"t1": {Name: "ml", Id: "t1"},
+		"t2": {Name: "ml_b", Id: "t2", PartitionParent: "ml"},
+		"t3": {Name: "ml_c", Id: "t3", PartitionParent: "ml_b"},
+		"t4": {Name: "plain", Id: "t4"},
+	}
+	conv.SpSchema = map[string]ddl.CreateTable{
+		"t1": {Name: "ml", Id: "t1"},
+		"t4": {Name: "plain", Id: "t4"},
+	}
+
+	commonInfoSchema := common.InfoSchemaImpl{}
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
+
+	// Only the root is counted; the two partitions it covers are not.
+	assert.Equal(t, int64(3), conv.Stats.Rows["ml"])
+	assert.Equal(t, int64(0), conv.Stats.Rows["ml_b"])
+	assert.Equal(t, int64(0), conv.Stats.Rows["ml_c"])
+	assert.Equal(t, int64(7), conv.Stats.Rows["plain"])
+	assert.Equal(t, int64(10), conv.Rows())
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+// A restored partition is migrated in its own right, so its rows are written and
+// must be counted.
+func TestSetRowStats_CountsRestoredPartition(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "a"}, {"public", "a1"}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."a"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{6}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."a1"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{2}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	conv.SetDataMode()
+	conv.SrcSchema = map[string]schema.Table{
+		"t1": {Name: "a", Id: "t1"},
+		"t2": {Name: "a1", Id: "t2", PartitionParent: "a"},
+	}
+	// a1 is present in SpSchema, i.e. the user restored it.
+	conv.SpSchema = map[string]ddl.CreateTable{
+		"t1": {Name: "a", Id: "t1"},
+		"t2": {Name: "a1", Id: "t2"},
+	}
+
+	commonInfoSchema := common.InfoSchemaImpl{}
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
+
+	assert.Equal(t, int64(6), conv.Stats.Rows["a"])
+	assert.Equal(t, int64(2), conv.Stats.Rows["a1"])
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
 func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	db, mock, err := sqlmock.New()
 	assert.Nil(t, err)
@@ -1016,6 +1099,68 @@ func TestStripLiteralCasts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expected, stripLiteralCasts(test.input))
+		})
+	}
+}
+
+func TestPartitionParent(t *testing.T) {
+	testCases := []struct {
+		name       string
+		row        []driver.Value
+		queryErr   bool
+		wantSchema string
+		wantTable  string
+		wantOK     bool
+	}{
+		{
+			name:       "child of a partitioned table",
+			row:        []driver.Value{"public", "orders"},
+			wantSchema: "public",
+			wantTable:  "orders",
+			wantOK:     true,
+		},
+		{
+			name:       "parent in a different schema",
+			row:        []driver.Value{"sales", "orders"},
+			wantSchema: "sales",
+			wantTable:  "orders",
+			wantOK:     true,
+		},
+		{
+			// Also covers pre-PostgreSQL-10 servers, where relkind 'p' cannot
+			// exist so the query is valid and simply matches nothing.
+			name:   "regular table",
+			row:    nil,
+			wantOK: false,
+		},
+		{
+			name:     "query error fails open",
+			queryErr: true,
+			wantOK:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.Nil(t, err)
+			defer db.Close()
+
+			q := mock.ExpectQuery("pg_inherits").WithArgs("orders_2024", "public")
+			switch {
+			case tc.queryErr:
+				q.WillReturnError(errors.New("connection lost"))
+			case tc.row == nil:
+				q.WillReturnRows(sqlmock.NewRows([]string{"nspname", "relname"}))
+			default:
+				q.WillReturnRows(sqlmock.NewRows([]string{"nspname", "relname"}).AddRow(tc.row...))
+			}
+
+			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+			gotSchema, gotTable, gotOK := isi.PartitionParent("public", "orders_2024")
+			assert.Equal(t, tc.wantOK, gotOK)
+			assert.Equal(t, tc.wantSchema, gotSchema)
+			assert.Equal(t, tc.wantTable, gotTable)
 		})
 	}
 }

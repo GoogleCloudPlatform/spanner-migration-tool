@@ -19,7 +19,6 @@ import (
 	"strings"
 	"sync"
 
-
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -88,6 +87,13 @@ type BatchedInfoSchema interface {
 	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colDefs map[string]TableColumns) (map[string][]schema.Index, error)
 }
 
+// PartitionInfoSchema is an optional interface implemented by sources that can
+// distinguish a child partition from an ordinary table. It is discovered via a
+// type assertion, so sources without partitioning support need no changes.
+type PartitionInfoSchema interface {
+	PartitionParent(schema string, table string) (parentSchema string, parentTable string, ok bool)
+}
+
 // SchemaAndName contains the schema and name for a table
 type SchemaAndName struct {
 	Schema string
@@ -135,12 +141,54 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	if err != nil {
 		return err
 	}
-	if tableCount != len(conv.SpSchema) {
-		logger.Log.Info(fmt.Sprintf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema)))
-		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
+	skipped := countSkippedPartitions(conv)
+	if tableCount-skipped != len(conv.SpSchema) {
+		logger.Log.Info(fmt.Sprintf("Failed to load all the source tables, source table count: %v, processed tables:%v, intentionally skipped partitions:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema), skipped))
+		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v, intentionally skipped partitions:%v. Please retry connecting to the source database to load tables", tableCount, len(conv.SpSchema), skipped)
+	}
+	if skipped > 0 {
+		logger.Log.Info(fmt.Sprintf("Ignored %v partitioned table(s); their data is covered by the corresponding parent tables. Use the Restore option in the UI to migrate them individually.", skipped))
 	}
 	logger.Log.Info(fmt.Sprint("loaded schema"))
 	return nil
+}
+
+// isSkippedPartition reports whether tableId is a child partition that was left
+// out of the Spanner schema.
+func isSkippedPartition(conv *internal.Conv, tableId string) bool {
+	srcTable, ok := conv.SrcSchema[tableId]
+	if !ok || srcTable.PartitionParent == "" {
+		return false
+	}
+	_, converted := conv.SpSchema[tableId]
+	return !converted
+}
+
+// countSkippedPartitions returns the number of child partitions left out of the
+// Spanner schema.
+func countSkippedPartitions(conv *internal.Conv) int {
+	skipped := 0
+	for tableId := range conv.SrcSchema {
+		if isSkippedPartition(conv, tableId) {
+			skipped++
+		}
+	}
+	return skipped
+}
+
+// partitionParentName returns the name SrcSchema uses for the partitioned table
+// that tableSchema.tableName belongs to, empty if it is not a partition or the
+// source does not report partitions.
+func partitionParentName(is InfoSchema, tableSchema, tableName string) string {
+	pi, ok := is.(PartitionInfoSchema)
+	if !ok {
+		return ""
+	}
+	parentSchema, parentTable, isPartition := pi.PartitionParent(tableSchema, tableName)
+	if !isPartition {
+		return ""
+	}
+	return is.GetTableName(parentSchema, parentTable)
 }
 
 func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
@@ -201,6 +249,10 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 		if err != nil {
 			return task.TaskResult[[]SchemaAndName]{Result: batch, Err: err}
 		}
+		partitionParent := make(map[string]string, len(batch))
+		for _, t := range batch {
+			partitionParent[t.Name] = partitionParentName(bis, t.Schema, t.Name)
+		}
 
 		mutex.Lock()
 		for _, t := range batch {
@@ -208,8 +260,8 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 			cols := tableCols[t.Name]
 			constraints := tableConstraints[t.Name]
 			fks := tableForeignKeys[t.Name]
-			
-			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys)
+
+			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys, partitionParent[t.Name])
 			conv.SrcSchema[tableObj.Id] = tableObj
 		}
 		mutex.Unlock()
@@ -285,6 +337,9 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 	}
 	for _, t := range tables {
 		tableName := infoSchema.GetTableName(t.Schema, t.Name)
+		if tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName); err == nil && isSkippedPartition(conv, tableId) {
+			continue
+		}
 		count, err := infoSchema.GetRowCount(t)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
@@ -320,12 +375,14 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 
+	partitionParent := partitionParentName(infoSchema, table.Schema, table.Name)
 	name := infoSchema.GetTableName(table.Schema, table.Name)
-	return BuildSchemaTable(table, name, colDefs, colIds, primaryKeys, checkConstraints, indexes, foreignKeys), nil
+	return BuildSchemaTable(table, name, colDefs, colIds, primaryKeys, checkConstraints, indexes, foreignKeys, partitionParent), nil
 }
 
 // BuildSchemaTable constructs a schema.Table struct from fetched metadata.
-func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schema.Column, colIds []string, primaryKeys []string, checkConstraints []schema.CheckConstraint, indexes []schema.Index, foreignKeys []schema.ForeignKey) schema.Table {
+// partitionParent is empty unless the table is a child partition.
+func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schema.Column, colIds []string, primaryKeys []string, checkConstraints []schema.CheckConstraint, indexes []schema.Index, foreignKeys []schema.ForeignKey, partitionParent string) schema.Table {
 	tblId := internal.GenerateTableId()
 	colNameIdMap := make(map[string]string)
 	for k, v := range colDefs {
@@ -345,9 +402,9 @@ func BuildSchemaTable(table SchemaAndName, name string, colDefs map[string]schem
 		PrimaryKeys:      schemaPKeys,
 		CheckConstraints: checkConstraints,
 		Indexes:          indexes,
-		ForeignKeys:      foreignKeys}
+		ForeignKeys:      foreignKeys,
+		PartitionParent:  partitionParent}
 }
-
 
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.
