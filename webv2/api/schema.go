@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/neo4j"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
@@ -71,7 +72,7 @@ func init() {
 // with postgres and mysql driver.
 func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if (sessionState.SourceDB == nil && sessionState.Driver != constants.CASSANDRA) || sessionState.DbName == "" || sessionState.Driver == "" {
+	if (sessionState.SourceDB == nil && sessionState.Driver != constants.CASSANDRA && sessionState.Driver != constants.NEO4J) || sessionState.DbName == "" || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
 		return
 	}
@@ -112,6 +113,25 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.CASSANDRA:
 		err = processSchema.ProcessSchema(conv, cassandra.InfoSchemaImpl{KeyspaceMetadata: sessionState.KeyspaceMetadata}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	case constants.NEO4J:
+		sourceProfile := profiles.SourceProfile{
+			Driver: constants.NEO4J,
+			Conn: profiles.SourceProfileConnection{
+				Ty: profiles.SourceProfileConnectionTypeNeo4j,
+				Neo4j: profiles.SourceProfileConnectionNeo4j{
+					URI:  fmt.Sprintf("bolt://%s:%s", sessionState.SourceDBConnDetails.Host, sessionState.SourceDBConnDetails.Port),
+					User: sessionState.SourceDBConnDetails.User,
+					Pwd:  sessionState.SourceDBConnDetails.Password,
+				},
+			},
+		}
+		infoSchema, infoSchemaErr := neo4j.NewInfoSchemaImpl(ctx, sourceProfile)
+		if infoSchemaErr != nil {
+			http.Error(w, fmt.Sprintf("Failed to initialize Neo4j schema provider: %v", infoSchemaErr), http.StatusInternalServerError)
+			return
+		}
+		defer infoSchema.Close(ctx)
+		err = processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
