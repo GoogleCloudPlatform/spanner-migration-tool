@@ -92,7 +92,11 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	} else {
 		tableName = conv.SrcSchema[tableId].Name
 	}
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, tableName)
+	extractionTableName, err := isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, tableName)
+	if err != nil {
+		return nil, err
+	}
+	q := fmt.Sprintf(`SELECT * FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -197,7 +201,11 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
+	extractionTableName, err := isi.getExtractionTableName(table.Schema, table.Name)
+	if err != nil {
+		return 0, err
+	}
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -238,6 +246,35 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	}
 	isi.populateSchemaIsUnique(tables)
 	return tables, nil
+}
+
+// GetInheritedTables returns, for each child table, the parent tables it
+// directly inherits from (excluding declarative partitions via relkind = 'r').
+func (isi InfoSchemaImpl) GetInheritedTables() (map[string][]string, error) {
+	q := `SELECT cn.nspname AS child_schema, c.relname AS child_name,
+	             pn.nspname AS parent_schema, p.relname AS parent_name
+	      FROM pg_catalog.pg_inherits i
+	      JOIN pg_catalog.pg_class c ON c.oid = i.inhrelid
+	      JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace
+	      JOIN pg_catalog.pg_class p ON p.oid = i.inhparent
+	      JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace
+	      WHERE p.relkind = 'r'
+	      ORDER BY c.relname, i.inhseqno`
+	rows, err := isi.Db.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get table inheritance information: %w", err)
+	}
+	defer rows.Close()
+	inherited := make(map[string][]string)
+	for rows.Next() {
+		var childSchema, childName, parentSchema, parentName string
+		if err := rows.Scan(&childSchema, &childName, &parentSchema, &parentName); err != nil {
+			return nil, fmt.Errorf("couldn't scan table inheritance information: %w", err)
+		}
+		child := isi.GetTableName(childSchema, childName)
+		inherited[child] = append(inherited[child], isi.GetTableName(parentSchema, parentName))
+	}
+	return inherited, rows.Err()
 }
 
 // GetColumns returns a list of Column objects and names
@@ -743,6 +780,27 @@ func valsToStrings(vals []interface{}) []string {
 		s = append(s, toString(v))
 	}
 	return s
+}
+
+// getExtractionTableName quotes schema.table and prefixes ONLY for inheritance
+// parents (relkind = 'r') so child table rows are not read twice.
+func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) (string, error) {
+	name := fmt.Sprintf(`"%s"."%s"`, schemaName, tableName)
+	q := `SELECT EXISTS (
+	        SELECT 1
+	        FROM pg_catalog.pg_inherits i
+	        JOIN pg_catalog.pg_class p ON p.oid = i.inhparent
+	        JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace
+	        WHERE p.relkind = 'r' AND pn.nspname = $1 AND p.relname = $2)`
+	var isParent bool
+	if err := isi.Db.QueryRow(q, schemaName, tableName).Scan(&isParent); err != nil {
+		// Reading without ONLY would migrate the child tables' rows twice.
+		return "", fmt.Errorf("couldn't determine whether %s is an inheritance parent: %w", name, err)
+	}
+	if isParent {
+		return "ONLY " + name, nil
+	}
+	return name, nil
 }
 
 // PartitionParent returns the schema and name of the partitioned table that

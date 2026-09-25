@@ -481,6 +481,9 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
 		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
 	}
+	if len(srcTable.InheritedFrom) > 0 {
+		tableLevelIssues = append(tableLevelIssues, internal.InheritedTable)
+	}
 	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,

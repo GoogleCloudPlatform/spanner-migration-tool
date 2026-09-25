@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v6"
@@ -2066,4 +2067,615 @@ func printJSON(s string) {
 // It is not used by any tests, but is a useful utility for debugging.
 func printJSONType(ty string) {
 	printJSON(fmt.Sprintf("CREATE TABLE t (a %s);", ty))
+}
+
+func srcColNames(t *testing.T, conv *internal.Conv, tableName string) []string {
+	t.Helper()
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+	assert.NoError(t, err, "source table %s not found", tableName)
+	table := conv.SrcSchema[tableId]
+	names := []string{}
+	for _, colId := range table.ColIds {
+		names = append(names, table.ColDefs[colId].Name)
+	}
+	return names
+}
+
+func srcTable(t *testing.T, conv *internal.Conv, tableName string) (string, bool) {
+	t.Helper()
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+	return tableId, err == nil
+}
+
+func hasTableLevelIssue(conv *internal.Conv, tableId string, issue internal.SchemaIssue) bool {
+	for _, i := range conv.SchemaIssues[tableId].TableLevelIssues {
+		if i == issue {
+			return true
+		}
+	}
+	return false
+}
+
+func TestProcessPgDump_InheritedTables(t *testing.T) {
+	tests := []struct {
+		name                  string
+		input                 string
+		expectedCols          map[string][]string
+		expectedInheritedFrom map[string][]string
+	}{
+		{
+			name: "Single parent",
+			input: "CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+				"CREATE TABLE capitals (state text) INHERITS (cities);\n",
+			expectedCols: map[string][]string{
+				"cities":   {"name", "population"},
+				"capitals": {"name", "population", "state"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"capitals": {"cities"},
+			},
+		},
+		{
+			name: "Multiple parents are flattened in declaration order",
+			input: "CREATE TABLE p1 (a bigint NOT NULL);\n" +
+				"CREATE TABLE p2 (b bigint);\n" +
+				"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n",
+			expectedCols: map[string][]string{
+				"p1":    {"a"},
+				"p2":    {"b"},
+				"child": {"a", "b", "c"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"child": {"p1", "p2"},
+			},
+		},
+		{
+			name: "Inheritance chain is flattened transitively",
+			input: "CREATE TABLE a (c1 bigint NOT NULL);\n" +
+				"CREATE TABLE b (c2 bigint) INHERITS (a);\n" +
+				"CREATE TABLE c (c3 bigint) INHERITS (b);\n",
+			expectedCols: map[string][]string{
+				"a": {"c1"},
+				"b": {"c1", "c2"},
+				"c": {"c1", "c2", "c3"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"b": {"a"},
+				"c": {"b"},
+			},
+		},
+		{
+			name: "Column redeclared by the child is merged, not duplicated",
+			input: "CREATE TABLE base (id bigint NOT NULL, note text);\n" +
+				"CREATE TABLE derived (note text NOT NULL, extra bigint) INHERITS (base);\n",
+			expectedCols: map[string][]string{
+				"base":    {"id", "note"},
+				"derived": {"id", "note", "extra"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"derived": {"base"},
+			},
+		},
+		{
+			name: "Diamond inheritance deduplicates shared ancestor columns",
+			input: "CREATE TABLE root (id bigint NOT NULL, created_at text);\n" +
+				"CREATE TABLE left_branch (left_val bigint) INHERITS (root);\n" +
+				"CREATE TABLE right_branch (right_val bigint) INHERITS (root);\n" +
+				"CREATE TABLE leaf (leaf_val text) INHERITS (left_branch, right_branch);\n",
+			expectedCols: map[string][]string{
+				"root":         {"id", "created_at"},
+				"left_branch":  {"id", "created_at", "left_val"},
+				"right_branch": {"id", "created_at", "right_val"},
+				"leaf":         {"id", "created_at", "left_val", "right_val", "leaf_val"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"left_branch":  {"root"},
+				"right_branch": {"root"},
+				"leaf":         {"left_branch", "right_branch"},
+			},
+		},
+		{
+			name: "Cross-schema and non-public schema inheritance",
+			input: "CREATE TABLE public.cities (name text NOT NULL, population bigint);\n" +
+				"CREATE TABLE archive.archived_cities (archived_at text) INHERITS (public.cities);\n" +
+				"CREATE TABLE archive.ancient_cities (era text) INHERITS (archive.archived_cities);\n",
+			expectedCols: map[string][]string{
+				"cities":                  {"name", "population"},
+				"archive.archived_cities": {"name", "population", "archived_at"},
+				"archive.ancient_cities":  {"name", "population", "archived_at", "era"},
+			},
+			expectedInheritedFrom: map[string][]string{
+				"archive.archived_cities": {"cities"},
+				"archive.ancient_cities":  {"archive.archived_cities"},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			noIssues(conv, t, tc.name)
+
+			assert.Equal(t, len(tc.expectedCols), len(conv.SrcSchema), "unexpected number of source tables")
+			for tableName, expected := range tc.expectedCols {
+				assert.Equal(t, expected, srcColNames(t, conv, tableName), "columns of table %s", tableName)
+			}
+			for tableName := range tc.expectedCols {
+				tableId, ok := srcTable(t, conv, tableName)
+				assert.True(t, ok)
+				assert.Equal(t, tc.expectedInheritedFrom[tableName], conv.SrcSchema[tableId].InheritedFrom,
+					"InheritedFrom of table %s", tableName)
+			}
+		})
+	}
+}
+
+func TestProcessPgDump_InheritedTable_ColumnAttributes(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE p1 (id serial NOT NULL, shared text, nullable_col bigint);\n" +
+			"CREATE TABLE p2 (shared text NOT NULL DEFAULT 'from_p2');\n" +
+			"CREATE TABLE child (extra text) INHERITS (p1, p2);\n")
+	noIssues(conv, t, "inherited column attributes")
+
+	p1Id, _ := srcTable(t, conv, "p1")
+	childId, _ := srcTable(t, conv, "child")
+	p1, child := conv.SrcSchema[p1Id], conv.SrcSchema[childId]
+
+	for _, colName := range []string{"id", "nullable_col"} {
+		parentCol := p1.ColDefs[p1.ColNameIdMap[colName]]
+		childCol := child.ColDefs[child.ColNameIdMap[colName]]
+
+		assert.NotEqual(t, parentCol.Id, childCol.Id)
+		assert.Equal(t, parentCol.Type, childCol.Type)
+		assert.Equal(t, parentCol.NotNull, childCol.NotNull)
+	}
+
+	idCol := child.ColDefs[child.ColNameIdMap["id"]]
+	assert.Empty(t, idCol.AutoGen)
+	assert.True(t, idCol.Ignored.Default)
+
+	sharedCol := child.ColDefs[child.ColNameIdMap["shared"]]
+	assert.True(t, sharedCol.NotNull)
+	assert.True(t, sharedCol.Ignored.Default)
+}
+
+func TestProcessPgDump_InheritedTable_IdentityIsNotInherited(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "inline identity",
+			input: "CREATE TABLE parent (id bigint GENERATED ALWAYS AS IDENTITY, x bigint);\n" +
+				"CREATE TABLE child (y bigint) INHERITS (parent);\n",
+		},
+		{
+			name: "identity added before an out-of-order child is flattened",
+			input: "CREATE TABLE child (y bigint) INHERITS (parent);\n" +
+				"CREATE TABLE parent (id bigint NOT NULL, x bigint);\n" +
+				"ALTER TABLE parent ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME parent_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1);\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			noIssues(conv, t, tc.name)
+
+			parentId, _ := srcTable(t, conv, "parent")
+			childId, _ := srcTable(t, conv, "child")
+			parent, child := conv.SrcSchema[parentId], conv.SrcSchema[childId]
+			parentCol := parent.ColDefs[parent.ColNameIdMap["id"]]
+			childCol := child.ColDefs[child.ColNameIdMap["id"]]
+
+			assert.Equal(t, constants.SERIAL, parentCol.AutoGen.GenerationType)
+			assert.Empty(t, childCol.AutoGen)
+			assert.False(t, childCol.Ignored.Default)
+			assert.True(t, childCol.NotNull)
+			assert.Empty(t, conv.SpSchema[childId].ColDefs[childCol.Id].AutoGen)
+		})
+	}
+}
+
+func TestProcessPgDump_InheritedTable_ConstraintsAreNotInherited(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"CREATE INDEX cities_population_idx ON cities (population);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (name);\n")
+	noIssues(conv, t, "inherited constraints")
+
+	citiesId, _ := srcTable(t, conv, "cities")
+	capitalsId, _ := srcTable(t, conv, "capitals")
+	cities, capitals := conv.SrcSchema[citiesId], conv.SrcSchema[capitalsId]
+
+	assert.Len(t, cities.Indexes, 1)
+	assert.Len(t, capitals.Indexes, 0)
+
+	assert.Len(t, cities.PrimaryKeys, 1)
+	assert.Len(t, capitals.PrimaryKeys, 1)
+	assert.Equal(t, cities.ColNameIdMap["name"], cities.PrimaryKeys[0].ColId)
+	assert.Equal(t, capitals.ColNameIdMap["name"], capitals.PrimaryKeys[0].ColId)
+	assert.NotEqual(t, cities.PrimaryKeys[0].ColId, capitals.PrimaryKeys[0].ColId)
+
+	internal.AssertSpSchema(conv, t, map[string]ddl.CreateTable{
+		"cities": {
+			Name:   "cities",
+			ColIds: []string{"name", "population"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "name", Order: 1}},
+			Indexes: []ddl.CreateIndex{
+				{Name: "cities_population_idx", TableId: "cities", Unique: false, Keys: []ddl.IndexKey{{ColId: "population", Order: 1}}},
+			},
+		},
+		"capitals": {
+			Name:   "capitals",
+			ColIds: []string{"name", "population", "state"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+				"state":      {Name: "state", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "name", Order: 1}},
+		},
+	}, stripSchemaComments(conv.SpSchema))
+}
+
+func TestProcessPgDump_InheritedTable_Data(t *testing.T) {
+	conv, rows := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (name);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"COPY cities (name, population) FROM stdin;\n" +
+			"springfield	100\n" +
+			"\\.\n" +
+			"COPY capitals (name, population, state) FROM stdin;\n" +
+			"sacramento	500	CA\n" +
+			"\\.\n" +
+			"INSERT INTO capitals VALUES ('madison', 260, 'WI');\n")
+	noIssues(conv, t, "inherited table data")
+
+	assert.ElementsMatch(t, []spannerData{
+		{table: "cities", cols: []string{"name", "population"}, vals: []interface{}{"springfield", int64(100)}},
+		{table: "capitals", cols: []string{"name", "population", "state"}, vals: []interface{}{"sacramento", int64(500), "CA"}},
+		{table: "capitals", cols: []string{"name", "population", "state"}, vals: []interface{}{"madison", int64(260), "WI"}},
+	}, rows)
+}
+
+func TestProcessPgDump_InheritedTable_Issue(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n")
+	noIssues(conv, t, "inherited table issue")
+
+	citiesId, _ := srcTable(t, conv, "cities")
+	capitalsId, _ := srcTable(t, conv, "capitals")
+
+	assert.True(t, hasTableLevelIssue(conv, capitalsId, internal.InheritedTable),
+		"child table should be flagged as flattened")
+	assert.False(t, hasTableLevelIssue(conv, citiesId, internal.InheritedTable),
+		"parent table should not be flagged as flattened")
+}
+
+func TestProcessPgDump_InheritedTable_OutOfOrder(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE grandchild (c3 bigint) INHERITS (child);\n" +
+			"CREATE TABLE child (c2 bigint) INHERITS (parent);\n" +
+			"CREATE TABLE parent (c1 bigint NOT NULL);\n")
+
+	assert.Equal(t, []string{"c1"}, srcColNames(t, conv, "parent"))
+	assert.Equal(t, []string{"c1", "c2"}, srcColNames(t, conv, "child"))
+	assert.Equal(t, []string{"c1", "c2", "c3"}, srcColNames(t, conv, "grandchild"))
+}
+
+func TestProcessPgDump_InheritedTable_MissingParent(t *testing.T) {
+	conv, _ := runProcessPgDump("CREATE TABLE orphan (x bigint) INHERITS (nonexistent);\n")
+
+	assert.Equal(t, []string{"x"}, srcColNames(t, conv, "orphan"))
+	assert.NotZero(t, len(conv.Stats.Unexpected), "expected a warning about the unresolved parent table")
+}
+
+func TestProcessPgDump_InheritedTable_NotFlattenedTwice(t *testing.T) {
+	input := "CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+		"CREATE TABLE capitals (state text) INHERITS (cities);\n"
+
+	conv, _ := runProcessPgDump(input)
+	assert.Equal(t, []string{"name", "population", "state"}, srcColNames(t, conv, "capitals"))
+}
+
+func TestProcessPgDump_PartitionsAreNotTreatedAsInheritance(t *testing.T) {
+	input := "CREATE TABLE measurement (city_id bigint NOT NULL, logdate date NOT NULL) PARTITION BY RANGE (logdate);\n" +
+		"CREATE TABLE measurement_2024 PARTITION OF measurement FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');\n"
+
+	conv, _ := runProcessPgDump(input)
+
+	assert.Equal(t, []string{"city_id", "logdate"}, srcColNames(t, conv, "measurement"))
+	parentId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, "measurement")
+	assert.NoError(t, err)
+	assert.Empty(t, conv.SrcSchema[parentId].InheritedFrom, "a partitioned parent must not be marked as inheriting")
+
+	_, err = internal.GetTableIdFromSrcName(conv.SrcSchema, "measurement_2024")
+	assert.Error(t, err, "partition should not be added to the source schema")
+}
+
+func TestCopyInheritedColumn(t *testing.T) {
+	parentCol := schema.Column{
+		Id:      "parent_col",
+		Name:    "shared",
+		NotNull: true,
+		Type:    schema.Type{Name: "varchar", Mods: []int64{10}, ArrayBounds: []int64{-1}},
+		Ignored: schema.Ignored{Default: true},
+		AutoGen: ddl.AutoGenCol{Name: "seq", GenerationType: "sequence"},
+		DefaultValue: ddl.DefaultValue{
+			IsPresent: true,
+			Value:     ddl.Expression{ExpressionId: "expr-parent", Statement: "'from_parent'"},
+		},
+		GeneratedColumn: ddl.GeneratedColumn{
+			IsPresent: true,
+			Value:     ddl.Expression{ExpressionId: "gen-parent", Statement: "(shared || '!')"},
+			Type:      ddl.GeneratedColStored,
+		},
+	}
+
+	col := copyInheritedColumn(parentCol)
+
+	assert.NotEqual(t, parentCol.Id, col.Id, "the copy must get a fresh column id")
+	assert.NotEmpty(t, col.Id)
+	assert.NotEqual(t, col.Id, copyInheritedColumn(parentCol).Id, "each copy must get a distinct id")
+	assert.Equal(t, parentCol.Name, col.Name)
+	assert.Equal(t, parentCol.NotNull, col.NotNull)
+	assert.Equal(t, parentCol.Ignored, col.Ignored)
+	assert.Equal(t, parentCol.AutoGen, col.AutoGen)
+	assert.Equal(t, parentCol.Type, col.Type)
+
+	// Expression ids must be regenerated, otherwise parent and child would
+	// share an id and collide during expression verification.
+	assert.True(t, col.DefaultValue.IsPresent)
+	assert.Equal(t, parentCol.DefaultValue.Value.Statement, col.DefaultValue.Value.Statement)
+	assert.NotEqual(t, parentCol.DefaultValue.Value.ExpressionId, col.DefaultValue.Value.ExpressionId)
+	assert.NotEmpty(t, col.DefaultValue.Value.ExpressionId)
+
+	assert.True(t, col.GeneratedColumn.IsPresent)
+	assert.Equal(t, parentCol.GeneratedColumn.Value.Statement, col.GeneratedColumn.Value.Statement)
+	assert.Equal(t, parentCol.GeneratedColumn.Type, col.GeneratedColumn.Type)
+	assert.NotEqual(t, parentCol.GeneratedColumn.Value.ExpressionId, col.GeneratedColumn.Value.ExpressionId)
+	assert.NotEmpty(t, col.GeneratedColumn.Value.ExpressionId)
+
+	// Type slices must be deep copied so that later edits to the child don't
+	// mutate the parent.
+	col.Type.Mods[0] = 99
+	col.Type.ArrayBounds[0] = 99
+	assert.Equal(t, []int64{10}, parentCol.Type.Mods)
+	assert.Equal(t, []int64{-1}, parentCol.Type.ArrayBounds)
+}
+
+func TestCopyInheritedColumn_NoExpressions(t *testing.T) {
+	parentCol := schema.Column{Id: "parent_col", Name: "plain", Type: schema.Type{Name: "bigint"}}
+	col := copyInheritedColumn(parentCol)
+
+	assert.NotEqual(t, parentCol.Id, col.Id)
+	assert.False(t, col.DefaultValue.IsPresent)
+	assert.Empty(t, col.DefaultValue.Value.ExpressionId)
+	assert.False(t, col.GeneratedColumn.IsPresent)
+	assert.Empty(t, col.GeneratedColumn.Value.ExpressionId)
+}
+
+func TestMergeInheritedColumn(t *testing.T) {
+	parentDefault := ddl.DefaultValue{
+		IsPresent: true,
+		Value:     ddl.Expression{ExpressionId: "expr-parent", Statement: "'from_parent'"},
+	}
+	parentGenerated := ddl.GeneratedColumn{
+		IsPresent: true,
+		Value:     ddl.Expression{ExpressionId: "gen-parent", Statement: "(a || '!')"},
+		Type:      ddl.GeneratedColStored,
+	}
+
+	t.Run("child adopts parent default and generated expression", func(t *testing.T) {
+		childCol := schema.Column{Id: "c1", Name: "a"}
+		parentCol := schema.Column{
+			Id: "p1", Name: "a",
+			DefaultValue:    parentDefault,
+			GeneratedColumn: parentGenerated,
+		}
+
+		got := mergeInheritedColumn(childCol, parentCol)
+
+		assert.True(t, got.DefaultValue.IsPresent)
+		assert.Equal(t, "'from_parent'", got.DefaultValue.Value.Statement)
+		assert.NotEqual(t, "expr-parent", got.DefaultValue.Value.ExpressionId)
+		assert.NotEmpty(t, got.DefaultValue.Value.ExpressionId)
+
+		assert.True(t, got.GeneratedColumn.IsPresent)
+		assert.Equal(t, "(a || '!')", got.GeneratedColumn.Value.Statement)
+		assert.Equal(t, ddl.GeneratedColStored, got.GeneratedColumn.Type)
+		assert.NotEqual(t, "gen-parent", got.GeneratedColumn.Value.ExpressionId)
+		assert.NotEmpty(t, got.GeneratedColumn.Value.ExpressionId)
+	})
+
+	t.Run("child keeps its own default and generated expression", func(t *testing.T) {
+		childCol := schema.Column{
+			Id: "c1", Name: "a",
+			DefaultValue: ddl.DefaultValue{
+				IsPresent: true,
+				Value:     ddl.Expression{ExpressionId: "expr-child", Statement: "'from_child'"},
+			},
+			GeneratedColumn: ddl.GeneratedColumn{
+				IsPresent: true,
+				Value:     ddl.Expression{ExpressionId: "gen-child", Statement: "(a || '?')"},
+			},
+		}
+		parentCol := schema.Column{
+			Id: "p1", Name: "a",
+			DefaultValue:    parentDefault,
+			GeneratedColumn: parentGenerated,
+		}
+
+		got := mergeInheritedColumn(childCol, parentCol)
+
+		assert.Equal(t, "'from_child'", got.DefaultValue.Value.Statement)
+		assert.Equal(t, "expr-child", got.DefaultValue.Value.ExpressionId)
+		assert.Equal(t, "(a || '?')", got.GeneratedColumn.Value.Statement)
+		assert.Equal(t, "gen-child", got.GeneratedColumn.Value.ExpressionId)
+	})
+
+	t.Run("not null and ignored flags are or-ed", func(t *testing.T) {
+		got := mergeInheritedColumn(
+			schema.Column{Id: "c1", Name: "a"},
+			schema.Column{Id: "p1", Name: "a", NotNull: true, Ignored: schema.Ignored{Default: true}})
+		assert.True(t, got.NotNull)
+		assert.True(t, got.Ignored.Default)
+
+		got = mergeInheritedColumn(
+			schema.Column{Id: "c1", Name: "a", NotNull: true, Ignored: schema.Ignored{Default: true}},
+			schema.Column{Id: "p1", Name: "a"})
+		assert.True(t, got.NotNull, "a child NOT NULL must not be cleared by a nullable parent")
+		assert.True(t, got.Ignored.Default)
+	})
+
+	t.Run("autogen is inherited only when the child has none", func(t *testing.T) {
+		parentAutoGen := ddl.AutoGenCol{Name: "parent_seq", GenerationType: "sequence"}
+
+		got := mergeInheritedColumn(
+			schema.Column{Id: "c1", Name: "a"},
+			schema.Column{Id: "p1", Name: "a", AutoGen: parentAutoGen})
+		assert.Equal(t, parentAutoGen, got.AutoGen)
+
+		childAutoGen := ddl.AutoGenCol{Name: "child_seq", GenerationType: "sequence"}
+		got = mergeInheritedColumn(
+			schema.Column{Id: "c1", Name: "a", AutoGen: childAutoGen},
+			schema.Column{Id: "p1", Name: "a", AutoGen: parentAutoGen})
+		assert.Equal(t, childAutoGen, got.AutoGen)
+	})
+
+	t.Run("child id is preserved", func(t *testing.T) {
+		got := mergeInheritedColumn(
+			schema.Column{Id: "c1", Name: "a"},
+			schema.Column{Id: "p1", Name: "a"})
+		assert.Equal(t, "c1", got.Id)
+	})
+}
+
+func TestFlattenInheritedTable_InitialisesNilMaps(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{
+		Id: "t1", Name: "parent",
+		ColIds:       []string{"c1"},
+		ColDefs:      map[string]schema.Column{"c1": {Id: "c1", Name: "pcol", Type: schema.Type{Name: "text"}}},
+		ColNameIdMap: map[string]string{"pcol": "c1"},
+	}
+	// A child with no columns of its own has nil maps.
+	conv.SrcSchema["t2"] = schema.Table{Id: "t2", Name: "child", InheritedFrom: []string{"parent"}}
+
+	assert.True(t, flattenInheritedTable(conv, "t2"))
+
+	child := conv.SrcSchema["t2"]
+	assert.NotNil(t, child.ColDefs)
+	assert.NotNil(t, child.ColNameIdMap)
+	assert.Len(t, child.ColIds, 1)
+	assert.Equal(t, "pcol", child.ColDefs[child.ColIds[0]].Name)
+}
+
+func TestFlattenInheritedTable_UnresolvableParent(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{Id: "t1", Name: "child", InheritedFrom: []string{"missing"}}
+
+	assert.False(t, flattenInheritedTable(conv, "t1"))
+	assert.Empty(t, conv.SrcSchema["t1"].ColIds)
+}
+
+func TestFlattenInheritedTable_SelfReference(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{Id: "t1", Name: "loop", InheritedFrom: []string{"loop"}}
+
+	assert.False(t, flattenInheritedTable(conv, "t1"), "a table inheriting from itself must not be flattened")
+}
+
+func TestGetInheritedTableNames(t *testing.T) {
+	t.Run("non range-var nodes are reported and skipped", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.SetSchemaMode()
+		nodes := []*pg_query.Node{
+			{}, // no inner node, so GetRangeVar() is nil
+			{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Relname: "p1"}}},
+		}
+
+		got := getInheritedTableNames(conv, nodes)
+
+		assert.Equal(t, []string{"p1"}, got)
+		assert.Len(t, conv.Stats.Unexpected, 1)
+	})
+
+	t.Run("unnamed relations are reported and skipped", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.SetSchemaMode()
+		nodes := []*pg_query.Node{
+			{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Relname: ""}}},
+			{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Relname: "p2"}}},
+		}
+
+		got := getInheritedTableNames(conv, nodes)
+
+		assert.Equal(t, []string{"p2"}, got)
+		assert.Len(t, conv.Stats.Unexpected, 1)
+	})
+
+	t.Run("schema qualified parents keep their schema", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.SetSchemaMode()
+		nodes := []*pg_query.Node{
+			{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Schemaname: "archive", Relname: "p1"}}},
+			{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Schemaname: "public", Relname: "p2"}}},
+		}
+
+		got := getInheritedTableNames(conv, nodes)
+
+		assert.Equal(t, []string{"archive.p1", "p2"}, got)
+		assert.Empty(t, conv.Stats.Unexpected)
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.SetSchemaMode()
+		assert.Empty(t, getInheritedTableNames(conv, nil))
+		assert.Empty(t, conv.Stats.Unexpected)
+	})
+}
+
+func TestRegisterInheritedTable_NoParents(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{Id: "t1", Name: "t"}
+
+	registerInheritedTable(conv, "t1", nil)
+
+	assert.Empty(t, conv.SrcSchema["t1"].InheritedFrom)
+}
+
+func TestProcessPgDump_InsertIntoUnknownTable(t *testing.T) {
+	conv, rows := runProcessPgDump("INSERT INTO ghost (a) VALUES (1);\n")
+
+	assert.Empty(t, rows, "no data should be written for a table we have no schema for")
+	_, err := internal.GetTableIdFromSrcName(conv.SrcSchema, "ghost")
+	assert.Error(t, err)
+
+	var skipped int64
+	for _, stat := range conv.Stats.Statement {
+		skipped += stat.Skip
+	}
+	assert.NotZero(t, skipped, "the insert statement should have been skipped")
+}
+
+func TestProcessPgDump_CopyIntoUnknownTable(t *testing.T) {
+	conv, rows := runProcessPgDump("COPY ghost (a) FROM stdin;\n1\n\\.\n")
+
+	assert.Empty(t, rows, "no data should be written for a table we have no schema for")
+
+	var skipped int64
+	for _, stat := range conv.Stats.Statement {
+		skipped += stat.Skip
+	}
+	assert.NotZero(t, skipped, "the copy statement should have been skipped")
 }
