@@ -33,6 +33,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -800,4 +801,27 @@ func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) (
 		return "ONLY " + name, nil
 	}
 	return name, nil
+}
+
+// PartitionParent returns the schema and name of the partitioned table that
+// schema.table is a child partition of
+func (isi InfoSchemaImpl) PartitionParent(schema string, table string) (string, string, bool) {
+	q := `
+	SELECT pn.nspname, parent.relname
+	FROM pg_inherits i
+	JOIN pg_class child ON child.oid = i.inhrelid
+	JOIN pg_class parent ON parent.oid = i.inhparent
+	JOIN pg_namespace n ON n.oid = child.relnamespace
+	JOIN pg_namespace pn ON pn.oid = parent.relnamespace
+	WHERE child.relname = $1 AND n.nspname = $2 AND parent.relkind = 'p'`
+	var parentSchema, parentTable string
+	err := isi.Db.QueryRow(q, table, schema).Scan(&parentSchema, &parentTable)
+	if err == sql.ErrNoRows {
+		return "", "", false
+	}
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("couldn't determine if %s.%s is a partition, treating it as a regular table: %s", schema, table, err))
+		return "", "", false
+	}
+	return parentSchema, parentTable, true
 }

@@ -47,5 +47,23 @@ func getSummary() map[string]ConversionSummary {
 			summary[t.SpTable] = cs
 		}
 	}
+
+	// Merge the partition notices into the parent's entry.
+	for parentId, notice := range reports.PartitionNoticesByParent(sessionState.Conv) {
+		cs, ok := summary[parentId]
+		if !ok {
+			cs = ConversionSummary{
+				SrcTable:    parentId,
+				SpTable:     parentId,
+				Notes:       []reports.Issue{},
+				Warnings:    []reports.Issue{},
+				Errors:      []reports.Issue{},
+				Suggestions: []reports.Issue{},
+			}
+		}
+		cs.Warnings = append(cs.Warnings, notice)
+		cs.WarningsCount = len(cs.Warnings)
+		summary[parentId] = cs
+	}
 	return summary
 }

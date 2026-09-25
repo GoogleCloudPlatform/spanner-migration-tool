@@ -360,6 +360,17 @@ func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.Sch
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
+	// Skip child partitions: the parent already yields all of their rows, so
+	// converting them too would migrate the same rows twice. Restore re-enables
+	// an individual partition by calling this with isRestore set.
+	if srcTable.PartitionParent != "" && !isRestore {
+		conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
+			TableLevelIssues:  []internal.SchemaIssue{internal.PartitionedTable},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+		}
+		return nil
+	}
+
 	spTableName, err := internal.GetSpannerTable(conv, srcTable.Id)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))

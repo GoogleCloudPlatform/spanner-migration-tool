@@ -46,6 +46,7 @@ type Table struct {
 	Indexes          []Index
 	Id               string
 	InheritedFrom    []string `json:",omitempty"` // Direct parent table names (PostgreSQL INHERITS).
+	PartitionParent  string   // Parent table name if this is a child partition, empty otherwise.
 }
 
 // Column represents a database column.
