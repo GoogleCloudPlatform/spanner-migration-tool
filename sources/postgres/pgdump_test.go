@@ -897,6 +897,27 @@ func TestProcessPgDump(t *testing.T) {
 				}},
 		},
 		{
+			name: "Create table with generated column casting a varchar column to text",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b character varying(50)," +
+				"c character varying(50) GENERATED ALWAYS AS (upper((b)::text)) STORED," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: 50}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: 50}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(upper(b))"}, Type: ddl.GeneratedColStored}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
+		},
+		{
 			name: "Create table with default value",
 			input: "CREATE TABLE test (" +
 				"a smallint," +

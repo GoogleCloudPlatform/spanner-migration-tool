@@ -971,6 +971,50 @@ func TestGetColumns_NoGenerationExpressionSupport(t *testing.T) {
 	assert.True(t, b.DefaultValue.IsPresent)
 }
 
+func TestGetColumns_StripsColumnTextCasts(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
+			cols:  []string{"column_name"},
+			rows:  [][]driver.Value{{"generation_expression"}},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+) attgenerated (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT a.attname FROM pg_attribute a WHERE attrelid = (.+) AND attnum > 0 (.+) AND a.attidentity IN (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_generated", "generation_expression"},
+			rows: [][]driver.Value{
+				{"id", "bigint", nil, "NO", nil, nil, 64, 0, "NEVER", nil},
+				{"up", "character varying", nil, "YES", nil, 50, nil, nil, "ALWAYS", "upper((sku)::text)"},
+				{"label", "text", nil, "YES", nil, nil, nil, nil, "ALWAYS", "((id)::text || (sku)::text)"},
+				{"sku", "character varying", nil, "YES", nil, 50, nil, nil, "NEVER", nil},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{Db: db}
+
+	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "public", Name: "test"}, nil, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, "upper(sku)", colDefs[colIds[1]].GeneratedColumn.Value.Statement)
+	assert.Equal(t, "((id)::text || sku)", colDefs[colIds[2]].GeneratedColumn.Value.Statement)
+}
+
 func TestGetCheckConstraints(t *testing.T) {
 	table := common.SchemaAndName{Schema: "public", Name: "test"}
 	cases := []struct {
@@ -1099,6 +1143,39 @@ func TestStripLiteralCasts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expected, stripLiteralCasts(test.input))
+		})
+	}
+}
+
+func TestStripColumnTextCasts(t *testing.T) {
+	colDefs := map[string]schema.Column{
+		"c1": {Name: "sku", Type: schema.Type{Name: "character varying"}},
+		"c2": {Name: "name", Type: schema.Type{Name: "varchar"}},
+		"c3": {Name: "note", Type: schema.Type{Name: "text"}},
+		"c4": {Name: "id", Type: schema.Type{Name: "integer"}},
+		"c5": {Name: "code", Type: schema.Type{Name: "character"}},
+		"c6": {Name: "tags", Type: schema.Type{Name: "text", ArrayBounds: []int64{-1}}},
+	}
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"live database form", "upper((sku)::text)", "upper(sku)"},
+		{"pg_dump form", "upper(name::text)", "upper(name)"},
+		{"concat", "((sku)::text || (note)::text)", "(sku || note)"},
+
+		{"integer column", "((id)::text || (sku)::text)", "((id)::text || sku)"},
+		{"char column", "upper((code)::text)", "upper((code)::text)"},
+		{"array column", "(tags)::text", "(tags)::text"},
+		{"expression", "(sku || note)::text", "(sku || note)::text"},
+		{"function result", "trim(sku)::text", "trim(sku)::text"},
+		{"qualified column", "upper(t.sku::text)", "upper(t.sku::text)"},
+		{"string literal", "upper('sku'::text)", "upper('sku'::text)"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, stripColumnTextCasts(test.input, colDefs))
 		})
 	}
 }

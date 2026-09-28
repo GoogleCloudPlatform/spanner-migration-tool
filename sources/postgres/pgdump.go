@@ -976,7 +976,7 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 				cd.GeneratedColumn.IsPresent = true
 				cd.GeneratedColumn.Value = ddl.Expression{
 					ExpressionId: c.exprId,
-					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(c.rawExpr), cd.Type.Name, true),
+					Statement:    common.SanitizeExpressionsValue(stripColumnTextCasts(stripLiteralCasts(c.rawExpr), colDef), cd.Type.Name, true),
 				}
 				// pg_query_go v6 uses the PG 17 grammar where STORED is mandatory
 				cd.GeneratedColumn.Type = ddl.GeneratedColStored

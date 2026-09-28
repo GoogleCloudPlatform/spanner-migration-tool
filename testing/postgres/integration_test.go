@@ -481,11 +481,10 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	assert.NotNil(t, row, "Expected rows in table 'cart' with productid '1YMWWN1N4O' to still exist")
 }
 
-// TestIntegration_PGDUMP_GeneratedColumnsAndDefaults migrates generated columns
-// and defaults, then reads the rows back. Expectations differ per dialect: the
-// PostgreSQL dialect accepts "::" casts and GoogleSQL does not.
+// TestIntegration_PGDUMP_GeneratedColumnsAndDefaults checks generated columns
+// and defaults in both dialects.
 func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
-	// Defaults Spanner rejects at CreateDatabase, aborting the whole migration.
+	// Spanner rejects these defaults, which would fail the whole migration.
 	notWantDDL := []string{
 		"DEFAULT ('9000000000')",
 		"DEFAULT ('-7')",
@@ -495,8 +494,7 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 	tests := []struct {
 		dialect string
 		wantDDL []string
-		// upper(name::text) and '2020-01-01'::date survive only in the
-		// PostgreSQL dialect; GoogleSQL degrades both.
+		// Only the PostgreSQL dialect accepts id::text and '2020-01-01'::date.
 		wantInvalidGC spanner.NullString
 		wantDate      spanner.NullDate
 	}{
@@ -504,20 +502,20 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 			dialect: "google_standard_sql",
 			wantDDL: []string{
 				"`valid_gc` INT64 AS ((col1 + col2)) STORED",
-				// Cast on a column is unsupported, so the generation clause is dropped.
+				// id::text is not valid GoogleSQL, so this becomes a plain column.
 				"`invalid_gc` STRING(50),",
 				"`invalid_gc_a` INT64 NOT NULL ,",
 				"`invalid_gc_b` INT64 NOT NULL ,",
 				"`valid_pk_gc` INT64 NOT NULL  AS ((col1 + 1)) STORED,",
 				"`valid_pk` INT64 NOT NULL ,",
 				"`d_int` INT64 DEFAULT (42),",
-				// Quotes must come off with the cast, else INT64 gets a STRING.
+				// '9000000000'::bigint loses both the cast and the quotes.
 				"`d_bigint` INT64 DEFAULT (9000000000),",
 				"`d_neg` INT64 DEFAULT (-7),",
 				"`d_str` STRING(20) DEFAULT ('NEW'),",
 				"`d_bool` BOOL DEFAULT (CAST(true AS BOOL)),",
 				"`d_numeric` NUMERIC DEFAULT (CAST(3.14 AS NUMERIC)),",
-				// Cast types the literal but is unsupported, so the default goes.
+				// '2020-01-01'::date is not valid GoogleSQL, so the default is dropped.
 				"`d_date` DATE,",
 				"`d_null` INT64,",
 			},
@@ -528,7 +526,7 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 			dialect: "postgresql",
 			wantDDL: []string{
 				`"valid_gc" INT8 GENERATED ALWAYS AS ((col1 + col2)) STORED`,
-				`"invalid_gc" VARCHAR(50) GENERATED ALWAYS AS ((upper(name::text))) STORED`,
+				`"invalid_gc" VARCHAR(50) GENERATED ALWAYS AS ((id::text || name)) STORED`,
 				`"invalid_gc_a" INT8 NOT NULL ,`,
 				`"invalid_gc_b" INT8 NOT NULL ,`,
 				`"valid_pk_gc" INT8 NOT NULL  GENERATED ALWAYS AS ((col1 + 1)) STORED,`,
@@ -542,7 +540,7 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 				`"d_date" DATE DEFAULT ('2020-01-01'::date),`,
 				`"d_null" INT8,`,
 			},
-			wantInvalidGC: spanner.NullString{StringVal: "ABC", Valid: true},
+			wantInvalidGC: spanner.NullString{StringVal: "1abc", Valid: true},
 			wantDate:      spanner.NullDate{Date: civil.Date{Year: 2020, Month: time.January, Day: 1}, Valid: true},
 		},
 	}
@@ -586,9 +584,8 @@ func TestIntegration_PGDUMP_GeneratedColumnsAndDefaults(t *testing.T) {
 	}
 }
 
-// checkGeneratedColumnsAndDefaults verifies what Spanner materialised. The dump's
-// COPY omits generated and defaulted columns, so any value present came from
-// Spanner rather than the data migration.
+// checkGeneratedColumnsAndDefaults reads back values that only Spanner could
+// have filled in, since the dump does not copy generated or defaulted columns.
 func checkGeneratedColumnsAndDefaults(t *testing.T, dbURI string, wantInvalidGC spanner.NullString, wantDate spanner.NullDate) {
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {

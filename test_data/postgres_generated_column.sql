@@ -7,7 +7,7 @@ CREATE TABLE test_generated_columns (
     col2 integer,
     name character varying(50),
     valid_gc integer GENERATED ALWAYS AS ((col1 + col2)) STORED,
-    invalid_gc character varying(50) GENERATED ALWAYS AS (upper((name)::text)) STORED,
+    invalid_gc character varying(50) GENERATED ALWAYS AS (((id)::text || (name)::text)) STORED,
     PRIMARY KEY (id)
 );
 
@@ -42,8 +42,7 @@ CREATE TABLE test_default_values (
     PRIMARY KEY (id)
 );
 
--- Generated columns are absent from the column list: pg_dump never dumps them,
--- and Spanner rejects writes to them. Spanner must compute them on read.
+-- pg_dump never includes generated columns; Spanner computes them.
 COPY test_generated_columns (id, col1, col2, name) FROM stdin;
 1	10	20	abc
 2	5	7	xyz
@@ -53,8 +52,7 @@ COPY test_generated_columns_valid_pk (id, col1, col2, valid_pk) FROM stdin;
 1	10	20	100
 \.
 
--- Only the key is supplied, so every remaining column must fall back to its
--- Spanner DEFAULT.
+-- Only id is given, so the other columns get their defaults.
 COPY test_default_values (id) FROM stdin;
 1
 \.

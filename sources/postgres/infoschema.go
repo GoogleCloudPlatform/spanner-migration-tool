@@ -70,6 +70,29 @@ func stripLiteralCasts(expr string) string {
 	return pgNumberCastRegex.ReplaceAllString(expr, "$1$2")
 }
 
+// (sku)::text from the live database, sku::text from pg_dump.
+var pgColumnTextCastRegex = regexp.MustCompile(`(^|[^\w$.'])(?:\((\w+)\)|(\w+))::text\b`)
+
+// stripColumnTextCasts drops the ::text PostgreSQL adds to a varchar or text
+// column inside an expression, e.g. upper((sku)::text). The cast changes
+// nothing, but GoogleSQL rejects "::". Casts on other column types are kept.
+func stripColumnTextCasts(expr string, colDefs map[string]schema.Column) string {
+	textCols := map[string]bool{}
+	for _, cd := range colDefs {
+		switch cd.Type.Name {
+		case "character varying", "varchar", "text":
+			textCols[cd.Name] = len(cd.Type.ArrayBounds) == 0
+		}
+	}
+	return pgColumnTextCastRegex.ReplaceAllStringFunc(expr, func(m string) string {
+		sm := pgColumnTextCastRegex.FindStringSubmatch(m)
+		if col := sm[2] + sm[3]; textCols[col] {
+			return sm[1] + col
+		}
+		return m
+	})
+}
+
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	Db                 *sql.DB
@@ -366,6 +389,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
+	}
+	// Done after the loop, as an expression can reference a later column.
+	for id, cd := range colDefs {
+		if cd.GeneratedColumn.IsPresent {
+			cd.GeneratedColumn.Value.Statement = stripColumnTextCasts(cd.GeneratedColumn.Value.Statement, colDefs)
+			colDefs[id] = cd
+		}
 	}
 	return colDefs, colIds, nil
 }
