@@ -9,7 +9,7 @@ import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MatDividerModule } from '@angular/material/divider'
 import { MatIconModule } from '@angular/material/icon'
-import { MatSnackBar } from '@angular/material/snack-bar'
+import { MatSnackBar} from '@angular/material/snack-bar'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { createMockIConv } from 'src/mocks/conv'
@@ -42,30 +42,30 @@ describe('ObjectDetailComponent', () => {
     })
 
     await TestBed.configureTestingModule({
-      declarations: [ObjectDetailComponent],
-      imports: [MatDialogModule,
+    declarations: [ObjectDetailComponent],
+    imports: [MatDialogModule,
         MatTableModule,
         MatTabsModule,
         BrowserAnimationsModule,
         MatDividerModule,
         MatIconModule],
-      providers: [
+    providers: [
         MatSnackBar,
         {
-          provide: DataService,
-          useValue: dataServiceSpy
+            provide: DataService,
+            useValue: dataServiceSpy
         },
         {
-          provide: MatDialog,
-          useValue: dialogSpyObj
+            provide: MatDialog,
+            useValue: dialogSpyObj
         },
         {
           provide: ConversionService,
           useValue: conversionServiceSpy,
         },
         provideHttpClient(withInterceptorsFromDi())
-      ]
-    }).compileComponents()
+    ]
+}).compileComponents()
     dataServiceSpy.conv = of(mockIConv);
     dataServiceSpy.tableInterleaveStatus = of({});
     dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
@@ -311,7 +311,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -334,7 +334,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -355,7 +355,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -365,7 +365,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'contraintName',
         spConstraintCondition: 'test',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -385,7 +385,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -406,7 +406,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -416,7 +416,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '2',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age >= 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc2',
       },
     ]
@@ -442,7 +442,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -466,7 +466,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -492,7 +492,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -515,7 +515,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
-        spExprId: 'expr1',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
