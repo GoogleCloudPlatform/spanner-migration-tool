@@ -1361,6 +1361,9 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	delete(syntheticPkey, tableId)
+	if srcTable, ok := sessionState.Conv.SrcSchema[tableId]; ok {
+		delete(sessionState.Conv.ToSpanner, srcTable.Name)
+	}
 
 	// drop reference foreign key
 	for tableName, spTable := range spSchema {
