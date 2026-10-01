@@ -770,6 +770,16 @@ func countActionableIssues(issues []internal.SchemaIssue) int64 {
 	return count
 }
 
+// tableIssueDescriber builds a table specific description for an issue. It
+// returns false to fall back to the issue's Brief.
+type tableIssueDescriber func(conv *internal.Conv, tableId string) (string, bool)
+
+// tableIssueDescribers holds the table level issues whose description needs
+// details of the table, e.g. its parent tables.
+var tableIssueDescribers = map[internal.SchemaIssue]tableIssueDescriber{
+	internal.InheritedTable: describeInheritedTable,
+}
+
 // buildTableLevelIssues renders the table level issues matching severity.
 func buildTableLevelIssues(conv *internal.Conv, tableId string, issues []internal.SchemaIssue, severity Severity) []Issue {
 	var l []Issue
@@ -779,10 +789,41 @@ func buildTableLevelIssues(conv *internal.Conv, tableId string, issues []interna
 		}
 		l = append(l, Issue{
 			Category:    IssueDB[issue].Category,
-			Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, IssueDB[issue].Brief),
+			Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, tableIssueDescription(conv, tableId, issue)),
 		})
 	}
 	return l
+}
+
+// tableIssueDescription returns the issue's table specific description if it
+// has one, and its Brief otherwise.
+func tableIssueDescription(conv *internal.Conv, tableId string, issue internal.SchemaIssue) string {
+	if describe, ok := tableIssueDescribers[issue]; ok {
+		if description, ok := describe(conv, tableId); ok {
+			return description
+		}
+	}
+	return IssueDB[issue].Brief
+}
+
+// describeInheritedTable names the direct parents of an inherited table.
+// Parents are shown by their Spanner name, falling back to the source name
+// when the parent isn't migrated.
+func describeInheritedTable(conv *internal.Conv, tableId string) (string, bool) {
+	var parents []string
+	for _, name := range conv.SrcSchema[tableId].InheritedFrom {
+		label := name
+		if parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name); ok && parent != nil {
+			if spTable, ok := conv.SpSchema[parent.Id]; ok {
+				label = spTable.Name
+			}
+		}
+		parents = append(parents, fmt.Sprintf("'%s'", label))
+	}
+	if len(parents) == 0 {
+		return "", false
+	}
+	return fmt.Sprintf("Inherited table (from %s) automatically flattened into a standalone table", strings.Join(parents, ", ")), true
 }
 
 // AnalyzeCols returns information about the quality of schema mappings
