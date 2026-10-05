@@ -463,6 +463,17 @@ func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 	}
 }
 
+func TestProcessPgDump_SetDefaultNullClearsDefault(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE t (id bigint, status text DEFAULT 'new'::text);\n" +
+			"ALTER TABLE ONLY t ALTER COLUMN status SET DEFAULT NULL;\n")
+
+	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
+	col := conv.SrcSchema[tableId].ColDefs[conv.SrcSchema[tableId].ColNameIdMap["status"]]
+	assert.False(t, col.DefaultValue.IsPresent)
+	assert.False(t, col.Ignored.Default)
+}
+
 func TestProcessPgDump(t *testing.T) {
 	// First, test scalar types.
 	scalarTests := []struct {

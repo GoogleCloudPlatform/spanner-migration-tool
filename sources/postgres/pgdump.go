@@ -962,8 +962,12 @@ func updateCols(c constraint, colDef map[string]schema.Column, colNameIdMap map[
 			case c.rawExpr == "":
 				cd.Ignored.Default = true
 			case strings.EqualFold(c.rawExpr, "NULL"):
-				// Postgres discards DEFAULT NULL, so there is nothing to migrate.
-				// Emitting it aborts PG-dialect Spanner, which types NULL as STRING.
+				// DEFAULT NULL means no default. pg_dump also writes SET DEFAULT
+				// NULL to clear a default a child inherited, so drop any default
+				// the column already has. Emitting NULL itself aborts PG-dialect
+				// Spanner, which types NULL as STRING.
+				cd.DefaultValue = ddl.DefaultValue{}
+				cd.Ignored.Default = false
 			default:
 				cd.DefaultValue.IsPresent = true
 				cd.DefaultValue.Value = ddl.Expression{
