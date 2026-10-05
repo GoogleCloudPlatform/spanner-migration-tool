@@ -249,7 +249,8 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 }
 
 // GetInheritedTables returns, for each child table, the parent tables it
-// directly inherits from (excluding declarative partitions via relkind = 'r').
+// directly inherits from. Parents can be regular or foreign tables; declarative
+// partitions (relkind 'p') are excluded.
 func (isi InfoSchemaImpl) GetInheritedTables() (map[string][]string, error) {
 	q := `SELECT cn.nspname AS child_schema, c.relname AS child_name,
 	             pn.nspname AS parent_schema, p.relname AS parent_name
@@ -258,7 +259,7 @@ func (isi InfoSchemaImpl) GetInheritedTables() (map[string][]string, error) {
 	      JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace
 	      JOIN pg_catalog.pg_class p ON p.oid = i.inhparent
 	      JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace
-	      WHERE p.relkind = 'r'
+	      WHERE p.relkind IN ('r', 'f')
 	      ORDER BY c.relname, i.inhseqno`
 	rows, err := isi.Db.Query(q)
 	if err != nil {

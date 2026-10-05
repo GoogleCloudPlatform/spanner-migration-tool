@@ -2235,7 +2235,12 @@ func TestProcessPgDump_InheritedTable_ColumnAttributes(t *testing.T) {
 
 	sharedCol := child.ColDefs[child.ColNameIdMap["shared"]]
 	assert.True(t, sharedCol.NotNull)
-	assert.True(t, sharedCol.Ignored.Default)
+	p2Id, _ := srcTable(t, conv, "p2")
+	p2Shared := conv.SrcSchema[p2Id].ColDefs[conv.SrcSchema[p2Id].ColNameIdMap["shared"]]
+	assert.True(t, p2Shared.Ignored.Default || p2Shared.DefaultValue.IsPresent)
+	assert.Equal(t, p2Shared.Ignored.Default, sharedCol.Ignored.Default)
+	assert.Equal(t, p2Shared.DefaultValue.IsPresent, sharedCol.DefaultValue.IsPresent)
+	assert.Equal(t, p2Shared.DefaultValue.Value.Statement, sharedCol.DefaultValue.Value.Statement)
 }
 
 func TestProcessPgDump_InheritedTable_IdentityIsNotInherited(t *testing.T) {
@@ -2374,8 +2379,53 @@ func TestProcessPgDump_InheritedTable_OutOfOrder(t *testing.T) {
 func TestProcessPgDump_InheritedTable_MissingParent(t *testing.T) {
 	conv, _ := runProcessPgDump("CREATE TABLE orphan (x bigint) INHERITS (nonexistent);\n")
 
+	orphanId, _ := srcTable(t, conv, "orphan")
 	assert.Equal(t, []string{"x"}, srcColNames(t, conv, "orphan"))
 	assert.NotZero(t, len(conv.Stats.Unexpected), "expected a warning about the unresolved parent table")
+	assert.Nil(t, conv.SrcSchema[orphanId].InheritedFrom)
+	assert.False(t, hasTableLevelIssue(conv, orphanId, internal.InheritedTable),
+		"nothing was inherited, so the table must not be flagged as flattened")
+}
+
+func TestProcessPgDump_InheritedTable_OneParentMissing(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE child (c bigint) INHERITS (nonexistent, parent);\n" +
+			"CREATE TABLE parent (p bigint NOT NULL);\n")
+
+	childId, _ := srcTable(t, conv, "child")
+	assert.Equal(t, []string{"p", "c"}, srcColNames(t, conv, "child"))
+	assert.Equal(t, []string{"parent"}, conv.SrcSchema[childId].InheritedFrom)
+	assert.True(t, hasTableLevelIssue(conv, childId, internal.InheritedTable))
+	assert.NotZero(t, len(conv.Stats.Unexpected))
+}
+
+func TestProcessPgDump_InheritedTable_SelfReference(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE selfref (s bigint) INHERITS (selfref);\n" +
+			"CREATE TABLE late_self (s bigint);\n" +
+			"ALTER TABLE late_self INHERIT late_self;\n")
+
+	for _, name := range []string{"selfref", "late_self"} {
+		tableId, _ := srcTable(t, conv, name)
+		assert.Equal(t, []string{"s"}, srcColNames(t, conv, name))
+		assert.Nil(t, conv.SrcSchema[tableId].InheritedFrom, name)
+		assert.False(t, hasTableLevelIssue(conv, tableId, internal.InheritedTable), name)
+	}
+	assert.NotZero(t, len(conv.Stats.Unexpected))
+}
+
+func TestProcessPgDump_InheritedTable_Cycle(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE a (x bigint) INHERITS (b);\n" +
+			"CREATE TABLE b (y bigint) INHERITS (a);\n")
+
+	for name, cols := range map[string][]string{"a": {"x"}, "b": {"y"}} {
+		tableId, _ := srcTable(t, conv, name)
+		assert.Equal(t, cols, srcColNames(t, conv, name))
+		assert.Nil(t, conv.SrcSchema[tableId].InheritedFrom, name)
+		assert.False(t, hasTableLevelIssue(conv, tableId, internal.InheritedTable), name)
+	}
+	assert.NotZero(t, len(conv.Stats.Unexpected))
 }
 
 func TestProcessPgDump_InheritedTable_NotFlattenedTwice(t *testing.T) {
@@ -2399,6 +2449,88 @@ func TestProcessPgDump_PartitionsAreNotTreatedAsInheritance(t *testing.T) {
 
 	_, err = internal.GetTableIdFromSrcName(conv.SrcSchema, "measurement_2024")
 	assert.Error(t, err, "partition should not be added to the source schema")
+}
+
+func TestProcessPgDump_AlterTableInherit(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE parent (id bigint NOT NULL, v text);\n" +
+			"CREATE TABLE child (z bigint, v text, id bigint NOT NULL);\n" +
+			"ALTER TABLE ONLY child INHERIT parent;\n" +
+			"ALTER TABLE ONLY child INHERIT parent;\n")
+	noIssues(conv, t, "alter table inherit")
+
+	childId, _ := srcTable(t, conv, "child")
+	assert.Equal(t, []string{"z", "v", "id"}, srcColNames(t, conv, "child"))
+	assert.Equal(t, []string{"parent"}, conv.SrcSchema[childId].InheritedFrom)
+	assert.True(t, hasTableLevelIssue(conv, childId, internal.InheritedTable))
+}
+
+func TestProcessPgDump_AlterTableInherit_DumpedAsInherits(t *testing.T) {
+	// pg_dump writes ALTER TABLE ... INHERIT links as INHERITS with every column.
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE parent (id bigint NOT NULL, name text);\n" +
+			"CREATE TABLE child (extra bigint, name text, id bigint NOT NULL) INHERITS (parent);\n")
+	noIssues(conv, t, "alter table inherit dumped as inherits")
+
+	childId, _ := srcTable(t, conv, "child")
+	assert.Equal(t, []string{"extra", "name", "id"}, srcColNames(t, conv, "child"))
+	assert.True(t, hasTableLevelIssue(conv, childId, internal.InheritedTable))
+}
+
+func TestProcessPgDump_AlterTableInherit_ParentDefinedLater(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE child (x bigint);\n" +
+			"ALTER TABLE child INHERIT parent;\n" +
+			"CREATE TABLE parent (a bigint NOT NULL);\n")
+
+	childId, _ := srcTable(t, conv, "child")
+	assert.Equal(t, []string{"a", "x"}, srcColNames(t, conv, "child"))
+	assert.Equal(t, []string{"parent"}, conv.SrcSchema[childId].InheritedFrom)
+}
+
+func TestProcessPgDump_AlterTableNoInherit(t *testing.T) {
+	// As in PostgreSQL, the child keeps the columns it inherited.
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE p1 (a bigint NOT NULL);\n" +
+			"CREATE TABLE p2 (b bigint);\n" +
+			"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n" +
+			"ALTER TABLE child NO INHERIT p1;\n" +
+			"CREATE TABLE solo_child (d bigint) INHERITS (p2);\n" +
+			"ALTER TABLE solo_child NO INHERIT p2;\n")
+	noIssues(conv, t, "alter table no inherit")
+
+	childId, _ := srcTable(t, conv, "child")
+	assert.Equal(t, []string{"a", "b", "c"}, srcColNames(t, conv, "child"))
+	assert.Equal(t, []string{"p2"}, conv.SrcSchema[childId].InheritedFrom)
+	assert.True(t, hasTableLevelIssue(conv, childId, internal.InheritedTable))
+
+	soloId, _ := srcTable(t, conv, "solo_child")
+	assert.Equal(t, []string{"b", "d"}, srcColNames(t, conv, "solo_child"))
+	assert.Nil(t, conv.SrcSchema[soloId].InheritedFrom)
+	assert.False(t, hasTableLevelIssue(conv, soloId, internal.InheritedTable))
+}
+
+func TestProcessPgDump_ForeignTablesInInheritance(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE FOREIGN TABLE fparent (id bigint, v text) SERVER loop OPTIONS (table_name 'remote');\n" +
+			"CREATE TABLE fchild (extra text) INHERITS (fparent);\n" +
+			"ALTER TABLE ONLY fchild ADD CONSTRAINT fchild_pkey PRIMARY KEY (id);\n" +
+			"CREATE TABLE rparent (id bigint NOT NULL, v text);\n" +
+			"CREATE FOREIGN TABLE fchild2 () INHERITS (rparent) SERVER loop;\n" +
+			"CREATE TABLE measurement (logdate date NOT NULL) PARTITION BY RANGE (logdate);\n" +
+			"CREATE FOREIGN TABLE measurement_old PARTITION OF measurement FOR VALUES FROM ('2000-01-01') TO ('2001-01-01') SERVER loop;\n")
+	noIssues(conv, t, "foreign tables in inheritance")
+
+	fchildId, _ := srcTable(t, conv, "fchild")
+	fchild := conv.SrcSchema[fchildId]
+	assert.Equal(t, []string{"id", "v", "extra"}, srcColNames(t, conv, "fchild"))
+	assert.Equal(t, []string{"fparent"}, fchild.InheritedFrom)
+	assert.Equal(t, fchild.ColNameIdMap["id"], fchild.PrimaryKeys[0].ColId)
+	for _, name := range []string{"fparent", "fchild2", "measurement_old"} {
+		_, err := internal.GetTableIdFromSrcName(conv.SrcSchema, name)
+		assert.Error(t, err, "foreign table %s should not be migrated", name)
+	}
+	assert.Equal(t, []string{"id", "v"}, srcColNames(t, conv, "rparent"))
 }
 
 func TestCopyInheritedColumn(t *testing.T) {
