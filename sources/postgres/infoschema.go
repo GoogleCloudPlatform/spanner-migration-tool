@@ -63,7 +63,12 @@ var pgNumberCastRegex = regexp.MustCompile(
 
 // stripLiteralCasts drops casts that only decorate a literal. Casts on columns,
 // and casts that change the type, are kept: dropping those would change what the
-// expression computes.
+// expression computes. PostgreSQL stores and dumps defaults with these casts:
+//
+//	status varchar(10) DEFAULT 'NEW'  -> 'NEW'::character varying -> 'NEW'
+//	big bigint DEFAULT 9000000000     -> '9000000000'::bigint      -> 9000000000
+//	price numeric DEFAULT 0::numeric  -> (0)::numeric              -> (0)
+//	e int GENERATED ALWAYS AS (a + (-1)) STORED -> (a + '-1'::integer) -> (a + -1)
 func stripLiteralCasts(expr string) string {
 	expr = pgStringCastRegex.ReplaceAllString(expr, "$1")
 	expr = pgQuotedNumberCastRegex.ReplaceAllString(expr, "$1")
@@ -74,8 +79,11 @@ func stripLiteralCasts(expr string) string {
 var pgColumnTextCastRegex = regexp.MustCompile(`(^|[^\w$.'])(?:\((\w+)\)|(\w+))::text\b`)
 
 // stripColumnTextCasts drops the ::text PostgreSQL adds to a varchar or text
-// column inside an expression, e.g. upper((sku)::text). The cast changes
-// nothing, but GoogleSQL rejects "::". Casts on other column types are kept.
+// column inside an expression. The cast changes nothing, but GoogleSQL rejects
+// "::". Casts on other column types are kept. With sku varchar(20) and n int:
+//
+//	GENERATED ALWAYS AS (upper(sku)) STORED      -> upper((sku)::text)      -> upper(sku)
+//	GENERATED ALWAYS AS ((n)::text || sku) STORED -> ((n)::text || (sku)::text) -> ((n)::text || sku)
 func stripColumnTextCasts(expr string, colDefs map[string]schema.Column) string {
 	textCols := map[string]bool{}
 	for _, cd := range colDefs {
@@ -298,25 +306,13 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	qCheck := `SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema' AND table_name = 'columns' AND column_name = 'generation_expression'`
-	var colCheck string
-	errCheck := isi.Db.QueryRow(qCheck).Scan(&colCheck)
-	hasGenerationExpression := (errCheck == nil && colCheck == "generation_expression")
-
-	var q string
-	if hasGenerationExpression {
-		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.is_generated, c.generation_expression
+	// is_generated and generation_expression exist on every PostgreSQL version;
+	// before 12 they are always NEVER and NULL.
+	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.is_generated, c.generation_expression
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
-	} else {
-		q = `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, 'NEVER', NULL
-              FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
-                 ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
-                     = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
-              where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
-	}
 	serialCols := isi.getSerialColumns(conv, table)
 	virtualCols := isi.getVirtualColumns(conv, table)
 	identityCols := isi.getIdentityColumns(conv, table)
@@ -353,7 +349,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 
 		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
 		var defaultVal ddl.DefaultValue
-		if colDefault.Valid && !isSerialColumn && colDefault.String != "" {
+		// A serial column's default is nextval('t_id_seq'::regclass). It isn't
+		// copied: the column is migrated as auto-generated instead (AutoGen below).
+		if colDefault.Valid && !isSerialColumn {
 			defaultVal = ddl.DefaultValue{
 				IsPresent: true,
 				Value: ddl.Expression{
@@ -361,11 +359,11 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(colDefault.String), ty.Name, false),
 				},
 			}
-		} else if colDefault.Valid && !isSerialColumn {
-			ignored.Default = true
 		}
 		var generatedCol ddl.GeneratedColumn
-		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid && generationExpression.String != "" {
+		// is_generated is ALWAYS for a GENERATED ALWAYS AS (expr) column and NEVER
+		// for every other column. Identity columns are reported in is_identity.
+		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid {
 			generatedCol = ddl.GeneratedColumn{
 				IsPresent: true,
 				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),

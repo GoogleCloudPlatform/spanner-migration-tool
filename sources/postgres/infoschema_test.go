@@ -86,11 +86,6 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
-		},
-		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.user"},
 			cols:  []string{"attname"},
@@ -143,11 +138,6 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"public", "product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_SET_NULL},
 				{"public", "user", "userid", "user_id", "fk_test3", constants.FK_SET_NULL, constants.FK_RESTRICT}},
-		},
-		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
@@ -205,11 +195,6 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
-		},
-		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.product"},
 			cols:  []string{"attname"},
@@ -258,11 +243,6 @@ func TestProcessSchema(t *testing.T) {
 				{"public", "test_ref", "txt", "ref_txt", "fk_test4", constants.FK_CASCADE, constants.FK_NO_ACTION}},
 		},
 
-		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
-		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
@@ -330,11 +310,6 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
-		},
-		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
@@ -657,11 +632,6 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows: [][]driver.Value{{"generation_expression"}},
-		},
-		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
 			cols:  []string{"attname"},
@@ -937,14 +907,11 @@ func TestGetVirtualColumns(t *testing.T) {
 	}
 }
 
-func TestGetColumns_NoGenerationExpressionSupport(t *testing.T) {
-	// information_schema.columns.generation_expression was added in PG 12. On
-	// older servers the probe finds nothing and GetColumns must fall back to a
-	// query that does not reference it.
+func TestGetColumns_BeforeGeneratedColumns(t *testing.T) {
+	// Before PG 12, is_generated is always NEVER, generation_expression is NULL
+	// and pg_attribute has no attgenerated.
 	isi, mock := mkInfoSchema(t)
 	table := common.SchemaAndName{Schema: "public", Name: "test"}
-	mock.ExpectQuery("SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)").
-		WillReturnRows(sqlmock.NewRows([]string{"column_name"}))
 	mock.ExpectQuery("SELECT (.+) FROM pg_attribute (.+)").
 		WithArgs("public.test").
 		WillReturnRows(sqlmock.NewRows([]string{"attname"}))
@@ -973,11 +940,6 @@ func TestGetColumns_NoGenerationExpressionSupport(t *testing.T) {
 
 func TestGetColumns_StripsColumnTextCasts(t *testing.T) {
 	ms := []mockSpec{
-		{
-			query: "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema'(.+)",
-			cols:  []string{"column_name"},
-			rows:  [][]driver.Value{{"generation_expression"}},
-		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
 			args:  []driver.Value{"public.test"},
