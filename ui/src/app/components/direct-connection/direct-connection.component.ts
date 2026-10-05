@@ -32,7 +32,7 @@ export class DirectConnectionComponent implements OnInit {
 
   dbEngineList = [
     { value: 'mysql', displayName: 'MySQL' },
-    { value: 'sqlserver', displayName: 'SQL Server' },
+    { value: 'sqlserver', displayName: 'SQLServer' },
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
     { value: 'cassandra', displayName: 'Cassandra'},

@@ -49,6 +49,10 @@ jobs:
       # sql server envs
       # Password for connection as SA
       MSSQL_SA_PASSWORD: tCUE9c1&Ucp0
+      SQLSERVERHOST: localhost
+      SQLSERVERPORT: 1433
+      SQLSERVERUSER: sa
+      SQLSERVERDATABASE: SqlServer_IntTest
 
     services:
       spanner_omni:
@@ -85,8 +89,8 @@ jobs:
           ACCEPT_EULA: Y
         ports:
           - 1433:1433
-        options:
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -No -o /dev/null"
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P \"$SA_PASSWORD\" -Q 'select 1' -b -No -o /dev/null"
           --health-interval 10s --health-timeout 5s --health-retries 3
       oracle:
         image: oracleinanutshell/oracle-xe-11g@sha256:8b740e77d4b90add693fedb22938f340821e89665fb58ecaeeb0dace853b9ee5
@@ -121,7 +125,7 @@ jobs:
       # while its possible to infer the latest from the path in the run script, it will make the run section more complex and hard to maintian.
       - name: Install sqlcmd required for loading .sql files
         run: /opt/mssql-tools18/bin/sqlcmd -C -?
-      - run: /opt/mssql-tools18/bin/sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out -C
+      - run: /opt/mssql-tools18/bin/sqlcmd -U sa -P "${MSSQL_SA_PASSWORD}" -i test_data/sqlserver.test.out -C
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
         run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
