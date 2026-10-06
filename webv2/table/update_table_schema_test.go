@@ -164,6 +164,158 @@ func TestUpdateTableSchema(t *testing.T) {
 			},
 		},
 		{
+			name:  "Test remove column also removes it from ToSpanner",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c3": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c_sp", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Id:     "t1",
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Id: "c1", Name: "a", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c2": {Id: "c2", Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "bigint"}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c_sp"}},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Id:     "t1",
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Id: "c1", Name: "a", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c2": {Id: "c2", Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "bigint"}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+					},
+				},
+			},
+		},
+		{
+			name:  "Test restore column also adds it back to ToSpanner",
+			table: "t1",
+			payload: `
+			{
+			  "UpdateCols":{
+				"c3": { "Add": true, "ToType": "STRING"}
+			}
+			}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Id: "c1", Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Id: "c2", Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Id:     "t1",
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Id: "c1", Name: "a", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c2": {Id: "c2", Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				SchemaIssues: make(map[string]internal.TableIssues),
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Id:     "t1",
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Id: "c1", Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Id: "c2", Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Id: "c3", Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Id:     "t1",
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Id: "c1", Name: "a", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c2": {Id: "c2", Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+			},
+		},
+		{
 			name:  "Test rename success",
 			table: "t1",
 			payload: `

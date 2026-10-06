@@ -56,8 +56,20 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 
 	conv.SpSchema[tableId] = sp
 
-	// Note: ToSpanner mapping is not updated for added columns
-	// since they don't have corresponding source columns
+	// Restore the column in the ToSpanner mapping if it maps to a source column.
+	// Columns without a source column (e.g. new Spanner-only columns) are not added.
+	if conv.ToSpanner != nil {
+		srcTable := conv.SrcSchema[tableId]
+		if srcCol, ok := srcTable.ColDefs[colId]; ok {
+			if nameAndCols, ok := conv.ToSpanner[srcTable.Name]; ok {
+				if nameAndCols.Cols == nil {
+					nameAndCols.Cols = make(map[string]string)
+					conv.ToSpanner[srcTable.Name] = nameAndCols
+				}
+				nameAndCols.Cols[srcCol.Name] = spColName
+			}
+		}
+	}
 }
 
 func AddNewColumn(w http.ResponseWriter, r *http.Request) {
