@@ -256,7 +256,7 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
 	// appropriate type by the Spanner client.
-	if v == "{}" {
+	if v == "" || v == "{}" {
 		return []spanner.NullString{}, nil
 	}
 	if v[0] != '{' || v[len(v)-1] != '}' {

@@ -322,7 +322,7 @@ func convArray(spannerType ddl.Type, val string) (interface{}, error) {
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
 	// appropriate type by the Spanner client.
-	if val == "{}" || val == "[]" {
+	if val == "" || val == "{}" || val == "[]" {
 		return []spanner.NullString{}, nil
 	}
 	braces := val[:1] + val[len(val)-1:]
