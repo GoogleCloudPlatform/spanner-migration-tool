@@ -202,7 +202,7 @@ export class PrepareMigrationComponent implements OnInit {
           MigrationModes.dataOnly,
           MigrationModes.schemaAndData,
         ]
-        if (this.sourceDatabaseType === SourceDbNames.Cassandra) {
+        if (this.sourceDatabaseType === SourceDbNames.Cassandra || this.sourceDatabaseType === SourceDbNames.Neo4j) {
           this.migrationModes = [MigrationModes.schemaOnly]
           this.selectedMigrationMode = MigrationModes.schemaOnly
         }
