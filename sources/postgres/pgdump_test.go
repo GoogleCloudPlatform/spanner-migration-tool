@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v6"
@@ -2066,4 +2067,362 @@ func printJSON(s string) {
 // It is not used by any tests, but is a useful utility for debugging.
 func printJSONType(ty string) {
 	printJSON(fmt.Sprintf("CREATE TABLE t (a %s);", ty))
+}
+
+func srcColNames(t *testing.T, conv *internal.Conv, tableName string) []string {
+	t.Helper()
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+	assert.NoError(t, err, "source table %s not found", tableName)
+	table := conv.SrcSchema[tableId]
+	names := []string{}
+	for _, colId := range table.ColIds {
+		names = append(names, table.ColDefs[colId].Name)
+	}
+	return names
+}
+
+func TestProcessPgDump_Inheritance(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		cols      map[string][]string // Every source table and its columns, in order.
+		inherited map[string][]string // Tables flagged as inherited, and their parents.
+		warning   bool                // An unexpected condition is reported.
+	}{
+		{
+			name: "single parent",
+			input: "CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+				"CREATE TABLE capitals (state text) INHERITS (cities);\n",
+			cols:      map[string][]string{"cities": {"name", "population"}, "capitals": {"name", "population", "state"}},
+			inherited: map[string][]string{"capitals": {"cities"}},
+		},
+		{
+			name: "multiple parents",
+			input: "CREATE TABLE p1 (a bigint);\n" +
+				"CREATE TABLE p2 (b bigint);\n" +
+				"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n",
+			cols:      map[string][]string{"p1": {"a"}, "p2": {"b"}, "child": {"a", "b", "c"}},
+			inherited: map[string][]string{"child": {"p1", "p2"}},
+		},
+		{
+			name: "chain declared child first",
+			input: "CREATE TABLE c (c3 bigint) INHERITS (b);\n" +
+				"CREATE TABLE b (c2 bigint) INHERITS (a);\n" +
+				"CREATE TABLE a (c1 bigint);\n",
+			cols:      map[string][]string{"a": {"c1"}, "b": {"c1", "c2"}, "c": {"c1", "c2", "c3"}},
+			inherited: map[string][]string{"b": {"a"}, "c": {"b"}},
+		},
+		{
+			name: "redeclared column is merged at the parent's position",
+			input: "CREATE TABLE base (id bigint, note text);\n" +
+				"CREATE TABLE derived (note text NOT NULL, extra bigint) INHERITS (base);\n",
+			cols:      map[string][]string{"base": {"id", "note"}, "derived": {"id", "note", "extra"}},
+			inherited: map[string][]string{"derived": {"base"}},
+		},
+		{
+			name: "diamond",
+			input: "CREATE TABLE root (id bigint);\n" +
+				"CREATE TABLE l (lv bigint) INHERITS (root);\n" +
+				"CREATE TABLE r (rv bigint) INHERITS (root);\n" +
+				"CREATE TABLE leaf (x bigint) INHERITS (l, r);\n",
+			cols:      map[string][]string{"root": {"id"}, "l": {"id", "lv"}, "r": {"id", "rv"}, "leaf": {"id", "lv", "rv", "x"}},
+			inherited: map[string][]string{"l": {"root"}, "r": {"root"}, "leaf": {"l", "r"}},
+		},
+		{
+			name: "cross schema",
+			input: "CREATE TABLE public.cities (name text);\n" +
+				"CREATE TABLE archive.archived (at text) INHERITS (public.cities);\n",
+			cols:      map[string][]string{"cities": {"name"}, "archive.archived": {"name", "at"}},
+			inherited: map[string][]string{"archive.archived": {"cities"}},
+		},
+		{
+			name: "partitions are not inheritance",
+			input: "CREATE TABLE m (id bigint NOT NULL, d date NOT NULL) PARTITION BY RANGE (d);\n" +
+				"CREATE TABLE m_2024 PARTITION OF m FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');\n",
+			cols:    map[string][]string{"m": {"id", "d"}},
+			warning: true,
+		},
+		{
+			name: "ALTER TABLE INHERIT keeps the child's column order",
+			input: "CREATE TABLE parent (id bigint, v text);\n" +
+				"CREATE TABLE child (z bigint, v text, id bigint);\n" +
+				"ALTER TABLE ONLY child INHERIT parent;\n" +
+				"ALTER TABLE ONLY child INHERIT parent;\n",
+			cols:      map[string][]string{"parent": {"id", "v"}, "child": {"z", "v", "id"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "ALTER TABLE INHERIT as written by pg_dump",
+			input: "CREATE TABLE parent (id bigint, v text);\n" +
+				"CREATE TABLE child (z bigint, v text, id bigint) INHERITS (parent);\n",
+			cols:      map[string][]string{"parent": {"id", "v"}, "child": {"z", "v", "id"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "ALTER TABLE INHERIT before the parent is declared",
+			input: "CREATE TABLE child (x bigint);\n" +
+				"ALTER TABLE child INHERIT parent;\n" +
+				"CREATE TABLE parent (a bigint);\n",
+			cols:      map[string][]string{"parent": {"a"}, "child": {"a", "x"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "NO INHERIT keeps the inherited columns",
+			input: "CREATE TABLE p1 (a bigint);\n" +
+				"CREATE TABLE p2 (b bigint);\n" +
+				"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n" +
+				"ALTER TABLE child NO INHERIT p1;\n" +
+				"CREATE TABLE solo (d bigint) INHERITS (p2);\n" +
+				"ALTER TABLE solo NO INHERIT p2;\n",
+			cols:      map[string][]string{"p1": {"a"}, "p2": {"b"}, "child": {"a", "b", "c"}, "solo": {"b", "d"}},
+			inherited: map[string][]string{"child": {"p2"}},
+		},
+		{
+			name: "foreign tables are not migrated",
+			input: "CREATE FOREIGN TABLE fparent (id bigint, v text) SERVER loop;\n" +
+				"CREATE TABLE fchild (extra text) INHERITS (fparent);\n" +
+				"ALTER TABLE ONLY fchild ADD CONSTRAINT fchild_pkey PRIMARY KEY (id);\n" +
+				"CREATE TABLE rparent (id bigint);\n" +
+				"CREATE FOREIGN TABLE fchild2 () INHERITS (rparent) SERVER loop;\n" +
+				"CREATE TABLE m (d date NOT NULL) PARTITION BY RANGE (d);\n" +
+				"CREATE FOREIGN TABLE m_old PARTITION OF m FOR VALUES FROM ('2000-01-01') TO ('2001-01-01') SERVER loop;\n",
+			cols:      map[string][]string{"fchild": {"id", "v", "extra"}, "rparent": {"id"}, "m": {"d"}},
+			inherited: map[string][]string{"fchild": {"fparent"}},
+		},
+		{
+			name:    "missing parent",
+			input:   "CREATE TABLE orphan (x bigint) INHERITS (nonexistent);\n",
+			cols:    map[string][]string{"orphan": {"x"}},
+			warning: true,
+		},
+		{
+			name: "one of two parents missing",
+			input: "CREATE TABLE child (c bigint) INHERITS (nonexistent, parent);\n" +
+				"CREATE TABLE parent (p bigint);\n",
+			cols:      map[string][]string{"parent": {"p"}, "child": {"p", "c"}},
+			inherited: map[string][]string{"child": {"parent"}},
+			warning:   true,
+		},
+		{
+			name: "self reference",
+			input: "CREATE TABLE s1 (s bigint) INHERITS (s1);\n" +
+				"CREATE TABLE s2 (s bigint);\n" +
+				"ALTER TABLE s2 INHERIT s2;\n",
+			cols:    map[string][]string{"s1": {"s"}, "s2": {"s"}},
+			warning: true,
+		},
+		{
+			name: "cycle",
+			input: "CREATE TABLE a (x bigint) INHERITS (b);\n" +
+				"CREATE TABLE b (y bigint) INHERITS (a);\n",
+			cols:    map[string][]string{"a": {"x"}, "b": {"y"}},
+			warning: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			if tc.warning {
+				assert.NotZero(t, len(conv.Stats.Unexpected))
+			} else {
+				noIssues(conv, t, tc.name)
+			}
+			assert.Len(t, conv.SrcSchema, len(tc.cols))
+			for name, cols := range tc.cols {
+				assert.Equal(t, cols, srcColNames(t, conv, name), name)
+				tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, name)
+				assert.Equal(t, tc.inherited[name], conv.SrcSchema[tableId].InheritedFrom, name)
+				flagged := slices.Contains(conv.SchemaIssues[tableId].TableLevelIssues, internal.InheritedTable)
+				assert.Equal(t, tc.inherited[name] != nil, flagged, name)
+			}
+		})
+	}
+}
+
+func TestProcessPgDump_InheritedColumns(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected ddl.ColumnDef // Column "a" of table "child" in Spanner.
+	}{
+		{
+			name: "serial is not inherited",
+			input: "CREATE TABLE parent (a serial NOT NULL);\n" +
+				"CREATE TABLE child () INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "identity is not inherited",
+			input: "CREATE TABLE parent (a bigint GENERATED ALWAYS AS IDENTITY);\n" +
+				"CREATE TABLE child () INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "identity added to the parent after the child",
+			input: "CREATE TABLE child () INHERITS (parent);\n" +
+				"CREATE TABLE parent (a bigint NOT NULL);\n" +
+				"ALTER TABLE parent ALTER COLUMN a ADD GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME parent_a_seq);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "NOT NULL from any parent wins",
+			input: "CREATE TABLE p1 (a text);\n" +
+				"CREATE TABLE p2 (a text NOT NULL);\n" +
+				"CREATE TABLE child () INHERITS (p1, p2);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+		},
+		{
+			name: "child keeps its own NOT NULL",
+			input: "CREATE TABLE parent (a text);\n" +
+				"CREATE TABLE child (a text NOT NULL) INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+		},
+	}
+	for _, tc := range tests {
+		conv, _ := runProcessPgDump(tc.input)
+		noIssues(conv, t, tc.name)
+		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "child")
+		assert.NoError(t, err, tc.name)
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		assert.NoError(t, err, tc.name)
+		cd := conv.SpSchema[tableId].ColDefs[colId]
+		cd.Comment = ""
+		cd.Id = ""
+		assert.Equal(t, tc.expected, cd, tc.name)
+	}
+}
+
+func TestProcessPgDump_InheritedTableConstraints(t *testing.T) {
+	// Primary keys and indexes stay on the parent; the child only has its own.
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"CREATE INDEX cities_population_idx ON cities (population);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (state);\n")
+	noIssues(conv, t, "inherited table constraints")
+	internal.AssertSpSchema(conv, t, map[string]ddl.CreateTable{
+		"cities": {
+			Name:   "cities",
+			ColIds: []string{"name", "population"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "name", Order: 1}},
+			Indexes:     []ddl.CreateIndex{{Name: "cities_population_idx", TableId: "cities", Keys: []ddl.IndexKey{{ColId: "population", Order: 1}}}},
+		},
+		"capitals": {
+			Name:   "capitals",
+			ColIds: []string{"name", "population", "state"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+				"state":      {Name: "state", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "state", Order: 1}},
+		},
+	}, stripSchemaComments(conv.SpSchema))
+}
+
+func TestProcessPgDump_InheritedTableData(t *testing.T) {
+	conv, rows := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (name);\n" +
+			"COPY cities (name, population) FROM stdin;\n" +
+			"springfield	100\n" +
+			"\\.\n" +
+			"INSERT INTO capitals VALUES ('madison', 260, 'WI');\n")
+	noIssues(conv, t, "inherited table data")
+	assert.Equal(t, []spannerData{
+		{table: "cities", cols: []string{"name", "population"}, vals: []interface{}{"springfield", int64(100)}},
+		{table: "capitals", cols: []string{"name", "population", "state"}, vals: []interface{}{"madison", int64(260), "WI"}},
+	}, rows)
+}
+
+func TestProcessPgDump_DataForUnknownTable(t *testing.T) {
+	for _, input := range []string{
+		"INSERT INTO ghost (a) VALUES (1);\n",
+		"COPY ghost (a) FROM stdin;\n1\n\\.\n",
+	} {
+		conv, rows := runProcessPgDump(input)
+		assert.Empty(t, rows, input)
+		var skipped int64
+		for _, stat := range conv.Stats.Statement {
+			skipped += stat.Skip
+		}
+		assert.NotZero(t, skipped, input)
+	}
+}
+
+func TestCopyInheritedColumn(t *testing.T) {
+	parentCol := schema.Column{
+		Id: "p", Name: "a", NotNull: true,
+		Type:            schema.Type{Name: "varchar", Mods: []int64{10}},
+		DefaultValue:    ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "e1", Statement: "'x'"}},
+		GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "e2", Statement: "(a || '!')"}},
+	}
+	col := copyInheritedColumn(parentCol)
+
+	// The copy gets fresh ids so it doesn't collide with the parent.
+	assert.NotEqual(t, "p", col.Id)
+	assert.NotEqual(t, "e1", col.DefaultValue.Value.ExpressionId)
+	assert.NotEqual(t, "e2", col.GeneratedColumn.Value.ExpressionId)
+	col.Id, col.DefaultValue.Value.ExpressionId, col.GeneratedColumn.Value.ExpressionId = "p", "e1", "e2"
+	assert.Equal(t, parentCol, col)
+
+	col.Type.Mods[0] = 99
+	assert.Equal(t, []int64{10}, parentCol.Type.Mods, "editing the copy must not change the parent")
+}
+
+func TestMergeInheritedColumn(t *testing.T) {
+	def := ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "pd", Statement: "'p'"}}
+	gen := ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "pg", Statement: "(a + 1)"}}
+	seq := ddl.AutoGenCol{Name: "p_seq", GenerationType: "sequence"}
+	parentCol := schema.Column{Id: "p", NotNull: true, Ignored: schema.Ignored{Default: true}, DefaultValue: def, GeneratedColumn: gen, AutoGen: seq}
+
+	// The child takes the parent's attributes; copied expressions get fresh ids.
+	got := mergeInheritedColumn(schema.Column{Id: "c"}, parentCol)
+	assert.NotEqual(t, "pd", got.DefaultValue.Value.ExpressionId)
+	assert.NotEqual(t, "pg", got.GeneratedColumn.Value.ExpressionId)
+	got.DefaultValue.Value.ExpressionId, got.GeneratedColumn.Value.ExpressionId = "pd", "pg"
+	parentCol.Id = "c"
+	assert.Equal(t, parentCol, got)
+
+	// The child keeps its own attributes.
+	childCol := schema.Column{
+		Id:              "c",
+		NotNull:         true,
+		DefaultValue:    ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "cd", Statement: "'c'"}},
+		GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "cg", Statement: "(a * 2)"}},
+		AutoGen:         ddl.AutoGenCol{Name: "c_seq", GenerationType: "sequence"},
+	}
+	got = mergeInheritedColumn(childCol, schema.Column{Id: "p", DefaultValue: def, GeneratedColumn: gen, AutoGen: seq})
+	assert.Equal(t, childCol, got)
+}
+
+func TestFlattenInheritedTable_ChildWithoutColumns(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{
+		Id: "t1", Name: "parent", ColIds: []string{"c1"},
+		ColDefs:      map[string]schema.Column{"c1": {Id: "c1", Name: "a"}},
+		ColNameIdMap: map[string]string{"a": "c1"},
+	}
+	conv.SrcSchema["t2"] = schema.Table{Id: "t2", Name: "child", InheritedFrom: []string{"parent"}}
+
+	assert.True(t, flattenInheritedTable(conv, "t2"))
+	assert.Equal(t, []string{"a"}, srcColNames(t, conv, "child"))
+}
+
+func TestGetInheritedTableNames(t *testing.T) {
+	rangeVar := func(schemaName, name string) *pg_query.Node {
+		return &pg_query.Node{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Schemaname: schemaName, Relname: name}}}
+	}
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	got := getInheritedTableNames(conv, []*pg_query.Node{{}, rangeVar("", ""), rangeVar("archive", "p1"), rangeVar("public", "p2")})
+	assert.Equal(t, []string{"archive.p1", "p2"}, got)
+	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }

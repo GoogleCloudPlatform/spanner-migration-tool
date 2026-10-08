@@ -50,6 +50,27 @@ const (
 	insert
 )
 
+// pgDumpState holds schema state that is acted on after the whole dump is read.
+type pgDumpState struct {
+	// lookupOnlyTables, e.g. foreign inheritance parents, are not migrated.
+	lookupOnlyTables map[string]bool
+}
+
+func newPgDumpState() *pgDumpState {
+	return &pgDumpState{lookupOnlyTables: make(map[string]bool)}
+}
+
+func (s *pgDumpState) addLookupOnlyTable(tableId string) {
+	s.lookupOnlyTables[tableId] = true
+}
+
+func (s *pgDumpState) finalizeSchema(conv *internal.Conv) {
+	resolveInheritedTables(conv)
+	for tableId := range s.lookupOnlyTables {
+		delete(conv.SrcSchema, tableId)
+	}
+}
+
 // GetToDdl functions below implement the common.DbDump interface
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
@@ -66,6 +87,7 @@ func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
 func processPgDump(conv *internal.Conv, r *internal.Reader) error {
+	state := newPgDumpState()
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -73,7 +95,7 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if err != nil {
 			return err
 		}
-		ci := processStatements(conv, stmts)
+		ci := processStatements(conv, stmts, state)
 		internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
 		logger.Log.Debug(fmt.Sprintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil))
 		if ci != nil {
@@ -119,6 +141,9 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if r.EOF {
 			break
 		}
+	}
+	if conv.SchemaMode() {
+		state.finalizeSchema(conv)
 	}
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	// We don't actually support migration of sequences for Postgres, but some get set in order to properly
@@ -212,7 +237,7 @@ func processCopyBlock(conv *internal.Conv, tableId string, commonColIds, srcCols
 // copyOrInsert if a COPY-FROM or INSERT statement is encountered.
 // Note that the actual parsing/processing of COPY-FROM data blocks is
 // handled elsewhere (see process.go).
-func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyOrInsert {
+func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt, state *pgDumpState) *copyOrInsert {
 	// Typically we'll have only one statement, but we handle the general case.
 	for i, rawStmt := range rawStmts {
 		node := rawStmt.Stmt
@@ -230,6 +255,12 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyO
 		case *pg_query.Node_CreateStmt:
 			if conv.SchemaMode() {
 				processCreateStmt(conv, n.CreateStmt)
+			}
+		case *pg_query.Node_CreateForeignTableStmt:
+			if conv.SchemaMode() {
+				if tableId, ok := processCreateForeignTableStmt(conv, n.CreateForeignTableStmt); ok {
+					state.addLookupOnlyTable(tableId)
+				}
 			}
 		case *pg_query.Node_InsertStmt:
 			return processInsertStmt(conv, n.InsertStmt)
@@ -327,6 +358,12 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 					c := constraint{ct: pg_query.ConstrType_CONSTR_IDENTITY, cols: []string{a.Name}}
 					updateSchema(conv, tbl.Id, []constraint{c}, "ALTER TABLE")
 					conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+				case a.Subtype == pg_query.AlterTableType_AT_AddInherit && a.Def != nil:
+					addInheritedParent(conv, tbl.Id, a.Def)
+					conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+				case a.Subtype == pg_query.AlterTableType_AT_DropInherit && a.Def != nil:
+					dropInheritedParent(conv, tbl.Id, a.Def)
+					conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
 				default:
 					conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
 				}
@@ -346,6 +383,24 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 	}
 }
 
+// processCreateForeignTableStmt reads a foreign table so its children can
+// inherit its columns. It holds no local data, so it is not migrated.
+func processCreateForeignTableStmt(conv *internal.Conv, n *pg_query.CreateForeignTableStmt) (string, bool) {
+	base := n.GetBaseStmt()
+	if base == nil || base.Relation == nil || base.Partbound != nil {
+		conv.SkipStatement(printNodeType(n))
+		return "", false
+	}
+	tableName, err := getTableName(conv, base.Relation)
+	if err != nil {
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		return "", false
+	}
+	processCreateStmt(conv, base)
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+	return tableId, err == nil
+}
+
 func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 	colDef := make(map[string]schema.Column)
 	if n.Relation == nil {
@@ -357,13 +412,11 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if len(n.InhRelations) > 0 {
-		// Skip inherited tables.
+	if n.Partbound != nil {
 		conv.SkipStatement(printNodeType(n))
-		conv.Unexpected(fmt.Sprintf("Found inherited table %s -- we do not currently handle inherited tables", table))
-		internal.VerbosePrintf("Processing %v statement: table %s is inherited table", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
-
+		conv.Unexpected(fmt.Sprintf("Found partition %s -- we do not currently handle partitioned tables in dump files", table))
+		internal.VerbosePrintf("Processing %v statement: table %s is a partition", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is a partition", printNodeType(n), table))
 		return
 	}
 	var constraints []constraint
@@ -400,6 +453,7 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		ColNameIdMap: colNameIdMap,
 		ColDefs:      colDef,
 	}
+	registerInheritedTable(conv, tableId, getInheritedTableNames(conv, n.InhRelations))
 	// Note: constraints contains all info about primary keys, not-null keys
 	// and foreign keys.
 	updateSchema(conv, tableId, constraints, "CREATE TABLE")
@@ -450,11 +504,11 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 	if _, ok := conv.SrcSchema[tableId]; !ok {
 		// If we don't have schema information for a table, we drop all insert
-		// statements for it. The most likely reason we don't have schema information
-		// for a table is that it is an inherited table - we skip all inherited tables.
+		// statements for it. This can happen if we failed to parse the table's
+		// CREATE TABLE statement.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
 
 		return nil
 	}
@@ -500,11 +554,11 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all copy
-		// statements for it. The most likely reason we don't have schema information
-		// for a table is that it is an inherited table - we skip all inherited tables.
+		// statements for it. This can happen if we failed to parse the table's
+		// CREATE TABLE statement.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
 		return &copyOrInsert{stmt: copyFrom, table: table, cols: []string{}}
 	}
 	var cols []string
@@ -1111,4 +1165,254 @@ func trimQuote(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func getInheritedTableNames(conv *internal.Conv, inhRelations []*pg_query.Node) []string {
+	var parents []string
+	for _, r := range inhRelations {
+		rangeVar := r.GetRangeVar()
+		if rangeVar == nil {
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt InhRelations", printNodeType(r)))
+			continue
+		}
+		name, err := getTableName(conv, rangeVar)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't get parent table name while processing inherited table: %s", err))
+			continue
+		}
+		parents = append(parents, name)
+	}
+	return parents
+}
+
+func registerInheritedTable(conv *internal.Conv, childId string, parents []string) {
+	child := conv.SrcSchema[childId]
+	parents = withoutSelf(conv, child.Name, parents)
+	if len(parents) == 0 {
+		return
+	}
+	child.InheritedFrom = parents
+	conv.SrcSchema[childId] = child
+	flattenInheritedTable(conv, childId)
+}
+
+// withoutSelf drops a self-reference, which only a hand-edited dump can contain.
+func withoutSelf(conv *internal.Conv, childName string, parents []string) []string {
+	if !slices.Contains(parents, childName) {
+		return parents
+	}
+	conv.Unexpected(fmt.Sprintf("Table %s inherits from itself: ignoring the self-reference", childName))
+	return slices.DeleteFunc(slices.Clone(parents), func(name string) bool { return name == childName })
+}
+
+// addInheritedParent handles ALTER TABLE ... INHERIT. The child already has the
+// parent's columns, so it is only flattened if the parent comes later in the dump.
+func addInheritedParent(conv *internal.Conv, childId string, def *pg_query.Node) {
+	child := conv.SrcSchema[childId]
+	for _, parent := range withoutSelf(conv, child.Name, getInheritedTableNames(conv, []*pg_query.Node{def})) {
+		if !slices.Contains(child.InheritedFrom, parent) {
+			child.InheritedFrom = append(child.InheritedFrom, parent)
+		}
+	}
+	conv.SrcSchema[childId] = child
+	if len(child.InheritedFrom) > 0 && !hasAllParentColumns(conv, child) {
+		flattenInheritedTable(conv, childId)
+	}
+}
+
+// dropInheritedParent handles ALTER TABLE ... NO INHERIT; the child keeps its columns.
+func dropInheritedParent(conv *internal.Conv, childId string, def *pg_query.Node) {
+	removed := getInheritedTableNames(conv, []*pg_query.Node{def})
+	child := conv.SrcSchema[childId]
+	child.InheritedFrom = slices.DeleteFunc(slices.Clone(child.InheritedFrom), func(name string) bool {
+		return slices.Contains(removed, name)
+	})
+	if len(child.InheritedFrom) == 0 {
+		child.InheritedFrom = nil
+	}
+	conv.SrcSchema[childId] = child
+}
+
+// resolveInheritedTables flattens any inherited table whose parents appeared
+// later in the dump. Unresolvable parents are dropped with a warning.
+func resolveInheritedTables(conv *internal.Conv) {
+	for {
+		progress := false
+		var unresolved []string
+		for tableId, table := range conv.SrcSchema {
+			if len(table.InheritedFrom) == 0 || hasAllParentColumns(conv, table) {
+				continue
+			}
+			if flattenInheritedTable(conv, tableId) {
+				progress = true
+			} else {
+				unresolved = append(unresolved, tableId)
+			}
+		}
+		if len(unresolved) == 0 {
+			return
+		}
+		if progress || dropMissingParents(conv, unresolved) {
+			continue
+		}
+		// Only cycles are left.
+		for _, tableId := range unresolved {
+			table := conv.SrcSchema[tableId]
+			reportUnresolvedParents(conv, table.Name, table.InheritedFrom)
+			table.InheritedFrom = nil
+			conv.SrcSchema[tableId] = table
+		}
+		return
+	}
+}
+
+func dropMissingParents(conv *internal.Conv, tableIds []string) bool {
+	dropped := false
+	for _, tableId := range tableIds {
+		table := conv.SrcSchema[tableId]
+		var missing []string
+		table.InheritedFrom = slices.DeleteFunc(slices.Clone(table.InheritedFrom), func(name string) bool {
+			if _, ok := internal.GetSrcTableByName(conv.SrcSchema, name); ok {
+				return false
+			}
+			missing = append(missing, name)
+			return true
+		})
+		if len(missing) == 0 {
+			continue
+		}
+		if len(table.InheritedFrom) == 0 {
+			table.InheritedFrom = nil
+		}
+		conv.SrcSchema[tableId] = table
+		reportUnresolvedParents(conv, table.Name, missing)
+		dropped = true
+	}
+	return dropped
+}
+
+func reportUnresolvedParents(conv *internal.Conv, tableName string, parents []string) {
+	conv.Unexpected(fmt.Sprintf("Table %s inherits from %s, but the parent table(s) could not be resolved: inherited columns will be missing",
+		tableName, strings.Join(parents, ", ")))
+}
+
+func hasAllParentColumns(conv *internal.Conv, table schema.Table) bool {
+	for _, name := range table.InheritedFrom {
+		parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name)
+		if !ok || parent == nil {
+			return false
+		}
+		for _, colId := range parent.ColIds {
+			if _, exists := table.ColNameIdMap[parent.ColDefs[colId].Name]; !exists {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// flattenInheritedTable copies each parent's columns into childId ahead of the
+// child's own columns, matching PostgreSQL column ordering. A child that already
+// lists every parent column (an ALTER TABLE ... INHERIT link) keeps its order.
+func flattenInheritedTable(conv *internal.Conv, childId string) bool {
+	child := conv.SrcSchema[childId]
+	var parentIds []string
+	for _, name := range child.InheritedFrom {
+		parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name)
+		if !ok || parent == nil || parent.Id == childId || !hasAllParentColumns(conv, *parent) {
+			return false
+		}
+		parentIds = append(parentIds, parent.Id)
+	}
+	keepOrder := hasAllParentColumns(conv, child)
+
+	if child.ColDefs == nil {
+		child.ColDefs = make(map[string]schema.Column)
+	}
+	if child.ColNameIdMap == nil {
+		child.ColNameIdMap = make(map[string]string)
+	}
+
+	var colIds []string
+	placed := make(map[string]bool)
+	for _, parentId := range parentIds {
+		parent := conv.SrcSchema[parentId]
+		for _, parentColId := range parent.ColIds {
+			parentCol := parent.ColDefs[parentColId]
+			colId, exists := child.ColNameIdMap[parentCol.Name]
+			if exists {
+				child.ColDefs[colId] = mergeInheritedColumn(child.ColDefs[colId], parentCol)
+			} else {
+				col := copyInheritedColumn(parentCol)
+				colId = col.Id
+				child.ColDefs[colId] = col
+				child.ColNameIdMap[col.Name] = colId
+			}
+			if !placed[colId] {
+				colIds = append(colIds, colId)
+				placed[colId] = true
+			}
+		}
+	}
+	for _, colId := range child.ColIds {
+		if !placed[colId] {
+			colIds = append(colIds, colId)
+			placed[colId] = true
+		}
+	}
+	if !keepOrder {
+		child.ColIds = colIds
+	}
+	conv.SrcSchema[childId] = child
+
+	internal.VerbosePrintf("Flattened inherited table %s: copied columns from %s\n", child.Name, strings.Join(child.InheritedFrom, ", "))
+	logger.Log.Debug(fmt.Sprintf("Flattened inherited table %s: copied columns from %s", child.Name, strings.Join(child.InheritedFrom, ", ")))
+	return true
+}
+
+func copyInheritedColumn(parentCol schema.Column) schema.Column {
+	col := parentCol
+	col.Id = internal.GenerateColumnId()
+	col.Type = schema.Type{
+		Name:        parentCol.Type.Name,
+		Mods:        append([]int64(nil), parentCol.Type.Mods...),
+		ArrayBounds: append([]int64(nil), parentCol.Type.ArrayBounds...),
+	}
+	col.AutoGen = ddl.AutoGenCol{}
+	inheritAutoGen(&col, parentCol)
+	if col.DefaultValue.IsPresent {
+		col.DefaultValue.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	if col.GeneratedColumn.IsPresent {
+		col.GeneratedColumn.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	return col
+}
+
+func mergeInheritedColumn(childCol, parentCol schema.Column) schema.Column {
+	childCol.NotNull = childCol.NotNull || parentCol.NotNull
+	childCol.Ignored.Default = childCol.Ignored.Default || parentCol.Ignored.Default
+	if !childCol.DefaultValue.IsPresent && parentCol.DefaultValue.IsPresent {
+		childCol.DefaultValue = parentCol.DefaultValue
+		childCol.DefaultValue.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	if !childCol.GeneratedColumn.IsPresent && parentCol.GeneratedColumn.IsPresent {
+		childCol.GeneratedColumn = parentCol.GeneratedColumn
+		childCol.GeneratedColumn.Value.ExpressionId = internal.GenerateExpressionId()
+	}
+	inheritAutoGen(&childCol, parentCol)
+	return childCol
+}
+
+// inheritAutoGen gives childCol the parent's AutoGen, except serial and identity.
+// PostgreSQL doesn't inherit identity, and a serial child only shares the
+// parent's sequence default, which is reported as unmigrated, as on a live DB.
+func inheritAutoGen(childCol *schema.Column, parentCol schema.Column) {
+	if parentCol.AutoGen.GenerationType == constants.SERIAL {
+		childCol.Ignored.Default = childCol.Ignored.Default || getAutoGenFromTypeName(parentCol.Type.Name).Name != ""
+		return
+	}
+	if childCol.AutoGen.Name == "" {
+		childCol.AutoGen = parentCol.AutoGen
+	}
 }

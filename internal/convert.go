@@ -160,6 +160,7 @@ const (
 	IdentitySkipRange
 	GeneratedColumnValueError
 	PartitionedTable
+	InheritedTable
 )
 
 const (

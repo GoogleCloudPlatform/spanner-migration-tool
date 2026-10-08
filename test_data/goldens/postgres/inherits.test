@@ -1,0 +1,74 @@
+-- inherits_single_parent
+CREATE TABLE cities (
+    name text PRIMARY KEY,
+    population bigint
+);
+CREATE TABLE capitals (
+    state text
+) INHERITS (cities);
+ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (name)
+-- GoogleSQL
+CREATE TABLE `capitals` (
+    `name` STRING(MAX) NOT NULL ,
+    `population` INT64,
+    `state` STRING(MAX),
+) PRIMARY KEY (`name`)
+CREATE TABLE `cities` (
+    `name` STRING(MAX) NOT NULL ,
+    `population` INT64,
+) PRIMARY KEY (`name`)
+-- PostgreSQL
+CREATE TABLE "capitals" (
+    "name" VARCHAR(2621440) NOT NULL ,
+    "population" INT8,
+    "state" VARCHAR(2621440),
+    PRIMARY KEY ("name")
+)
+CREATE TABLE "cities" (
+    "name" VARCHAR(2621440) NOT NULL ,
+    "population" INT8,
+    PRIMARY KEY ("name")
+)
+==
+-- inherits_multi_level
+CREATE TABLE a (
+    c1 bigint PRIMARY KEY
+);
+CREATE TABLE b (
+    c2 bigint
+) INHERITS (a);
+CREATE TABLE c (
+    c3 bigint
+) INHERITS (b);
+ALTER TABLE ONLY b ADD CONSTRAINT b_pkey PRIMARY KEY (c1);
+ALTER TABLE ONLY c ADD CONSTRAINT c_pkey PRIMARY KEY (c1)
+-- GoogleSQL
+CREATE TABLE `a` (
+    `c1` INT64 NOT NULL ,
+) PRIMARY KEY (`c1`)
+CREATE TABLE `b` (
+    `c1` INT64 NOT NULL ,
+    `c2` INT64,
+) PRIMARY KEY (`c1`)
+CREATE TABLE `c` (
+    `c1` INT64 NOT NULL ,
+    `c2` INT64,
+    `c3` INT64,
+) PRIMARY KEY (`c1`)
+-- PostgreSQL
+CREATE TABLE "a" (
+    "c1" INT8 NOT NULL ,
+    PRIMARY KEY ("c1")
+)
+CREATE TABLE "b" (
+    "c1" INT8 NOT NULL ,
+    "c2" INT8,
+    PRIMARY KEY ("c1")
+)
+CREATE TABLE "c" (
+    "c1" INT8 NOT NULL ,
+    "c2" INT8,
+    "c3" INT8,
+    PRIMARY KEY ("c1")
+)
+==
