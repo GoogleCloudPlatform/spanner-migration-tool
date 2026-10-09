@@ -459,6 +459,12 @@ func TestProcessSchema(t *testing.T) {
 func TestProcessData(t *testing.T) {
 	ms := []mockSpec{
 		{
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "te st"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		},
+		{
 			query: `SELECT [*] FROM "public"."te st"`, // query is a regexp!
 			cols:  []string{"a a", " b", " c "},
 			rows: [][]driver.Value{
@@ -662,7 +668,13 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 		{
-			query: `SELECT [*] FROM "public"."test"`, // query is a regexp!
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{true}}, // inheritance parent: read with ONLY
+		},
+		{
+			query: `SELECT [*] FROM ONLY "public"."test"`, // query is a regexp!
 			cols:  []string{"a", "b", "c"},
 			rows: [][]driver.Value{
 				{"cat", 42.3, nil},
@@ -707,9 +719,19 @@ func TestSetRowStats(t *testing.T) {
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "test1"}, {"public", "test2"}},
 		}, {
-			query: `SELECT COUNT[(][*][)] FROM "public"."test1"`,
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test1"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{true}}, // inheritance parent: count with ONLY
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM ONLY "public"."test1"`,
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{5}},
+		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "test2"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
 		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."test2"`,
 			cols:  []string{"count"},
@@ -735,9 +757,19 @@ func TestSetRowStats_SkipsPartitions(t *testing.T) {
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "ml"}, {"public", "ml_b"}, {"public", "ml_c"}, {"public", "plain"}},
 		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "ml"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."ml"`,
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{3}},
+		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "plain"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
 		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."plain"`,
 			cols:  []string{"count"},
@@ -779,9 +811,19 @@ func TestSetRowStats_CountsRestoredPartition(t *testing.T) {
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "a"}, {"public", "a1"}},
 		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "a"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
+		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."a"`,
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{6}},
+		}, {
+			query: "SELECT EXISTS",
+			args:  []driver.Value{"public", "a1"},
+			cols:  []string{"exists"},
+			rows:  [][]driver.Value{{false}},
 		}, {
 			query: `SELECT COUNT[(][*][)] FROM "public"."a1"`,
 			cols:  []string{"count"},
@@ -1267,4 +1309,54 @@ func TestGetIdentityColumnsQueryError(t *testing.T) {
 	identityCols := isi.getIdentityColumns(conv, common.SchemaAndName{Schema: "public", Name: "my_table"})
 	assert.Equal(t, []string{}, identityCols)
 	assert.Equal(t, int64(1), conv.Unexpecteds())
+}
+
+func TestGetInheritedTables(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "FROM pg_catalog.pg_inherits",
+			cols:  []string{"child_schema", "child_name", "parent_schema", "parent_name"},
+			rows: [][]driver.Value{
+				{"public", "child", "public", "p1"},
+				{"public", "child", "public", "p2"},
+				{"public", "capitals", "public", "cities"},
+				{"other", "shape", "other", "base"},
+			},
+		},
+	}
+	isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+	got, err := isi.GetInheritedTables()
+	assert.Nil(t, err)
+	assert.Equal(t, map[string][]string{
+		"child":       {"p1", "p2"},
+		"capitals":    {"cities"},
+		"other.shape": {"other.base"},
+	}, got)
+}
+
+// A failed parent lookup must fail the read rather than read without ONLY,
+// which would copy child rows into the parent.
+func TestInheritanceLookupErrors(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	defer db.Close()
+	isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+	denied := errors.New("permission denied for table pg_inherits")
+	mock.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnError(denied)
+	mock.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnRows(
+		sqlmock.NewRows([]string{"child_schema"}).AddRow("public"))
+	mock.ExpectQuery("SELECT EXISTS").WillReturnError(denied)
+	mock.ExpectQuery("SELECT EXISTS").WillReturnError(denied)
+
+	_, err = isi.GetInheritedTables()
+	assert.ErrorContains(t, err, "permission denied")
+	_, err = isi.GetInheritedTables()
+	assert.ErrorContains(t, err, "couldn't scan")
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{Name: "cities", Schema: "public", Id: "t1"}
+	_, err = isi.GetRowsFromTable(conv, "t1")
+	assert.ErrorContains(t, err, "permission denied")
+	_, err = isi.GetRowCount(common.SchemaAndName{Schema: "public", Name: "cities"})
+	assert.ErrorContains(t, err, "permission denied")
+	assert.Nil(t, mock.ExpectationsWereMet())
 }
