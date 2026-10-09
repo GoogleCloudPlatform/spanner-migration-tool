@@ -132,7 +132,7 @@ types is how string literals are converted to timestamps and queries return
 data. For `TIMESTAMP`, all timezone information is dropped, and data is returned
 without a timezone. For `TIMESTAMPTZ`, string literals are converted to UTC,
 using the literal's timezone if it is specified, or the PostgreSQL's timezone
-paramater if not. When data is printed stored data (in UTC) is converted to the
+parameter if not. When data is printed stored data (in UTC) is converted to the
 timezone from the timezone parameter
 
 Spanner has a single timestamp type. Data is stored as UTC (there is no separate
