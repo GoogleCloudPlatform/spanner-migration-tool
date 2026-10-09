@@ -66,6 +66,39 @@ func TestProcessDataRow(t *testing.T) {
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero", float32(3.14)}}}, rows)
 }
 
+func TestProcessDataRow_GeneratedColumn(t *testing.T) {
+	tableName := "testtable"
+	tableId := "t1"
+	colIds := []string{"c1", "c2"}
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:   tableName,
+			Id:     "t1",
+			ColIds: colIds,
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+				"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Type: ddl.GeneratedColStored,
+						Value: ddl.Expression{Statement: "(a + 1)"}}},
+			}},
+		schema.Table{
+			Name:   tableName,
+			Id:     "t1",
+			ColIds: colIds,
+			ColDefs: map[string]schema.Column{
+				"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
+				"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
+			}})
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	ProcessDataRow(conv, tableId, colIds, []string{"6", "7"})
+	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: []string{"a"}, vals: []interface{}{int64(6)}}}, rows)
+}
+
 func TestConvertData(t *testing.T) {
 	singleColTests := []struct {
 		name  string

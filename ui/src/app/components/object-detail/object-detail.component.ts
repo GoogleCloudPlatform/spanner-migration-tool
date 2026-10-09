@@ -274,7 +274,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       this.spDisplayedColumns.splice(3, 0, "spGeneratedColumn");
       this.spDisplayedColumns.splice(4, 0, "spGeneratedColumnType");
     }
-    if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spAutoGen")) {
+    if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spDefaultValue")) {
       this.srcDisplayedColumns.push("srcDefaultValue");
       this.spDisplayedColumns.splice(7, 0, "spDefaultValue");
       this.spColspan += 1;
