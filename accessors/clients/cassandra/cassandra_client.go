@@ -36,7 +36,7 @@ var createSessionFromCluster = func(c *gocql.ClusterConfig) (GocqlSessionInterfa
 	return NewGocqlSessionImpl(session), nil
 }
 
-func GetOrCreateCassandraClusterClient(contactPoints []string, port int, keyspace, datacenter, user, password string) (CassandraClusterInterface, error) {
+func GetOrCreateCassandraClusterClient(contactPoints []string, port int, keyspace, datacenter, user, password string, sslmode, sslrootcert, sslcert, sslkey string) (CassandraClusterInterface, error) {
 	clusterConfigMux.Lock()
 	defer clusterConfigMux.Unlock()
 	
@@ -53,6 +53,14 @@ func GetOrCreateCassandraClusterClient(contactPoints []string, port int, keyspac
 	}
 	if datacenter != "" {
 		clusterCfg.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(datacenter)
+	}
+	if sslmode != "" && sslmode != "disable" {
+		clusterCfg.SslOpts = &gocql.SslOptions{
+			CaPath:                 sslrootcert,
+			CertPath:               sslcert,
+			KeyPath:                sslkey,
+			EnableHostVerification: sslmode == "verify-full",
+		}
 	}
 	globalClusterConfig = clusterCfg
 

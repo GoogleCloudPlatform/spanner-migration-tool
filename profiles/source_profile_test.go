@@ -1322,3 +1322,55 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL_SecretManager_ImplicitLate
 
 	mockClient.AssertExpectations(t)
 }
+
+func TestNewSourceProfileConnectionTLS(t *testing.T) {
+	sourceProfileDialect := SourceProfileDialectImpl{}
+	g := GetUtilInfoMock{}
+	setGetInfoMockValues(&g)
+
+	t.Run("MySQL parsing with TLS params in profile", func(t *testing.T) {
+		params := map[string]string{
+			"host":        "0.0.0.0",
+			"user":        "user",
+			"dbName":      "db",
+			"password":    "pwd",
+			"sslmode":     "verify-full",
+			"sslrootcert": "/path/to/ca.pem",
+			"sslcert":     "/path/to/cert.pem",
+			"sslkey":      "/path/to/key.pem",
+		}
+		res, err := sourceProfileDialect.NewSourceProfileConnectionMySQL(params, &g)
+		assert.Nil(t, err)
+		assert.Equal(t, "verify-full", res.Sslmode)
+		assert.Equal(t, "/path/to/ca.pem", res.Sslrootcert)
+		assert.Equal(t, "/path/to/cert.pem", res.Sslcert)
+		assert.Equal(t, "/path/to/key.pem", res.Sslkey)
+	})
+
+	t.Run("PostgreSQL parsing with TLS env variables", func(t *testing.T) {
+		os.Setenv("PGSSLMODE", "require")
+		os.Setenv("PGSSLROOTCERT", "/env/ca.pem")
+		os.Setenv("PGSSLCERT", "/env/cert.pem")
+		os.Setenv("PGSSLKEY", "/env/key.pem")
+		defer func() {
+			os.Unsetenv("PGSSLMODE")
+			os.Unsetenv("PGSSLROOTCERT")
+			os.Unsetenv("PGSSLCERT")
+			os.Unsetenv("PGSSLKEY")
+		}()
+
+		params := map[string]string{
+			"host":     "0.0.0.0",
+			"user":     "user",
+			"dbName":   "db",
+			"password": "pwd",
+		}
+		res, err := sourceProfileDialect.NewSourceProfileConnectionPostgreSQL(params, &g)
+		assert.Nil(t, err)
+		assert.Equal(t, "require", res.Sslmode)
+		assert.Equal(t, "/env/ca.pem", res.Sslrootcert)
+		assert.Equal(t, "/env/cert.pem", res.Sslcert)
+		assert.Equal(t, "/env/key.pem", res.Sslkey)
+	})
+}
+

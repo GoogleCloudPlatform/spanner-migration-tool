@@ -15,13 +15,17 @@
 package profiles
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	mysqldriver "github.com/go-sql-driver/mysql"
 	go_ora "github.com/sijms/go-ora/v2"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
@@ -87,16 +91,65 @@ func ParseList(s string) ([]string, error) {
 	return records[0], nil
 }
 
+func registerMySQLTLSConfig(sslrootcert, sslcert, sslkey, sslmode string) (string, error) {
+	tlsConfig := &tls.Config{}
+
+	if sslrootcert != "" {
+		rootCertPool := x509.NewCertPool()
+		pem, err := os.ReadFile(sslrootcert)
+		if err != nil {
+			return "", fmt.Errorf("failed to read root CA cert: %w", err)
+		}
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			return "", fmt.Errorf("failed to append root CA cert")
+		}
+		tlsConfig.RootCAs = rootCertPool
+	}
+
+	if sslcert != "" && sslkey != "" {
+		certs, err := tls.LoadX509KeyPair(sslcert, sslkey)
+		if err != nil {
+			return "", fmt.Errorf("failed to load client cert/key: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{certs}
+	}
+
+	if sslmode == "verify-ca" {
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyConnection = func(cs tls.ConnectionState) error {
+			opts := x509.VerifyOptions{
+				Roots:         tlsConfig.RootCAs,
+				CurrentTime:   time.Now(),
+				Intermediates: x509.NewCertPool(),
+			}
+			for _, cert := range cs.PeerCertificates[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := cs.PeerCertificates[0].Verify(opts)
+			return err
+		}
+	} else if sslmode == "skip-verify" {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	configName := fmt.Sprintf("custom_%d", time.Now().UnixNano())
+	err := mysqldriver.RegisterTLSConfig(configName, tlsConfig)
+	if err != nil {
+		return "", err
+	}
+	return configName, nil
+}
+
 func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.Ty == SourceProfileTypeConnection {
 		switch sourceProfile.Conn.Ty {
 		case SourceProfileConnectionTypeMySQL:
 			connParams := sourceProfile.Conn.Mysql
-			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db, connParams.Sslmode, connParams.Sslrootcert, connParams.Sslcert, connParams.Sslkey)
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
-			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db, connParams.Sslmode, connParams.Sslrootcert, connParams.Sslcert, connParams.Sslkey)
 		case SourceProfileConnectionTypeSqlServer:
 			connParams := sourceProfile.Conn.SqlServer
 			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
@@ -122,11 +175,26 @@ func GeneratePGSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
+	return getPGSQLConnectionStr(server, port, user, password, dbName, os.Getenv("PGSSLMODE"), os.Getenv("PGSSLROOTCERT"), os.Getenv("PGSSLCERT"), os.Getenv("PGSSLKEY")), nil
 }
 
-func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbName)
+func getPGSQLConnectionStr(server, port, user, password, dbName string, sslmode, sslrootcert, sslcert, sslkey string) string {
+	str := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s", server, port, user, password, dbName)
+	if sslmode != "" {
+		str = fmt.Sprintf("%s sslmode=%s", str, sslmode)
+	} else {
+		str = fmt.Sprintf("%s sslmode=disable", str)
+	}
+	if sslrootcert != "" {
+		str = fmt.Sprintf("%s sslrootcert=%s", str, sslrootcert)
+	}
+	if sslcert != "" {
+		str = fmt.Sprintf("%s sslcert=%s", str, sslcert)
+	}
+	if sslkey != "" {
+		str = fmt.Sprintf("%s sslkey=%s", str, sslkey)
+	}
+	return str
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {
@@ -143,11 +211,34 @@ func GenerateMYSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getMYSQLConnectionStr(server, port, user, password, dbName), nil
+	return getMYSQLConnectionStr(server, port, user, password, dbName, os.Getenv("MYSQL_SSL_MODE"), os.Getenv("MYSQL_SSL_ROOT_CERT"), os.Getenv("MYSQL_SSL_CERT"), os.Getenv("MYSQL_SSL_KEY")), nil
 }
 
-func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
+func getMYSQLConnectionStr(server, port, user, password, dbName string, sslmode, sslrootcert, sslcert, sslkey string) string {
+	base := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
+	tlsParam := ""
+	if sslrootcert != "" || sslcert != "" || sslkey != "" {
+		configName, err := registerMySQLTLSConfig(sslrootcert, sslcert, sslkey, sslmode)
+		if err == nil {
+			tlsParam = configName
+		}
+	} else if sslmode != "" {
+		switch sslmode {
+		case "disable":
+			tlsParam = "false"
+		case "skip-verify":
+			tlsParam = "skip-verify"
+		case "require":
+			tlsParam = "true"
+		default:
+			tlsParam = "preferred"
+		}
+	}
+
+	if tlsParam != "" {
+		return fmt.Sprintf("%s?tls=%s", base, tlsParam)
+	}
+	return base
 }
 
 func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {

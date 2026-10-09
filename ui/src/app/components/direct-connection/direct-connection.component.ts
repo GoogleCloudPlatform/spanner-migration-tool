@@ -28,6 +28,10 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('', [Validators.required]),
     dialect: new FormControl('', [Validators.required]),
     dataCenter: new FormControl(''),
+    sslmode: new FormControl(''),
+    sslrootcert: new FormControl(''),
+    sslcert: new FormControl(''),
+    sslkey: new FormControl(''),
   })
 
   dbEngineList = [
@@ -100,7 +104,7 @@ export class DirectConnectionComponent implements OnInit {
 
   testConn() {
     this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
-    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter, sslmode, sslrootcert, sslcert, sslkey } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     let config: IDbConfig = {
       dbEngine: dbEngine!,
@@ -111,6 +115,10 @@ export class DirectConnectionComponent implements OnInit {
       password: password!,
       dbName: dbName!,
       dataCenter: dataCenter!,
+      sslmode: sslmode!,
+      sslrootcert: sslrootcert!,
+      sslcert: sslcert!,
+      sslkey: sslkey!,
     }
     this.connectRequest =this.fetch.connectTodb(config, dialect!).subscribe({
         next: () => {
@@ -149,7 +157,7 @@ export class DirectConnectionComponent implements OnInit {
         window.scroll(0, 0);
         this.data.resetStore();
         localStorage.clear();
-        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value;
+        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter, sslmode, sslrootcert, sslcert, sslkey } = this.connectForm.value;
         localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
         let config: IDbConfig = {
           dbEngine: dbEngine!,
@@ -160,6 +168,10 @@ export class DirectConnectionComponent implements OnInit {
           password: password!,
           dbName: dbName!,
           dataCenter: dataCenter!,
+          sslmode: sslmode!,
+          sslrootcert: sslrootcert!,
+          sslcert: sslcert!,
+          sslkey: sslkey!,
         };
         this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
           next: () => {
