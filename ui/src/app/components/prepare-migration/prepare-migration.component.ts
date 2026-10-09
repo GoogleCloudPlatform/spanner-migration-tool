@@ -186,7 +186,8 @@ export class PrepareMigrationComponent implements OnInit {
         if (
           res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
           res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
-          res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
+          res.DatabaseType == SourceDbNames.Postgres.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.SQLServer.toLowerCase()
         ) {
         }
         this.selectedMigrationType = MigrationTypes.bulkMigration

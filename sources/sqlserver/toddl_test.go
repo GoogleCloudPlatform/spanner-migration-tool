@@ -30,93 +30,117 @@ import (
 )
 
 func TestToSpannerTypeInternal(t *testing.T) {
-	_, errCheck := toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck := toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in bigint of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
-	if errCheck == nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
+	if errCheck != nil {
 		t.Errorf("Error in bigint of sptype int64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in tinyint of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64")
-	if errCheck == nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
+	if errCheck != nil {
 		t.Errorf("Error in tinyint of sptype int64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in real of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64", false)
 	if errCheck == nil {
 		t.Errorf("Error in real of sptype float64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in float of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in numeric of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
-	if errCheck != nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	if errCheck == nil {
 		t.Errorf("Error in bit of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
-	if errCheck != nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
-	if errCheck != nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
-	if errCheck != nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of default sptype")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "ntext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "ntext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck != nil {
 		t.Errorf("Error in ntext of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck != nil {
 		t.Errorf("Error in binary of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "date", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
-	if errCheck == nil {
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "date", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	if errCheck != nil {
 		t.Errorf("Error in date of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "datetime", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "datetime", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in datetime of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamp", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamp", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in timestamp of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in time of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "")
+	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "", false)
 	if errCheck == nil {
 		t.Errorf("Error in default case")
+	}
+}
+
+// NUMERIC is a valid key column in GoogleSQL; only the PostgreSQL dialect
+// requires falling back to STRING, which is handled by common.ToPGDialectType.
+func TestToSpannerType_NumericPK(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		dialect    string
+		wantType   ddl.Type
+		wantIssues []internal.SchemaIssue
+	}{
+		{"googlesql keeps NUMERIC pk", constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Numeric}, nil},
+		{"postgresql downgrades NUMERIC pk to STRING", constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NumericPKNotSupported}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			conv.SpDialect = tc.dialect
+			for _, src := range []string{"numeric", "decimal", "money", "smallmoney"} {
+				ty, issues := ToDdlImpl{}.ToSpannerType(conv, "", schema.Type{Name: src, Mods: []int64{10, 2}}, true)
+				assert.Equal(t, tc.wantType, ty, src)
+				assert.Equal(t, tc.wantIssues, issues, src)
+			}
+		})
 	}
 }
 
@@ -201,16 +225,16 @@ func TestToSpannerType(t *testing.T) {
 			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Int64}},
-			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: int64(4000)}},
 			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Numeric}},
 			"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Timestamp}},
 			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: int64(50)}},
-			"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}},
 			"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Bool}},
-			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.UUID}},
 			"c22": {Name: "p", Id: "c22", T: ddl.Type{Name: ddl.Float32}},
 		},
 
@@ -224,9 +248,6 @@ func TestToSpannerType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
-			"c1":  {internal.Widened},
-			"c3":  {internal.Widened},
-			"c10": {internal.Timestamp},
 			"c13": {internal.NoGoodType},
 		},
 	}
@@ -315,16 +336,16 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Int64}},
-			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: int64(4000)}},
 			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Numeric}},
 			"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Timestamp}},
 			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: int64(50)}},
-			"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}},
 			"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Bool}},
-			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.UUID}},
 			"c22": {Name: "p", Id: "c22", T: ddl.Type{Name: ddl.Float32}},
 		},
 
@@ -338,9 +359,6 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
-			"c1":  {internal.Widened},
-			"c3":  {internal.Widened},
-			"c10": {internal.Timestamp},
 			"c13": {internal.NoGoodType},
 		},
 	}

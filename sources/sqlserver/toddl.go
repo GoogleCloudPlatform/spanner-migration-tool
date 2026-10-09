@@ -16,6 +16,9 @@
 package sqlserver
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -32,7 +35,13 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(srcType, spType)
+	// Preemptively strip precision strings before routing the base type to internal switch evaluators.
+	re := regexp.MustCompile(`\([0-9, ]+\)`)
+	cleanName := re.ReplaceAllString(srcType.Name, "")
+	cleanName = strings.ToLower(cleanName)
+	srcType.Name = cleanName
+
+	ty, issues := toSpannerTypeInternal(srcType, spType, isPk)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		var pg_issues []internal.SchemaIssue
 		ty, pg_issues = common.ToPGDialectType(ty, isPk)
@@ -42,7 +51,17 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 }
 
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
-	return nil, nil
+	// SQL Server auto increment is implemented via bit-reversed sequences in Spanner.
+	switch autoGenCol.GenerationType {
+	case constants.IDENTITY, constants.AUTO_INCREMENT:
+		return &ddl.AutoGenCol{
+			Name:            constants.SEQUENCE,
+			GenerationType:  constants.SEQUENCE,
+			IdentityOptions: conv.DefaultIdentityOptions,
+		}, nil
+	default:
+		return nil, nil
+	}
 }
 
 // toSpannerTypeInternal defines the mapping of source types into Spanner
@@ -53,26 +72,25 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 // Spanner type name is specified and is a potential mapping for this source type,
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
-
-func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
-	case "bigint":
+	case "bigint", "tinyint", "smallint", "int":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
-		case ddl.Int64:
-			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
-	case "tinyint", "smallint", "int":
+	case "bit":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.Bool}, nil
 		}
 	case "real":
 		switch spType {
@@ -87,6 +105,8 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Float64}, nil
 		}
@@ -94,36 +114,33 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
-			// TODO: check mod[0] and mod[1] and generate a warning
-			// if this numeric won't fit in Spanner's NUMERIC.
+			// NUMERIC is a valid key column in GoogleSQL. The PostgreSQL dialect
+			// restriction is handled by common.ToPGDialectType in ToSpannerType.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-
-	case "bit":
+	case "date":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			return ddl.Type{Name: ddl.Bool}, nil
+			return ddl.Type{Name: ddl.Date}, nil
 		}
-	case "uniqueidentifier":
+	case "time":
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
+	case "datetime2", "datetimeoffset", "datetime", "smalldatetime":
 		switch spType {
-		case ddl.Bytes:
-			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
-			}
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Datetime}
 		default:
-			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
-				return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
-			}
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.Timestamp}, nil
 		}
 	case "varchar", "char", "nvarchar", "nchar":
 		switch spType {
 		case ddl.Bytes:
-			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 && srcType.Mods[0] <= ddl.BytesMaxLength {
 				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
@@ -137,9 +154,9 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// -OR-
 			// Source length is "-1" which represents MAX in SQL Server
 			if len(srcType.Mods) > 0 && (srcType.Mods[0] > ddl.StringMaxLength || srcType.Mods[0] < 0) {
-				return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
+				return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 			}
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
 		}
 	case "ntext", "text", "xml":
 		switch spType {
@@ -148,37 +165,48 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
-
 	case "binary", "varbinary", "image":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
+		default:
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 && srcType.Mods[0] <= ddl.BytesMaxLength {
+				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+			}
+			if len(srcType.Mods) > 0 && (srcType.Mods[0] > ddl.BytesMaxLength || srcType.Mods[0] < 0) {
+				return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, nil
+		}
+	case "json":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.JSON}, nil
+		}
+	case "vector":
+		return ddl.Type{Name: ddl.Float64, IsArray: true}, []internal.SchemaIssue{internal.ArrayTypeNotSupported}
+	case "rowversion", "timestamp":
+		switch spType {
+		case ddl.Int64:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
-	case "date":
+	case "uniqueidentifier":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Date}, nil
+			return ddl.Type{Name: ddl.UUID}, nil
 		}
-	case "datetime2", "datetime", "datetimeoffset", "smalldatetime", "rowversion":
-		switch spType {
-		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
-		default:
-			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
-		}
-	case "timestamp":
-		switch spType {
-		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
-		default:
-			return ddl.Type{Name: ddl.Int64}, nil
-		}
-	case "time":
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
+	case "cursor", "geography", "geometry", "hierarchyid", "sql_variant", "table", "sysname":
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

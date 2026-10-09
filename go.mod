@@ -22,6 +22,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.9.0
+	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/pganalyze/pg_query_go/v6 v6.1.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20240705091134-821e491a20fb
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20240705091134-821e491a20fb
@@ -66,6 +67,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/martian/v3 v3.3.3 // indirect

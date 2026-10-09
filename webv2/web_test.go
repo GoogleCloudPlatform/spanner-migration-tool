@@ -253,7 +253,7 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 				Password: "passw\\`~ord",
 				Database: "testdb",
 			},
-			expectedString: "sqlserver://user:passw%5C%60~ord@localhost:1433/testdb?sslmode=disable",
+			expectedString: "sqlserver://user:passw%5C%60~ord@localhost:1433?database=testdb",
 			expectError:    false,
 		},
 		{

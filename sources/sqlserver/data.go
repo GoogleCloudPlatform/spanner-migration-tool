@@ -113,7 +113,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, t
 		return convInt64(val)
 	case ddl.Numeric:
 		return convNumeric(conv, val)
-	case ddl.String:
+	case ddl.String, ddl.UUID:
 		return val, nil
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, val)

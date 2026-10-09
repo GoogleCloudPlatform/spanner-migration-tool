@@ -288,7 +288,7 @@ func TestProcessSchema(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"Id":               {Name: "Id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"BigInt":           {Name: "BigInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
 				"Bit":              {Name: "Bit", T: ddl.Type{Name: ddl.Bool}, NotNull: false},
 				"Char":             {Name: "Char", T: ddl.Type{Name: ddl.String, Len: 10, IsArray: false}, NotNull: false},
 				"Date":             {Name: "Date", T: ddl.Type{Name: ddl.Date}, NotNull: false},
@@ -300,14 +300,14 @@ func TestProcessSchema(t *testing.T) {
 				"Geography":        {Name: "Geography", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Geometry":         {Name: "Geometry", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"HierarchyId":      {Name: "HierarchyId", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"Int":              {Name: "Int", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"Money":            {Name: "Money", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NChar":            {Name: "NChar", T: ddl.Type{Name: ddl.String, Len: 10}, NotNull: false},
 				"NText":            {Name: "NText", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Numeric":          {Name: "Numeric", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NVarChar":         {Name: "NVarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Real":             {Name: "Real", T: ddl.Type{Name: ddl.Float32}, NotNull: false},
 				"SmallDateTime":    {Name: "SmallDateTime", T: ddl.Type{Name: ddl.Timestamp}, NotNull: false},
 				"SmallInt":         {Name: "SmallInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
@@ -315,13 +315,13 @@ func TestProcessSchema(t *testing.T) {
 				"SQLVariant":       {Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             {Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Time":             {Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
+				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
 				"TinyInt":          {Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.UUID}, NotNull: false},
+				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
+				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"VarChar":          {Name: "VarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
@@ -366,7 +366,7 @@ func TestProcessSchema(t *testing.T) {
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 15)
+	assert.Equal(t, 9, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }
