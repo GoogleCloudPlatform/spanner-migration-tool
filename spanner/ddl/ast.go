@@ -172,11 +172,15 @@ func (ty Type) PGPrintColumnDefType(isVirtual bool) string {
 		str = PGVarchar
 		ty.Len = PGMaxLength
 	}
+	// Spanner requires MAX length on non-stored generated columns
+	if ty.Name == String && isVirtual {
+		return str
+	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
 	if ty.Name == String || ty.IsArray {
 		str += "("
-		if ty.Len == MaxLength || ty.Len == PGMaxLength || isVirtual {
+		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)
 		} else {
 			str += strconv.FormatInt(ty.Len, 10)

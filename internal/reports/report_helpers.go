@@ -117,7 +117,7 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		tr.Cols = cols
 		tr.Warnings = warnings
 		schemaIssues := conv.SchemaIssues[tableId].TableLevelIssues
-		tr.Errors = int64(len(schemaIssues))
+		tr.Errors = countActionableIssues(schemaIssues)
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
 			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
@@ -164,6 +164,10 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 			}
 
+		}
+
+		if p.severity == note {
+			l = append(l, buildTableLevelIssues(conv, tableId, tableLevelIssues, note)...)
 		}
 
 		// added if condition to add table level warnings
@@ -742,6 +746,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.CassandraTIMEUUID:            {Brief: "Cassandra TimeUUIDs map to Spanner's BYTES(16). This generic type doesn't validate embedded timestamps.", Severity: warning, Category: "CASSANDRA_TIMEUUID_USES"},
 	internal.CassandraMAP:                 {Brief: "Cassandra MAP type maps to Spanner's JSON. Spanner does not validate internal JSON structure or types, unlike Cassandra's MAP.", Severity: warning, Category: "CASSANDRA_MAP_USES"},
 	internal.PossibleOverflow:             {Brief: "Possible overflow in Spanner. Source type does not entirely fit inside Spanner's type. Please check if the data fits within the target type's limits.", Severity: warning, Category: "POSSIBLE_OVERFLOW"},
+	internal.InheritedTable:               {Brief: "Inherited table automatically flattened into a standalone table", Severity: note, Category: "INHERITED_TABLE"},
 }
 
 type Severity int
@@ -752,6 +757,74 @@ const (
 	suggestion
 	Errors
 )
+
+// countActionableIssues counts the table level issues that require user
+// attention.
+func countActionableIssues(issues []internal.SchemaIssue) int64 {
+	var count int64
+	for _, issue := range issues {
+		if IssueDB[issue].Severity != note { // Notes are purely informational and are excluded.
+			count++
+		}
+	}
+	return count
+}
+
+// tableIssueDescriber builds a table specific description for an issue. It
+// returns false to fall back to the issue's Brief.
+type tableIssueDescriber func(conv *internal.Conv, tableId string) (string, bool)
+
+// tableIssueDescribers holds the table level issues whose description needs
+// details of the table, e.g. its parent tables.
+var tableIssueDescribers = map[internal.SchemaIssue]tableIssueDescriber{
+	internal.InheritedTable: describeInheritedTable,
+}
+
+// buildTableLevelIssues renders the table level issues matching severity.
+func buildTableLevelIssues(conv *internal.Conv, tableId string, issues []internal.SchemaIssue, severity Severity) []Issue {
+	var l []Issue
+	for _, issue := range issues {
+		if IssueDB[issue].Severity != severity {
+			continue
+		}
+		l = append(l, Issue{
+			Category:    IssueDB[issue].Category,
+			Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, tableIssueDescription(conv, tableId, issue)),
+		})
+	}
+	return l
+}
+
+// tableIssueDescription returns the issue's table specific description if it
+// has one, and its Brief otherwise.
+func tableIssueDescription(conv *internal.Conv, tableId string, issue internal.SchemaIssue) string {
+	if describe, ok := tableIssueDescribers[issue]; ok {
+		if description, ok := describe(conv, tableId); ok {
+			return description
+		}
+	}
+	return IssueDB[issue].Brief
+}
+
+// describeInheritedTable names the direct parents of an inherited table.
+// Parents are shown by their Spanner name, falling back to the source name
+// when the parent isn't migrated.
+func describeInheritedTable(conv *internal.Conv, tableId string) (string, bool) {
+	var parents []string
+	for _, name := range conv.SrcSchema[tableId].InheritedFrom {
+		label := name
+		if parent, ok := internal.GetSrcTableByName(conv.SrcSchema, name); ok && parent != nil {
+			if spTable, ok := conv.SpSchema[parent.Id]; ok {
+				label = spTable.Name
+			}
+		}
+		parents = append(parents, fmt.Sprintf("'%s'", label))
+	}
+	if len(parents) == 0 {
+		return "", false
+	}
+	return fmt.Sprintf("Inherited table (from %s) automatically flattened into a standalone table", strings.Join(parents, ", ")), true
+}
 
 // AnalyzeCols returns information about the quality of schema mappings
 // for table 'srcTable'. It assumes 'srcTable' is in the conv.SrcSchema map.

@@ -291,6 +291,15 @@ func TestVerifyExpressions(t *testing.T) {
 		assert.True(t, strings.Contains(output.Err.Error(), "one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields"))
 	})
 
+	t.Run("Empty expression list returns without contacting Spanner", func(t *testing.T) {
+		emptyInput := input
+		emptyInput.ExpressionDetailList = nil
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{}
+		output := ev.VerifyExpressions(ctx, emptyInput)
+		assert.Nil(t, output.Err)
+		assert.Empty(t, output.ExpressionVerificationOutputList)
+	})
+
 }
 
 func TestVerifyPrimaryKeysExpressionsUsingCreateTable(t *testing.T) {

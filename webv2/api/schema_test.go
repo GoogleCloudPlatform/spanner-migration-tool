@@ -1691,6 +1691,10 @@ func TestDropTable(t *testing.T) {
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
+		ToSpanner: map[string]internal.NameAndCols{
+			"tn1": {Name: "tn1", Cols: map[string]string{"cn1": "cn1", "cn2": "cn2", "cn3": "cn3"}},
+			"tn2": {Name: "tn2", Cols: map[string]string{"cn4": "cn4", "cn5": "cn5", "cn6": "cn6"}},
+		},
 	}
 
 	sessionState.Conv = c3
@@ -1732,6 +1736,8 @@ func TestDropTable(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedConv.SpSchema, res.SpSchema)
+	assert.NotContains(t, res.ToSpanner, "tn1")
+	assert.Contains(t, res.ToSpanner, "tn2")
 }
 
 func TestRestoreTable(t *testing.T) {
