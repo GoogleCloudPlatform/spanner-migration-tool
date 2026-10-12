@@ -48,6 +48,11 @@ func ParseMap(s string) (map[string]string, error) {
 	if len(records) > 1 {
 		return params, fmt.Errorf("contains invalid newline characters")
 	}
+	if len(records) == 0 {
+		// csv.ReadAll returns zero records (no error) for whitespace-only input
+		// such as "\n"; guard before indexing records[0].
+		return params, fmt.Errorf("no key=value pairs found")
+	}
 
 	for _, kv := range records[0] {
 		equalSignIndex := strings.Index(kv, "=")
@@ -83,6 +88,11 @@ func ParseList(s string) ([]string, error) {
 	}
 	if len(records) > 1 {
 		return nil, fmt.Errorf("contains invalid newline characters")
+	}
+	if len(records) == 0 {
+		// csv.ReadAll returns zero records (no error) for whitespace-only input
+		// such as "\n"; guard before indexing records[0].
+		return nil, fmt.Errorf("no values found")
 	}
 	return records[0], nil
 }
