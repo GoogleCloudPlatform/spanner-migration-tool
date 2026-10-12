@@ -65,5 +65,15 @@ func getSummary() map[string]ConversionSummary {
 		cs.WarningsCount = len(cs.Warnings)
 		summary[parentId] = cs
 	}
+
+	if notice, ok := reports.NonPublicTableNotice(sessionState.Conv); ok {
+		summary[""] = ConversionSummary{
+			Notes:         []reports.Issue{},
+			Warnings:      []reports.Issue{notice},
+			WarningsCount: 1,
+			Errors:        []reports.Issue{},
+			Suggestions:   []reports.Issue{},
+		}
+	}
 	return summary
 }

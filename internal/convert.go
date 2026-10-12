@@ -59,7 +59,9 @@ type Conv struct {
 	SpInstanceId           string                  // Spanner Instance Id
 	Source                 string                  // Source Database type being migrated
 	DatabaseOptions        ddl.DatabaseOptions
-	DefaultIdentityOptions ddl.IdentityOptions // Default values to use for IDENTITY columns
+	DefaultIdentityOptions ddl.IdentityOptions     // Default values to use for IDENTITY columns
+	NonPublicTables        []string                `json:",omitempty"` // Non-public schema tables skipped during migration.
+	NonPublicRefs          map[string][]string     `json:",omitempty"` // Source table name -> non-public schema tables it referenced.
 }
 
 type InvalidCheckExp struct {
@@ -161,6 +163,8 @@ const (
 	GeneratedColumnValueError
 	PartitionedTable
 	InheritedTable
+	NonPublicTable
+	NonPublicSchemaRef
 )
 
 const (
@@ -641,3 +645,33 @@ func byteSize(r *row) int64 {
 	}
 	return n
 }
+
+// AddNonPublicTable records a table outside the default schema that was skipped.
+func (conv *Conv) AddNonPublicTable(schema, table string) {
+	if schema == "" || table == "" {
+		return
+	}
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	name := fmt.Sprintf("%s.%s", schema, table)
+	if !Contains(conv.NonPublicTables, name) {
+		conv.NonPublicTables = append(conv.NonPublicTables, name)
+	}
+}
+
+// AddNonPublicRef records that srcTable referenced a table outside the default schema.
+func (conv *Conv) AddNonPublicRef(srcTable, refSchema, refTable string) {
+	if srcTable == "" || refSchema == "" || refTable == "" {
+		return
+	}
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	if conv.NonPublicRefs == nil {
+		conv.NonPublicRefs = make(map[string][]string)
+	}
+	ref := fmt.Sprintf("%s.%s", refSchema, refTable)
+	if !Contains(conv.NonPublicRefs[srcTable], ref) {
+		conv.NonPublicRefs[srcTable] = append(conv.NonPublicRefs[srcTable], ref)
+	}
+}
+
