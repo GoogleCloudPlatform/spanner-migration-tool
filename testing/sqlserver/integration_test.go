@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
@@ -27,6 +28,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +155,78 @@ func checkResults(t *testing.T, dbURI string) {
 
 	checkCommonDataType(ctx, t, client)
 	checkOtherTables(ctx, t, client)
+	checkNumericPK(ctx, t, client)
+}
+
+// checkNumericPK verifies that a SQL Server numeric primary key is migrated as a
+// Spanner NUMERIC primary key (GoogleSQL supports NUMERIC keys) and that the
+// data round-trips.
+func checkNumericPK(ctx context.Context, t *testing.T, client *spanner.Client) {
+	// Schema: the PK column must be NUMERIC, not the STRING fallback.
+	iter := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'NumericPK' AND COLUMN_NAME = 'Id'",
+	})
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		t.Fatalf("failed to read NumericPK.Id column type: %v", err)
+	}
+	var spannerType string
+	if err := row.Columns(&spannerType); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := spannerType, "NUMERIC"; got != want {
+		t.Fatalf("NumericPK.Id type is not correct: got %v, want %v", got, want)
+	}
+
+	// Schema: Id must actually be the primary key.
+	iter2 := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = 'NumericPK' AND INDEX_TYPE = 'PRIMARY_KEY'",
+	})
+	defer iter2.Stop()
+	row2, err := iter2.Next()
+	if err != nil {
+		t.Fatalf("failed to read NumericPK primary key: %v", err)
+	}
+	var pkCol string
+	if err := row2.Columns(&pkCol); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := pkCol, "Id"; got != want {
+		t.Fatalf("NumericPK primary key is not correct: got %v, want %v", got, want)
+	}
+
+	// Data: all rows round-trip, ordered by the NUMERIC key.
+	type numericPKRow struct {
+		id   string
+		name spanner.NullString
+	}
+	want := []numericPKRow{
+		{"-0.01", spanner.NullString{}},
+		{"1.50", spanner.NullString{StringVal: "one point five", Valid: true}},
+		{"99999999.99", spanner.NullString{StringVal: "max", Valid: true}},
+	}
+	iter3 := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT Id, Name FROM NumericPK ORDER BY Id"})
+	defer iter3.Stop()
+	var got []numericPKRow
+	for {
+		r, err := iter3.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var id big.Rat
+		var name spanner.NullString
+		if err := r.Columns(&id, &name); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, numericPKRow{id.FloatString(2), name})
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("NumericPK rows are not correct: got %v, want %v", got, want)
+	}
 }
 
 func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -194,6 +268,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		varCharMaxVal       string
 		xmlVal              string
 		sysnameVal          string
+		jsonVal             spanner.NullJSON
 	)
 	iter := client.Single().Read(ctx, "AllTypes", spanner.Key{1}, []string{
 		"Bit", "Date", "Float", "BigInt", "Numeric", "Text", "Time", "Money",
@@ -201,7 +276,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		"Geography", "Geometry", "HierarchyId", "Image", "Int", "NChar", "NText",
 		"NVarChar", "NVarCharMax", "Real", "SmallDateTime", "SmallInt", "SmallMoney",
 		"SQLVariant", "TimeStamp", "TinyInt", "UniqueIdentifier", "VarBinary",
-		"VarBinaryMax", "VarChar", "VarCharMax", "Xml", "SysName",
+		"VarBinaryMax", "VarChar", "VarCharMax", "Xml", "SysName", "Json",
 	})
 	defer iter.Stop()
 	for {
@@ -217,7 +292,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 			&geographyVal, &geometryVal, &hierarchyIdVal, &imageVal, &intVal, &nCharVal, &nTextVal,
 			&nVarCharVal, &nVarCharMaxVal, &realVal, &smallDateTime, &smallIntVal, &smallMoneyVal,
 			&sqlVariantVal, &timeStampVal, &tinyIntVal, &uniqueIdentifierVal, &varBinaryVal,
-			&varBinaryMaxVal, &varCharVal, &varCharMaxVal, &xmlVal, &sysnameVal); err != nil {
+			&varBinaryMaxVal, &varCharVal, &varCharMaxVal, &xmlVal, &sysnameVal, &jsonVal); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -338,6 +413,18 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	}
 	if got, want := sysnameVal, "sysname_test_1"; got != want {
 		t.Fatalf("SysName are not correct: got %v, want %v", got, want)
+	}
+	// Compare JSON structurally: both SQL Server's native json type and Spanner's
+	// JSON type normalise documents (key order, whitespace) on storage.
+	if !jsonVal.Valid {
+		t.Fatalf("Json are not correct: got NULL, want a document")
+	}
+	var wantJSON interface{}
+	if err := json.Unmarshal([]byte(`{"a":1,"b":[true,null],"c":"str"}`), &wantJSON); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(jsonVal.Value, wantJSON) {
+		t.Fatalf("Json are not correct: got %v, want %v", jsonVal.Value, wantJSON)
 	}
 }
 

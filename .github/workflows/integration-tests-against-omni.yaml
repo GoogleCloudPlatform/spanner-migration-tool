@@ -82,15 +82,16 @@ jobs:
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
       sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
+        # SQL Server 2025 is required for the native `json` data type covered by the SQL Server ITs.
+        image: mcr.microsoft.com/mssql/server:2025-latest
         env:
-          SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
+          MSSQL_SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
           MSSQL_PID: Express
           ACCEPT_EULA: Y
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P \"$SA_PASSWORD\" -Q 'select 1' -b -No -o /dev/null"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P \"$MSSQL_SA_PASSWORD\" -Q 'select 1' -b -No -o /dev/null"
           --health-interval 10s --health-timeout 5s --health-retries 3
       oracle:
         image: oracleinanutshell/oracle-xe-11g@sha256:8b740e77d4b90add693fedb22938f340821e89665fb58ecaeeb0dace853b9ee5
