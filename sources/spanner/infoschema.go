@@ -428,6 +428,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 				continue
 			}
+			isUnique = isPgUnique == "YES"
 		} else {
 			err = row.Columns(&name, &column, &sequence, &ordering, &isUnique)
 			if err != nil {
@@ -436,8 +437,6 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 				continue
 			}
 		}
-
-		isUnique = isPgUnique == "YES"
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
 			indexMap[name] = schema.Index{
