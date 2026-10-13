@@ -144,6 +144,31 @@ func TestToSpannerType_NumericPK(t *testing.T) {
 	}
 }
 
+func TestGetColumnAutoGen(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.DefaultIdentityOptions = ddl.IdentityOptions{SkipRangeMin: "1", SkipRangeMax: "1000"}
+	wantIdentity := &ddl.AutoGenCol{
+		Name:            constants.IDENTITY,
+		GenerationType:  constants.IDENTITY,
+		IdentityOptions: conv.DefaultIdentityOptions,
+	}
+	for _, tc := range []struct {
+		name string
+		in   ddl.AutoGenCol
+		want *ddl.AutoGenCol
+	}{
+		{"identity maps to Spanner IDENTITY", ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}, wantIdentity},
+		{"auto increment maps to Spanner IDENTITY", ddl.AutoGenCol{Name: constants.AUTO_INCREMENT, GenerationType: constants.AUTO_INCREMENT}, wantIdentity},
+		{"unknown generation type is ignored", ddl.AutoGenCol{Name: "x", GenerationType: "x"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ToDdlImpl{}.GetColumnAutoGen(conv, tc.in, "c1", "t1")
+			assert.Nil(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // This is just a very basic smoke-test for toSpannerType.
 func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()

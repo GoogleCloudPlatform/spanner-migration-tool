@@ -118,6 +118,7 @@ func TestIntegration_SQLserver_SchemaSubcommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 	dbName := fmt.Sprintf("sqlserver-%d", rand.Intn(1000000))
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
 	host, port, user, password, srcDb := os.Getenv("SQLSERVERHOST"), os.Getenv("SQLSERVERPORT"), os.Getenv("SQLSERVERUSER"), os.Getenv("MSSQL_SA_PASSWORD"), os.Getenv("SQLSERVERDATABASE")
@@ -125,6 +126,59 @@ func TestIntegration_SQLserver_SchemaSubcommand(t *testing.T) {
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+	checkIdentityColumns(ctx, t, dbURI)
+}
+
+// checkIdentityColumns verifies that SQL Server IDENTITY columns are migrated
+// as Spanner bit-reversed IDENTITY columns, and non-identity columns are not.
+func checkIdentityColumns(ctx context.Context, t *testing.T, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	for _, tc := range []struct {
+		table, column string
+		wantIdentity  bool
+	}{
+		{"IdentityTable", "Id", true},    // IDENTITY(100,5)
+		{"AllTypes", "Id", true},         // IDENTITY(1,1)
+		{"IdentityTable", "Name", false}, // plain column on a table with an identity PK
+	} {
+		stmt := spanner.Statement{
+			SQL:    `SELECT IS_IDENTITY, IDENTITY_GENERATION, IDENTITY_KIND FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table AND COLUMN_NAME = @column`,
+			Params: map[string]interface{}{"table": tc.table, "column": tc.column},
+		}
+		iter := client.Single().Query(ctx, stmt)
+		row, err := iter.Next()
+		if err != nil {
+			iter.Stop()
+			t.Fatalf("failed to read %s.%s from INFORMATION_SCHEMA.COLUMNS: %v", tc.table, tc.column, err)
+		}
+		var isIdentity string
+		var identityGeneration, identityKind spanner.NullString
+		if err := row.Columns(&isIdentity, &identityGeneration, &identityKind); err != nil {
+			iter.Stop()
+			t.Fatal(err)
+		}
+		iter.Stop()
+
+		if tc.wantIdentity {
+			if got, want := isIdentity, "YES"; got != want {
+				t.Fatalf("%s.%s IS_IDENTITY: got %v, want %v", tc.table, tc.column, got, want)
+			}
+			if got, want := identityGeneration.StringVal, "BY DEFAULT"; got != want {
+				t.Fatalf("%s.%s IDENTITY_GENERATION: got %v, want %v", tc.table, tc.column, got, want)
+			}
+			if got, want := identityKind.StringVal, "BIT_REVERSED_POSITIVE_SEQUENCE"; got != want {
+				t.Fatalf("%s.%s IDENTITY_KIND: got %v, want %v", tc.table, tc.column, got, want)
+			}
+		} else if got, want := isIdentity, "NO"; got != want {
+			t.Fatalf("%s.%s IS_IDENTITY: got %v, want %v", tc.table, tc.column, got, want)
+		}
 	}
 }
 func TestIntegration_SQLserver_SchemaAndDataSubcommand(t *testing.T) {
