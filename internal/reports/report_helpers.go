@@ -87,7 +87,7 @@ func NonPublicTableNotice(conv *internal.Conv) (Issue, bool) {
 	issue := IssueDB[internal.NonPublicTable]
 	return Issue{
 		Category:    issue.Category,
-		Description: fmt.Sprintf("Tables outside the '%s' schema (%s) are ignored", constants.PG_DEFAULT_SCHEMA, strings.Join(tables, ", ")),
+		Description: fmt.Sprintf("Table(s) outside the '%s' schema (%s) are ignored", constants.PG_DEFAULT_SCHEMA, strings.Join(tables, ", ")),
 	}, true
 }
 
@@ -854,7 +854,7 @@ func describeNonPublicSchemaRef(conv *internal.Conv, tableId string) (string, bo
 	if len(refs) == 0 {
 		return "", false
 	}
-	return fmt.Sprintf("References to tables outside the '%s' schema (%s) are ignored", constants.PG_DEFAULT_SCHEMA, strings.Join(refs, ", ")), true
+	return fmt.Sprintf("Reference(s) to table(s) outside the '%s' schema (%s) are ignored", constants.PG_DEFAULT_SCHEMA, strings.Join(refs, ", ")), true
 }
 
 // AnalyzeCols returns information about the quality of schema mappings

@@ -105,7 +105,7 @@ func TestReport_NonPublicTablesSkipped(t *testing.T) {
 
 	reportGenerator := reports.ReportImpl{}
 	structuredReport := reportGenerator.GenerateStructuredReport(constants.PGDUMP, "sampleDB", conv, nil, true, true)
-	warning := "Warning: Tables outside the 'public' schema ('archive.logs', 'sales.orders') are ignored.\n"
+	warning := "Warning: Table(s) outside the 'public' schema ('archive.logs', 'sales.orders') are ignored.\n"
 	assert.Contains(t, structuredReport.Summary.Text, warning)
 
 	buf := new(bytes.Buffer)

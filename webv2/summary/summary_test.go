@@ -344,14 +344,14 @@ func TestGetSummary_NonPublicSchemas(t *testing.T) {
 
 	assert.Equal(t, []reports.Issue{{
 		Category:    "NON_PUBLIC_TABLE_IGNORED",
-		Description: "Tables outside the 'public' schema ('archive.logs', 'sales.customers') are ignored",
+		Description: "Table(s) outside the 'public' schema ('archive.logs', 'sales.customers') are ignored",
 	}}, actualSummary[""].Warnings)
 	assert.Equal(t, 1, actualSummary[""].WarningsCount)
 	assert.Empty(t, actualSummary[""].Notes)
 
 	assert.Equal(t, []reports.Issue{{
 		Category:    "NON_PUBLIC_SCHEMA_REFERENCE",
-		Description: "Table 'orders': References to tables outside the 'public' schema ('sales.vendors') are ignored",
+		Description: "Table 'orders': Reference(s) to table(s) outside the 'public' schema ('sales.vendors') are ignored",
 	}}, actualSummary["t1"].Notes)
 	assert.Equal(t, 1, actualSummary["t1"].NotesCount)
 	assert.Empty(t, actualSummary["t1"].Warnings)
