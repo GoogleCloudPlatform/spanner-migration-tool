@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -49,7 +50,6 @@ type InfoSchemaImpl struct {
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
-
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
@@ -207,6 +207,9 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
+	// information_schema.COLUMNS carries no identity information, so IsIdentity
+	// is fetched via COLUMNPROPERTY. QUOTENAME handles table names containing
+	// dots (e.g. [go.get]).
 	q := `
 		SELECT 
 			column_name, 
@@ -215,7 +218,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			column_default, 
 			character_maximum_length, 
 			numeric_precision, 
-			numeric_scale
+			numeric_scale,
+			COLUMNPROPERTY(OBJECT_ID(QUOTENAME(table_schema) + '.' + QUOTENAME(table_name)), column_name, 'IsIdentity') AS is_identity
 		FROM information_schema.COLUMNS 
 		WHERE table_schema = @p1 and table_name = @p2 
 		ORDER BY ordinal_position;
@@ -231,9 +235,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var isNullable string
 	var colDefault sql.NullString
 	// elementDataType
-	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	var charMaxLen, numericPrecision, numericScale, isIdentity sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &isIdentity)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -251,6 +255,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		ignored.Default = colDefault.Valid
+		var colAutoGen ddl.AutoGenCol
+		if isIdentity.Valid && isIdentity.Int64 == 1 {
+			colAutoGen = ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+			}
+		}
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
@@ -258,6 +269,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: strings.ToUpper(isNullable) == "NO",
 			Ignored: ignored,
+			AutoGen: colAutoGen,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
