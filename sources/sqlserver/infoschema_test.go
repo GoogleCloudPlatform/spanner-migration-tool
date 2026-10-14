@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -75,11 +76,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "user"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"user_id", "text", "NO", nil, nil, nil, nil},
-				{"name", "text", "NO", nil, nil, nil, nil},
-				{"ref", "bigint", "YES", nil, nil, nil, nil}},
+				{"user_id", "text", "NO", nil, nil, nil, nil, 0},
+				{"name", "text", "NO", nil, nil, nil, nil, 0},
+				{"ref", "bigint", "YES", nil, nil, nil, nil, 0}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -103,45 +104,45 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"Id", "int", "NO", nil, nil, 10, 0},
-				{"BigInt", "bigint", "YES", nil, nil, 19, 0},
-				{"Binary", "binary", "YES", nil, 50, nil, nil},
-				{"Bit", "bit", "YES", nil, nil, nil, nil},
-				{"Char", "char", "YES", nil, 10, nil, nil},
-				{"Date", "date", "YES", nil, nil, nil, nil},
-				{"DateTime", "datetime", "YES", nil, nil, nil, nil},
-				{"DateTime2", "datetime2", "YES", nil, nil, nil, nil},
-				{"DateTimeOffset", "datetimeoffset", "YES", nil, nil, nil, nil},
-				{"Decimal", "decimal", "YES", nil, nil, 18, 9},
-				{"Float", "float", "YES", nil, nil, 53, nil},
-				{"Geography", "geography", "YES", nil, -1, nil, nil},
-				{"Geometry", "geometry", "YES", nil, -1, nil, nil},
-				{"HierarchyId", "hierarchyid", "YES", nil, 892, nil, nil},
-				{"Image", "image", "YES", nil, 2147483647, nil, nil},
-				{"Int", "int", "YES", nil, nil, 10, 0},
-				{"Money", "money", "YES", nil, nil, 19, 4},
-				{"NChar", "nchar", "YES", nil, 10, nil, nil},
-				{"NText", "ntext", "YES", nil, 1073741823, nil, nil},
-				{"Numeric", "numeric", "YES", nil, nil, 18, 17},
-				{"NVarChar", "nvarchar", "YES", nil, 50, nil, nil},
-				{"NVarCharMax", "nvarchar", "YES", nil, -1, nil, nil},
-				{"Real", "real", "YES", nil, nil, 24, nil},
-				{"SmallDateTime", "smalldatetime", "YES", nil, nil, nil, nil},
-				{"SmallInt", "smallint", "YES", nil, nil, 5, 0},
-				{"SmallMoney", "smallmoney", "YES", nil, nil, 10, 4},
-				{"SQLVariant", "sql_variant", "YES", nil, 0, nil, nil},
-				{"Text", "text", "YES", nil, 2147483647, nil, nil},
-				{"Time", "time", "YES", nil, nil, nil, nil},
-				{"TimeStamp", "timestamp", "YES", nil, nil, nil, nil},
-				{"TinyInt", "tinyint", "YES", nil, nil, 3, 0},
-				{"UniqueIdentifier", "uniqueidentifier", "YES", nil, nil, nil, nil},
-				{"VarBinary", "varbinary", "YES", nil, 50, nil, nil},
-				{"VarBinaryMax", "varbinary", "YES", nil, -1, nil, nil},
-				{"VarChar", "varchar", "YES", nil, 50, nil, nil},
-				{"VarCharMax", "varchar", "YES", nil, -1, nil, nil},
-				{"Xml", "xml", "YES", nil, -1, nil, nil},
+				{"Id", "int", "NO", nil, nil, 10, 0, 1},
+				{"BigInt", "bigint", "YES", nil, nil, 19, 0, 0},
+				{"Binary", "binary", "YES", nil, 50, nil, nil, 0},
+				{"Bit", "bit", "YES", nil, nil, nil, nil, 0},
+				{"Char", "char", "YES", nil, 10, nil, nil, 0},
+				{"Date", "date", "YES", nil, nil, nil, nil, 0},
+				{"DateTime", "datetime", "YES", nil, nil, nil, nil, 0},
+				{"DateTime2", "datetime2", "YES", nil, nil, nil, nil, 0},
+				{"DateTimeOffset", "datetimeoffset", "YES", nil, nil, nil, nil, 0},
+				{"Decimal", "decimal", "YES", nil, nil, 18, 9, 0},
+				{"Float", "float", "YES", nil, nil, 53, nil, 0},
+				{"Geography", "geography", "YES", nil, -1, nil, nil, 0},
+				{"Geometry", "geometry", "YES", nil, -1, nil, nil, 0},
+				{"HierarchyId", "hierarchyid", "YES", nil, 892, nil, nil, 0},
+				{"Image", "image", "YES", nil, 2147483647, nil, nil, 0},
+				{"Int", "int", "YES", nil, nil, 10, 0, 0},
+				{"Money", "money", "YES", nil, nil, 19, 4, 0},
+				{"NChar", "nchar", "YES", nil, 10, nil, nil, 0},
+				{"NText", "ntext", "YES", nil, 1073741823, nil, nil, 0},
+				{"Numeric", "numeric", "YES", nil, nil, 18, 17, 0},
+				{"NVarChar", "nvarchar", "YES", nil, 50, nil, nil, 0},
+				{"NVarCharMax", "nvarchar", "YES", nil, -1, nil, nil, 0},
+				{"Real", "real", "YES", nil, nil, 24, nil, 0},
+				{"SmallDateTime", "smalldatetime", "YES", nil, nil, nil, nil, 0},
+				{"SmallInt", "smallint", "YES", nil, nil, 5, 0, 0},
+				{"SmallMoney", "smallmoney", "YES", nil, nil, 10, 4, 0},
+				{"SQLVariant", "sql_variant", "YES", nil, 0, nil, nil, 0},
+				{"Text", "text", "YES", nil, 2147483647, nil, nil, 0},
+				{"Time", "time", "YES", nil, nil, nil, nil, 0},
+				{"TimeStamp", "timestamp", "YES", nil, nil, nil, nil, 0},
+				{"TinyInt", "tinyint", "YES", nil, nil, 3, 0, 0},
+				{"UniqueIdentifier", "uniqueidentifier", "YES", nil, nil, nil, nil, 0},
+				{"VarBinary", "varbinary", "YES", nil, 50, nil, nil, 0},
+				{"VarBinaryMax", "varbinary", "YES", nil, -1, nil, nil, 0},
+				{"VarChar", "varchar", "YES", nil, 50, nil, nil, 0},
+				{"VarCharMax", "varchar", "YES", nil, -1, nil, nil, 0},
+				{"Xml", "xml", "YES", nil, -1, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -171,11 +172,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "cart"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"productid", "text", "NO", nil, nil, nil, nil},
-				{"userid", "text", "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
+				{"productid", "text", "NO", nil, nil, nil, nil, 0},
+				{"userid", "text", "NO", nil, nil, nil, nil, 0},
+				{"quantity", "bigint", "YES", nil, nil, 64, 0, 0}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -206,10 +207,10 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"production", "product"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"product_id", "text", "NO", nil, nil, nil, nil},
-				{"product_name", "text", "NO", nil, nil, nil, nil},
+				{"product_id", "text", "NO", nil, nil, nil, nil, 0},
+				{"product_name", "text", "NO", nil, nil, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -236,11 +237,11 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"ref_id", "bigint", "NO", nil, nil, 64, 0},
-				{"ref_txt", "text", "NO", nil, nil, nil, nil},
-				{"abc", "text", "NO", nil, nil, nil, nil},
+				{"ref_id", "bigint", "NO", nil, nil, 64, 0, 0},
+				{"ref_txt", "text", "NO", nil, nil, nil, nil, 0},
+				{"abc", "text", "NO", nil, nil, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -286,9 +287,9 @@ func TestProcessSchema(t *testing.T) {
 				"SmallInt", "SmallMoney", "SQLVariant", "Text", "Time", "TimeStamp",
 				"TinyInt", "UniqueIdentifier", "VarBinary", "VarBinaryMax", "VarChar", "VarCharMax", "Xml"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"Id":               {Name: "Id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"Id":               {Name: "Id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
 				"BigInt":           {Name: "BigInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
 				"Bit":              {Name: "Bit", T: ddl.Type{Name: ddl.Bool}, NotNull: false},
 				"Char":             {Name: "Char", T: ddl.Type{Name: ddl.String, Len: 10, IsArray: false}, NotNull: false},
 				"Date":             {Name: "Date", T: ddl.Type{Name: ddl.Date}, NotNull: false},
@@ -300,14 +301,14 @@ func TestProcessSchema(t *testing.T) {
 				"Geography":        {Name: "Geography", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Geometry":         {Name: "Geometry", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"HierarchyId":      {Name: "HierarchyId", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"Int":              {Name: "Int", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"Money":            {Name: "Money", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NChar":            {Name: "NChar", T: ddl.Type{Name: ddl.String, Len: 10}, NotNull: false},
 				"NText":            {Name: "NText", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Numeric":          {Name: "Numeric", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NVarChar":         {Name: "NVarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Real":             {Name: "Real", T: ddl.Type{Name: ddl.Float32}, NotNull: false},
 				"SmallDateTime":    {Name: "SmallDateTime", T: ddl.Type{Name: ddl.Timestamp}, NotNull: false},
 				"SmallInt":         {Name: "SmallInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
@@ -315,13 +316,13 @@ func TestProcessSchema(t *testing.T) {
 				"SQLVariant":       {Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             {Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Time":             {Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
+				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
 				"TinyInt":          {Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.UUID}, NotNull: false},
+				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
+				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"VarChar":          {Name: "VarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
@@ -366,7 +367,8 @@ func TestProcessSchema(t *testing.T) {
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 15)
+	// 10 = the 9 type-mapping issues plus IdentitySkipRange on the identity column Id.
+	assert.Equal(t, 10, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }
