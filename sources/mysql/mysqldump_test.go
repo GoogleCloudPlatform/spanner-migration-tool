@@ -48,6 +48,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"tinyint(4)", ddl.Type{Name: ddl.Int64}},
 		{"json", ddl.Type{Name: ddl.JSON}},
 		{"blob", ddl.Type{Name: ddl.Bytes, Len: int64(65535)}},
+		{"blob(500)", ddl.Type{Name: ddl.Bytes, Len: int64(500)}},
 		{"mediumblob", ddl.Type{Name: ddl.Bytes, Len: int64(10_485_760)}},
 		{"tinyblob", ddl.Type{Name: ddl.Bytes, Len: int64(255)}},
 		{"longblob", ddl.Type{Name: ddl.Bytes, Len: int64(10_485_760)}},
@@ -72,6 +73,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}},
 		{"binary", ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
+		{"binary(32)", ddl.Type{Name: ddl.Bytes, Len: int64(32)}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
