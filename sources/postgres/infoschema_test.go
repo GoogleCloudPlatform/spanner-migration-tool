@@ -55,7 +55,8 @@ type mockSpec struct {
 func TestProcessSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = \\$1",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
 			cols:  []string{"table_schema", "table_name"},
 			rows: [][]driver.Value{
 				{"public", "user"},
@@ -192,7 +193,9 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "product"},
-			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
+			cols:  []string{"REFERENCED_TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
+			rows: [][]driver.Value{
+				{"inventory", "vendor", "product_id", "vendor_id", "fk_cross_schema", constants.FK_NO_ACTION, constants.FK_NO_ACTION}},
 		},
 		{
 			query: "SELECT (.+) FROM pg_attribute (.+)",
@@ -356,7 +359,7 @@ func TestProcessSchema(t *testing.T) {
 		ExpressionVerificationAccessor: mockAccessor,
 		DdlV:                           &expressions_api.MockDDLVerifier{},
 	}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -449,6 +452,10 @@ func TestProcessSchema(t *testing.T) {
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
 	internal.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId].ColumnLevelIssues)
+	productTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "product")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, map[string][]string{"product": {"inventory.vendor"}}, conv.NonPublicRefs)
+	assert.Contains(t, conv.SchemaIssues[productTableId].TableLevelIssues, internal.NonPublicSchemaRef)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -501,7 +508,7 @@ func TestProcessData(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	commonInfoSchema := common.InfoSchemaImpl{}
-	commonInfoSchema.ProcessData(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, internal.AdditionalDataAttributes{})
+	commonInfoSchema.ProcessData(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, internal.AdditionalDataAttributes{})
 
 	assert.Equal(t,
 		[]spannerData{
@@ -618,7 +625,8 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	// ProcessInfoSchema.
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = \\$1",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "test"}},
 		}, {
@@ -695,7 +703,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		ExpressionVerificationAccessor: mockAccessor,
 		DdlV:                           &expressions_api.MockDDLVerifier{},
 	}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData
@@ -704,7 +712,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	commonInfoSchema := common.InfoSchemaImpl{}
-	commonInfoSchema.ProcessData(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, internal.AdditionalDataAttributes{})
+	commonInfoSchema.ProcessData(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, internal.AdditionalDataAttributes{})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
@@ -715,7 +723,8 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 func TestSetRowStats(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = \\$1",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "test1"}, {"public", "test2"}},
 		}, {
@@ -742,7 +751,7 @@ func TestSetRowStats(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetDataMode()
 	commonInfoSchema := common.InfoSchemaImpl{}
-	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}})
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
 	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -753,7 +762,8 @@ func TestSetRowStats(t *testing.T) {
 func TestSetRowStats_SkipsPartitions(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = \\$1",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "ml"}, {"public", "ml_b"}, {"public", "ml_c"}, {"public", "plain"}},
 		}, {
@@ -791,7 +801,7 @@ func TestSetRowStats_SkipsPartitions(t *testing.T) {
 	}
 
 	commonInfoSchema := common.InfoSchemaImpl{}
-	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}})
 
 	// Only the root is counted; the two partitions it covers are not.
 	assert.Equal(t, int64(3), conv.Stats.Rows["ml"])
@@ -807,7 +817,8 @@ func TestSetRowStats_SkipsPartitions(t *testing.T) {
 func TestSetRowStats_CountsRestoredPartition(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = \\$1",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "a"}, {"public", "a1"}},
 		}, {
@@ -844,7 +855,7 @@ func TestSetRowStats_CountsRestoredPartition(t *testing.T) {
 	}
 
 	commonInfoSchema := common.InfoSchemaImpl{}
-	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}})
 
 	assert.Equal(t, int64(6), conv.Stats.Rows["a"])
 	assert.Equal(t, int64(2), conv.Stats.Rows["a1"])
@@ -869,9 +880,9 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	return db
 }
 
-func newFalsePtr() *bool {
-	temp := false
-	return &temp
+func TestGetTableName(t *testing.T) {
+	isi := InfoSchemaImpl{}
+	assert.Equal(t, "orders", isi.GetTableName("public", "orders"))
 }
 
 // mkInfoSchema builds an InfoSchemaImpl over a caller-configured sqlmock, for
@@ -879,7 +890,7 @@ func newFalsePtr() *bool {
 func mkInfoSchema(t *testing.T) (InfoSchemaImpl, sqlmock.Sqlmock) {
 	db, mock, err := sqlmock.New()
 	assert.Nil(t, err)
-	return InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, mock
+	return InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, mock
 }
 
 func TestGetVirtualColumns(t *testing.T) {
@@ -1201,11 +1212,10 @@ func TestPartitionParent(t *testing.T) {
 			wantOK:     true,
 		},
 		{
-			name:       "parent in a different schema",
-			row:        []driver.Value{"sales", "orders"},
-			wantSchema: "sales",
-			wantTable:  "orders",
-			wantOK:     true,
+			// The parent is not migrated, so the child is migrated as a table.
+			name:   "parent in a different schema",
+			row:    []driver.Value{"sales", "orders"},
+			wantOK: false,
 		},
 		{
 			// Also covers pre-PostgreSQL-10 servers, where relkind 'p' cannot
@@ -1237,7 +1247,7 @@ func TestPartitionParent(t *testing.T) {
 				q.WillReturnRows(sqlmock.NewRows([]string{"nspname", "relname"}).AddRow(tc.row...))
 			}
 
-			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+			isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 			gotSchema, gotTable, gotOK := isi.PartitionParent("public", "orders_2024")
 			assert.Equal(t, tc.wantOK, gotOK)
 			assert.Equal(t, tc.wantSchema, gotSchema)
@@ -1320,17 +1330,40 @@ func TestGetInheritedTables(t *testing.T) {
 				{"public", "child", "public", "p1"},
 				{"public", "child", "public", "p2"},
 				{"public", "capitals", "public", "cities"},
-				{"other", "shape", "other", "base"},
+				{"other", "shape", "other", "base"},       // child outside public: ignored
+				{"public", "orphan", "other", "template"}, // parent outside public: standalone
 			},
 		},
 	}
-	isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
-	got, err := isi.GetInheritedTables()
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	got, err := isi.GetInheritedTables(conv)
 	assert.Nil(t, err)
 	assert.Equal(t, map[string][]string{
-		"child":       {"p1", "p2"},
-		"capitals":    {"cities"},
-		"other.shape": {"other.base"},
+		"child":    {"p1", "p2"},
+		"capitals": {"cities"},
+	}, got)
+	assert.Equal(t, map[string][]string{"orphan": {"other.template"}}, conv.NonPublicRefs)
+}
+
+func TestGetNonPublicTables(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT t.table_schema, t.table_name FROM information_schema.tables t (.+) NOT EXISTS (.+)pg_inherits",
+			args:  []driver.Value{constants.PG_DEFAULT_SCHEMA},
+			cols:  []string{"table_schema", "table_name"},
+			rows: [][]driver.Value{
+				{"archive", "logs"},
+				{"sales", "customers"},
+			},
+		},
+	}
+	isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	got, err := isi.GetNonPublicTables()
+	assert.Nil(t, err)
+	assert.Equal(t, []common.SchemaAndName{
+		{Schema: "archive", Name: "logs"},
+		{Schema: "sales", Name: "customers"},
 	}, got)
 }
 
@@ -1340,7 +1373,7 @@ func TestInheritanceLookupErrors(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.Nil(t, err)
 	defer db.Close()
-	isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}
+	isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	denied := errors.New("permission denied for table pg_inherits")
 	mock.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnError(denied)
 	mock.ExpectQuery("FROM pg_catalog.pg_inherits").WillReturnRows(
@@ -1348,11 +1381,11 @@ func TestInheritanceLookupErrors(t *testing.T) {
 	mock.ExpectQuery("SELECT EXISTS").WillReturnError(denied)
 	mock.ExpectQuery("SELECT EXISTS").WillReturnError(denied)
 
-	_, err = isi.GetInheritedTables()
-	assert.ErrorContains(t, err, "permission denied")
-	_, err = isi.GetInheritedTables()
-	assert.ErrorContains(t, err, "couldn't scan")
 	conv := internal.MakeConv()
+	_, err = isi.GetInheritedTables(conv)
+	assert.ErrorContains(t, err, "permission denied")
+	_, err = isi.GetInheritedTables(conv)
+	assert.ErrorContains(t, err, "couldn't scan")
 	conv.SrcSchema["t1"] = schema.Table{Name: "cities", Schema: "public", Id: "t1"}
 	_, err = isi.GetRowsFromTable(conv, "t1")
 	assert.ErrorContains(t, err, "permission denied")
