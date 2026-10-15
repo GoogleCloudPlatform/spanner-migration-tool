@@ -299,3 +299,35 @@ func TestToSpannerType(t *testing.T) {
 		})
 	}
 }
+
+func TestToSpannerTypeCharLength(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	tests := []struct {
+		name     string
+		srcType  schema.Type
+		spType   string
+		expected ddl.Type
+		dialect  string
+	}{
+		{"VARCHAR2(100)", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, "", ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"CHAR(10)", schema.Type{Name: "CHAR", Mods: []int64{10}}, "", ddl.Type{Name: ddl.String, Len: 10}, constants.DIALECT_GOOGLESQL},
+		{"NVARCHAR2(50)", schema.Type{Name: "NVARCHAR2", Mods: []int64{50}}, "", ddl.Type{Name: ddl.String, Len: 50}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR(5)", schema.Type{Name: "NCHAR", Mods: []int64{5}}, "", ddl.Type{Name: ddl.String, Len: 5}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) explicit String", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.String, ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) PG", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, "", ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_POSTGRESQL},
+		{"CHAR(10) PG", schema.Type{Name: "CHAR", Mods: []int64{10}}, "", ddl.Type{Name: ddl.String, Len: 10}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR2(100) to Bytes stays MAX", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2 without length", schema.Type{Name: "VARCHAR2"}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2 zero length", schema.Type{Name: "VARCHAR2", Mods: []int64{0}}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER(10) to String stays MAX", schema.Type{Name: "NUMBER", Mods: []int64{10}}, ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CLOB unaffected", schema.Type{Name: "CLOB"}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			actual, _ := td.ToSpannerType(conv, tc.spType, tc.srcType, false)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
