@@ -176,6 +176,19 @@ func TestGenerateSrcSchema(t *testing.T) {
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_constraints C
+			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
+			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
+				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
+			AND NOT EXISTS (
+				SELECT 1 FROM all_ind_columns X
+				WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name
+				AND NOT EXISTS (
+					SELECT 1 FROM all_cons_columns CC
+					WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name
+					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
 			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type"},
