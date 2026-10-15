@@ -125,6 +125,35 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		}
 	}
 
+	if conv.Source == constants.NEO4J {
+		// Enforce interleaving GraphEdge in GraphNode.
+		var nodeTableId, edgeTableId string
+		for id, table := range conv.SpSchema {
+			if table.Name == "GraphNode" {
+				nodeTableId = id
+			} else if table.Name == "GraphEdge" {
+				edgeTableId = id
+			}
+		}
+		if nodeTableId != "" && edgeTableId != "" {
+			edgeTable := conv.SpSchema[edgeTableId]
+			edgeTable.ParentTable = ddl.InterleavedParent{
+				Id:             nodeTableId,
+				OnDelete:       constants.FK_CASCADE,
+				InterleaveType: "IN PARENT",
+			}
+			// Also remove the redundant foreign key from GraphEdge to GraphNode.
+			var remainingFks []ddl.Foreignkey
+			for _, fk := range edgeTable.ForeignKeys {
+				if fk.ReferTableId != nodeTableId {
+					remainingFks = append(remainingFks, fk)
+				}
+			}
+			edgeTable.ForeignKeys = remainingFks
+			conv.SpSchema[edgeTableId] = edgeTable
+		}
+	}
+
 	internal.ResolveRefs(conv)
 	return nil
 }
