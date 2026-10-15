@@ -495,6 +495,11 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		args[i+1] = name
 	}
 
+	// Oracle enforces a primary key with an index that is listed in ALL_INDEXES like any
+	// other index. Spanner already indexes the primary key, so the index enforcing the
+	// primary key is skipped when it has exactly the primary key columns (same columns in
+	// the same order). An existing wider index reused by Oracle to enforce the primary key
+	// (e.g. index on (ID, NAME) for PRIMARY KEY (ID)) is still migrated.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -507,6 +512,19 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_constraints C
+			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
+			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
+				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
+			AND NOT EXISTS (
+				SELECT 1 FROM all_ind_columns X
+				WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name
+				AND NOT EXISTS (
+					SELECT 1 FROM all_cons_columns CC
+					WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name
+					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
