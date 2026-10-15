@@ -72,7 +72,9 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[colId].Type.Name {
-			case "NUMBER":
+			case "NUMBER", "INTEGER", "FLOAT":
+				// Read numbers as text so that the driver does not convert them to
+				// float64 and lose precision (FLOAT holds up to 38 decimal digits).
 				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
 			case "XMLTYPE":
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
@@ -262,7 +264,12 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
-	if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+	if dataType == "NUMBER" && !numericPrecision.Valid && numericScale.Valid && numericScale.Int64 == 0 {
+		// INTEGER, INT, SMALLINT and NUMBER(*,0) are all reported as NUMBER with a
+		// NULL precision and a scale of 0. Report them as INTEGER so that they are
+		// not mistaken for an unconstrained NUMBER.
+		return schema.Type{Name: "INTEGER"}
+	} else if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
