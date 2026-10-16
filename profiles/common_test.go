@@ -211,3 +211,20 @@ func TestGetSchemaSampleSize(t *testing.T) {
 		assert.Equal(t, tc.expectedOutput, res, tc.name)
 	}
 }
+
+// TestParseMapListWhitespaceOnly is a regression test: a whitespace-only value
+// (e.g. "\n") must return an error, not panic. csv.ReadAll returns zero records
+// (and no error) for such input, so ParseMap/ParseList previously indexed
+// records[0] out of range.
+func TestParseMapListWhitespaceOnly(t *testing.T) {
+	for _, s := range []string{"\n", "\n\n"} {
+		assert.NotPanics(t, func() {
+			_, err := ParseMap(s)
+			assert.Error(t, err)
+		}, "ParseMap(%q)", s)
+		assert.NotPanics(t, func() {
+			_, err := ParseList(s)
+			assert.Error(t, err)
+		}, "ParseList(%q)", s)
+	}
+}
