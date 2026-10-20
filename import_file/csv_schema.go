@@ -127,7 +127,7 @@ func getCreateTableStmt(tableName string, colDef []ColumnDefinition, dialect str
 	pks := []PrimaryKey{}
 
 	for _, cd := range colDef {
-		s := printColumnDef(cd)
+		s := printColumnDef(cd, dialect)
 		if len(col) > 0 {
 			s = "," + s
 		}
@@ -142,7 +142,7 @@ func getCreateTableStmt(tableName string, colDef []ColumnDefinition, dialect str
 	})
 
 	for _, p := range pks {
-		s := quote(p.Name)
+		s := quote(p.Name, dialect)
 		if len(pk) > 0 {
 			s = "," + s
 		}
@@ -151,23 +151,26 @@ func getCreateTableStmt(tableName string, colDef []ColumnDefinition, dialect str
 
 	var stmt string
 	if dialect == constants.DIALECT_POSTGRESQL {
-		stmt = fmt.Sprintf("CREATE TABLE %s (%s PRIMARY KEY (%s))", quote(tableName), col, pk)
+		stmt = fmt.Sprintf("CREATE TABLE %s (%s, PRIMARY KEY (%s))", quote(tableName, dialect), col, pk)
 	} else {
-		stmt = fmt.Sprintf("CREATE TABLE %s (%s) PRIMARY KEY (%s)", quote(tableName), col, pk)
+		stmt = fmt.Sprintf("CREATE TABLE %s (%s) PRIMARY KEY (%s)", quote(tableName, dialect), col, pk)
 	}
 	logger.Log.Debug(fmt.Sprintf("create table cmd %s ==", stmt))
 	return stmt
 }
 
-func printColumnDef(c ColumnDefinition) string {
-	s := fmt.Sprintf("%s %s", quote(c.Name), c.Type)
+func printColumnDef(c ColumnDefinition, dialect string) string {
+	s := fmt.Sprintf("%s %s", quote(c.Name, dialect), c.Type)
 	if c.NotNull {
 		s += " NOT NULL "
 	}
 	return s
 }
 
-func quote(s string) string {
+func quote(s string, dialect string) string {
+	if dialect == constants.DIALECT_POSTGRESQL {
+		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+	}
 	return "`" + s + "`"
 }
 

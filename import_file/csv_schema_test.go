@@ -193,11 +193,11 @@ func Test_getCreateTableStmt(t *testing.T) {
 			name:      "Postgres Dialect",
 			tableName: "test_table",
 			colDef: []ColumnDefinition{
-				{"col1", "INT64", true, 1},
-				{"col2", "STRING(MAX)", false, 2},
+				{"col1", "bigint", true, 1},
+				{"col2", "text", false, 2},
 			},
 			dialect: constants.DIALECT_POSTGRESQL,
-			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX) PRIMARY KEY (`col1`,`col2`))",
+			want:    `CREATE TABLE "test_table" ("col1" bigint NOT NULL ,"col2" text, PRIMARY KEY ("col1","col2"))`,
 		},
 	}
 
@@ -231,7 +231,7 @@ func Test_printColumnDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := printColumnDef(tt.c); got != tt.want {
+			if got := printColumnDef(tt.c, constants.DIALECT_GOOGLESQL); got != tt.want {
 				t.Errorf("printColumnDef() = %v, want %v", got, tt.want)
 			}
 		})
@@ -253,7 +253,7 @@ func Test_quote(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := quote(tt.s); got != tt.want {
+			if got := quote(tt.s, constants.DIALECT_GOOGLESQL); got != tt.want {
 				t.Errorf("quote() = %v, want %v", got, tt.want)
 			}
 		})
