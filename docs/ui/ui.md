@@ -52,7 +52,7 @@ You will be asked to authorize running this command by providing your Google Clo
 Detailed description of optional flags can be found [here](./flags.md).
 
      --log-level=LOG_LEVEL
-        To configure the log level for the execution (INFO, VERBOSE).
+        To configure the log level for the execution (INFO, DEBUG).
 
      --open
         Opens the Spanner migration tool web interface in the default browser, defaults to false
