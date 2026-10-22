@@ -65,6 +65,41 @@ func TestToType(t *testing.T) {
 	ty = toType("NUMBER", sql.NullInt64{}, sql.NullInt64{Int64: 38, Valid: true}, sql.NullInt64{Int64: 2, Valid: true})
 	assert.Equal(t, "NUMBER", ty.Name)
 	assert.Equal(t, []int64{38, 2}, ty.Mods)
+
+	null := sql.NullInt64{}
+	val := func(v int64) sql.NullInt64 { return sql.NullInt64{Int64: v, Valid: true} }
+	tests := []struct {
+		name      string
+		dataType  string
+		precision sql.NullInt64
+		scale     sql.NullInt64
+		expected  schema.Type
+	}{
+		{"NUMBER(9)", "NUMBER", val(9), val(0), schema.Type{Name: "NUMBER", Mods: []int64{9}}},
+		{"NUMBER(10,2)", "NUMBER", val(10), val(2), schema.Type{Name: "NUMBER", Mods: []int64{10, 2}}},
+		{"NUMBER(5,-2)", "NUMBER", val(5), val(-2), schema.Type{Name: "NUMBER", Mods: []int64{5, -2}}},
+		{"NUMBER", "NUMBER", null, null, schema.Type{Name: "NUMBER"}},
+		{"INTEGER / NUMBER(*,0)", "NUMBER", null, val(0), schema.Type{Name: "INTEGER"}},
+		{"NUMBER(*,2)", "NUMBER", null, val(2), schema.Type{Name: "NUMBER"}},
+		{"FLOAT(126)", "FLOAT", val(126), null, schema.Type{Name: "FLOAT", Mods: []int64{126}}},
+		{"BINARY_DOUBLE", "BINARY_DOUBLE", null, null, schema.Type{Name: "BINARY_DOUBLE"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, toType(tc.dataType, null, tc.precision, tc.scale))
+		})
+	}
+}
+
+func TestGetSelectQueryNumbersAsText(t *testing.T) {
+	colDefs := map[string]schema.Column{
+		"c1": {Name: "N", Type: schema.Type{Name: "NUMBER", Mods: []int64{10, 2}}},
+		"c2": {Name: "I", Type: schema.Type{Name: "INTEGER"}},
+		"c3": {Name: "F", Type: schema.Type{Name: "FLOAT", Mods: []int64{126}}},
+		"c4": {Name: "BD", Type: schema.Type{Name: "BINARY_DOUBLE"}},
+	}
+	q := getSelectQuery("DB", "SCH", "T", []string{"c1", "c2", "c3", "c4"}, colDefs)
+	assert.Equal(t, `SELECT TO_CHAR("N") AS "N", TO_CHAR("I") AS "I", TO_CHAR("F") AS "F", "BD" FROM "SCH"."T"`, q)
 }
 
 func TestGenerateSrcSchema(t *testing.T) {
