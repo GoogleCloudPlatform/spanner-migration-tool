@@ -302,3 +302,57 @@ func TestGetSummary_PartitionNoticeClearsOnlyWhenAllRestored(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSummary_NonPublicSchemas(t *testing.T) {
+	conv := &internal.Conv{
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Name:        "orders",
+				ColIds:      []string{"c1"},
+				ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, Id: "c1"}},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+				Id:          "t1",
+			},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Name:        "orders",
+				ColIds:      []string{"c1"},
+				ColDefs:     map[string]schema.Column{"c1": {Name: "id", Type: schema.Type{Name: "bigint"}, NotNull: true, Id: "c1"}},
+				PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+				Id:          "t1",
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+		NonPublicTables: []string{"sales.customers", "archive.logs"},
+		NonPublicRefs:   map[string][]string{"orders": {"sales.vendors"}},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {
+				TableLevelIssues:  []internal.SchemaIssue{internal.NonPublicSchemaRef},
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+			},
+		},
+	}
+
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.POSTGRES
+	sessionState.Conv = conv
+
+	actualSummary := getSummary()
+
+	assert.Equal(t, []reports.Issue{{
+		Category:    "NON_PUBLIC_TABLE_IGNORED",
+		Description: "Table(s) outside the 'public' schema ('archive.logs', 'sales.customers') are ignored",
+	}}, actualSummary[""].Warnings)
+	assert.Equal(t, 1, actualSummary[""].WarningsCount)
+	assert.Empty(t, actualSummary[""].Notes)
+
+	assert.Equal(t, []reports.Issue{{
+		Category:    "NON_PUBLIC_SCHEMA_REFERENCE",
+		Description: "Table 'orders': Reference(s) to table(s) outside the 'public' schema ('sales.vendors') are ignored",
+	}}, actualSummary["t1"].Notes)
+	assert.Equal(t, 1, actualSummary["t1"].NotesCount)
+	assert.Empty(t, actualSummary["t1"].Warnings)
+}

@@ -144,17 +144,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 				");\n" +
 				"ALTER TABLE ONLY sales.identity_test\n" +
 				"    ADD CONSTRAINT identity_test_pkey PRIMARY KEY (id);",
-			expectedSchema: map[string]ddl.CreateTable{
-				"sales_identity_test": ddl.CreateTable{
-					Name:   "sales_identity_test",
-					ColIds: []string{"id", "col"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"id":  ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
-						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
-				},
-			},
+			expectedSchema: map[string]ddl.CreateTable{},
 		},
 		{
 			name:  "Identity column declared inline is implicitly NOT NULL",
@@ -318,17 +308,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 			input: "CREATE TABLE custom.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
 				"CREATE SEQUENCE custom.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY custom.serial_test.id;\n" +
 				"ALTER TABLE ONLY custom.serial_test ALTER COLUMN id SET DEFAULT nextval('custom.serial_test_id_seq'::regclass);",
-			expectedSchema: map[string]ddl.CreateTable{
-				"custom_serial_test": ddl.CreateTable{
-					Name:   "custom_serial_test",
-					ColIds: []string{"id", "col"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
-						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
-				},
-			},
+			expectedSchema: map[string]ddl.CreateTable{},
 		},
 		{
 			name: "Column using sequence without owning it",
@@ -846,24 +826,11 @@ func TestProcessPgDump(t *testing.T) {
 				}},
 		},
 		{
-			name:  "Create table with pg schema",
-			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
-			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_test": ddl.CreateTable{
-					Name:   "myschema_test",
-					ColIds: []string{"a", "b"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
-		},
-		{
 			name:  "Create table with numeric primary key",
-			input: "CREATE TABLE myschema.numericpk (a numeric PRIMARY KEY, b text);\n",
+			input: "CREATE TABLE numericpk (a numeric PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_numericpk": ddl.CreateTable{
-					Name:   "myschema_numericpk",
+				"numericpk": ddl.CreateTable{
+					Name:   "numericpk",
 					ColIds: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
@@ -1608,19 +1575,6 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 				}},
 		},
 		{
-			name:  "Create table with pg schema",
-			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
-			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_test": ddl.CreateTable{
-					Name:   "myschema_test",
-					ColIds: []string{"a", "b"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
-		},
-		{
 			name: "ALTER TABLE SET NOT NULL",
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n" +
 				"ALTER TABLE test ALTER COLUMN b SET NOT NULL;\n",
@@ -1984,6 +1938,179 @@ func TestProcessPgDump_GetBadRows(t *testing.T) {
 	assert.Equal(t, 1, len(conv.SampleBadRows(100)))
 }
 
+// Statements on non-public schemas are skipped, even when names collide with public tables.
+func TestProcessPgDump_NonPublicSchemaSkipped(t *testing.T) {
+	tests := []struct {
+		name                    string
+		input                   string
+		expectedSchema          map[string]ddl.CreateTable
+		expectedData            []spannerData
+		expectedNonPublicTables []string
+		expectedNonPublicRefs   map[string][]string
+	}{
+		{
+			name:                    "table in non-public schema is skipped",
+			input:                   "CREATE TABLE custom.test (a text PRIMARY KEY, b bigint);",
+			expectedSchema:          map[string]ddl.CreateTable{},
+			expectedNonPublicTables: []string{"custom.test"},
+		},
+		{
+			name: "non-public ALTER TABLE and CREATE INDEX do not affect same-named public table",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY, name text);\n" +
+				"CREATE TABLE custom.test (id bigint, name text);\n" +
+				"ALTER TABLE ONLY custom.test ALTER COLUMN name SET NOT NULL;\n" +
+				"CREATE INDEX custom_idx ON custom.test (name);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": {
+					Name:   "test",
+					ColIds: []string{"id", "name"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":   {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"name": {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedNonPublicTables: []string{"custom.test"},
+		},
+		{
+			name: "non-public sequence does not mark same-named public column as identity",
+			input: "CREATE TABLE public.test (id integer NOT NULL PRIMARY KEY DEFAULT nextval('test_id_seq'::regclass));\n" +
+				"CREATE SEQUENCE custom.test_id_seq AS integer;\n" +
+				"ALTER SEQUENCE custom.test_id_seq OWNED BY custom.test.id;\n" +
+				"CREATE SEQUENCE test_id_seq AS integer OWNED BY custom.test.id;\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": {
+					Name:        "test",
+					ColIds:      []string{"id"},
+					ColDefs:     map[string]ddl.ColumnDef{"id": {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "foreign key referencing non-public table is skipped",
+			input: "CREATE TABLE public.orders (id bigint PRIMARY KEY, vendor_id bigint);\n" +
+				"ALTER TABLE ONLY public.orders ADD CONSTRAINT fk_vendor FOREIGN KEY (vendor_id) REFERENCES custom.vendors(id);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"orders": {
+					Name:   "orders",
+					ColIds: []string{"id", "vendor_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":        {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"vendor_id": {Name: "vendor_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedNonPublicRefs: map[string][]string{"orders": {"custom.vendors"}},
+		},
+		{
+			name: "public child of a non-public parent gets the parent's columns",
+			input: "CREATE TABLE public.base (id bigint PRIMARY KEY, other text);\n" +
+				"CREATE TABLE sales.base (id bigint NOT NULL, status text DEFAULT 'new'::text, a bigint, a2 bigint GENERATED ALWAYS AS ((a * 2)) STORED);\n" +
+				"CREATE TABLE public.kid (extra bigint) INHERITS (sales.base);\n" +
+				"ALTER TABLE ONLY public.kid ADD CONSTRAINT kid_pkey PRIMARY KEY (id);\n" +
+				"COPY public.kid (id, status, a, extra) FROM stdin;\n" +
+				"1\tnew\t5\t7\n" +
+				"\\.\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"base": {
+					Name:   "base",
+					ColIds: []string{"id", "other"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":    {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"other": {Name: "other", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+				"kid": {
+					Name:   "kid",
+					ColIds: []string{"id", "status", "a", "a2", "extra"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":     {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"status": {Name: "status", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'new'"}}},
+						"a":      {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"a2":     {Name: "a2", T: ddl.Type{Name: ddl.Int64}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(a * 2)"}, Type: ddl.GeneratedColStored}},
+						"extra":  {Name: "extra", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedData: []spannerData{
+				{table: "kid", cols: []string{"id", "status", "a", "extra"}, vals: []interface{}{int64(1), "new", int64(5), int64(7)}},
+			},
+			expectedNonPublicTables: []string{"sales.base"},
+			expectedNonPublicRefs:   map[string][]string{"kid": {"sales.base"}},
+		},
+		{
+			name: "public child of a non-public foreign table gets its columns",
+			input: "CREATE FOREIGN TABLE sales.remote_cities (id bigint, name text) SERVER loop;\n" +
+				"CREATE TABLE public.local_cities (zone text) INHERITS (sales.remote_cities);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"local_cities": {
+					Name:   "local_cities",
+					ColIds: []string{"id", "name", "zone", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":       {Name: "id", T: ddl.Type{Name: ddl.Int64}},
+						"name":     {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"zone":     {Name: "zone", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
+				},
+			},
+			expectedNonPublicRefs: map[string][]string{"local_cities": {"sales.remote_cities"}},
+		},
+		{
+			name: "data after a skipped non-public COPY is still migrated",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY);\n" +
+				"COPY sales.test (id) FROM stdin;\n" +
+				"7\n" +
+				"\\.\n" +
+				"COPY public.test (id) FROM stdin;\n" +
+				"1\n" +
+				"\\.\n",
+			expectedData: []spannerData{
+				{table: "test", cols: []string{"id"}, vals: []interface{}{int64(1)}},
+			},
+		},
+		{
+			name: "non-public COPY and INSERT do not write into same-named public table",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY, name text);\n" +
+				"COPY public.test (id, name) FROM stdin;\n" +
+				"1\talice\n" +
+				"\\.\n" +
+				"COPY custom.test (id, name) FROM stdin;\n" +
+				"2\tbob\n" +
+				"\\.\n" +
+				"INSERT INTO custom.test (id, name) VALUES (3, 'carol');\n",
+			expectedData: []spannerData{
+				{table: "test", cols: []string{"id", "name"}, vals: []interface{}{int64(1), "alice"}},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDump(tc.input)
+			noIssues(conv, t, tc.name)
+			if tc.expectedSchema != nil {
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			}
+			if tc.expectedData != nil {
+				assert.Equal(t, tc.expectedData, rows)
+			}
+			assert.Equal(t, tc.expectedNonPublicTables, conv.NonPublicTables)
+			assert.Equal(t, tc.expectedNonPublicRefs, conv.NonPublicRefs)
+			for srcTableName := range tc.expectedNonPublicRefs {
+				tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTableName)
+				assert.NoError(t, err)
+				assert.Contains(t, conv.SchemaIssues[tableId].TableLevelIssues, internal.NonPublicSchemaRef)
+			}
+		})
+	}
+}
+
 func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -2218,11 +2345,53 @@ func TestProcessPgDump_Inheritance(t *testing.T) {
 			inherited: map[string][]string{"l": {"root"}, "r": {"root"}, "leaf": {"l", "r"}},
 		},
 		{
-			name: "cross schema",
+			name: "child outside public is not migrated",
 			input: "CREATE TABLE public.cities (name text);\n" +
 				"CREATE TABLE archive.archived (at text) INHERITS (public.cities);\n",
-			cols:      map[string][]string{"cities": {"name"}, "archive.archived": {"name", "at"}},
-			inherited: map[string][]string{"archive.archived": {"cities"}},
+			cols: map[string][]string{"cities": {"name"}},
+		},
+		{
+			name: "parent outside public gives its columns but is not migrated",
+			input: "CREATE TABLE public.parent (x bigint);\n" +
+				"CREATE TABLE archive.parent (secret text);\n" +
+				"CREATE TABLE public.child (c bigint) INHERITS (archive.parent);\n",
+			cols: map[string][]string{"parent": {"x"}, "child": {"secret", "c"}},
+		},
+		{
+			name: "chain of parents outside public",
+			input: "CREATE TABLE sales.root (rid bigint);\n" +
+				"CREATE TABLE sales.base (id bigint) INHERITS (sales.root);\n" +
+				"CREATE TABLE public.kid (extra bigint) INHERITS (sales.base);\n",
+			cols: map[string][]string{"kid": {"rid", "id", "extra"}},
+		},
+		{
+			name: "public and non-public parents",
+			input: "CREATE TABLE public.p (a bigint);\n" +
+				"CREATE TABLE sales.q (b bigint);\n" +
+				"CREATE TABLE public.kid (c bigint) INHERITS (public.p, sales.q);\n",
+			cols:      map[string][]string{"p": {"a"}, "kid": {"a", "b", "c"}},
+			inherited: map[string][]string{"kid": {"p"}},
+		},
+		{
+			// e.g. pg_dump -n public: the child's inherited columns can't be found.
+			name:    "parent outside public missing from the dump",
+			input:   "CREATE TABLE public.kid (c bigint) INHERITS (sales.base);\n",
+			cols:    map[string][]string{"kid": {"c"}},
+			warning: true,
+		},
+		{
+			// The child already has the parent's columns.
+			name: "ALTER TABLE INHERIT a parent outside public",
+			input: "CREATE TABLE sales.base (id bigint);\n" +
+				"CREATE TABLE public.kid (id bigint, c bigint);\n" +
+				"ALTER TABLE public.kid INHERIT sales.base;\n",
+			cols: map[string][]string{"kid": {"id", "c"}},
+		},
+		{
+			name: "foreign table outside public does not hide a public table",
+			input: "CREATE TABLE public.items (id bigint);\n" +
+				"CREATE FOREIGN TABLE archive.items (id bigint) SERVER s;\n",
+			cols: map[string][]string{"items": {"id"}},
 		},
 		{
 			name: "partitions are not inheritance",
@@ -2511,7 +2680,8 @@ func TestGetInheritedTableNames(t *testing.T) {
 	}
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	got := getInheritedTableNames(conv, []*pg_query.Node{{}, rangeVar("", ""), rangeVar("archive", "p1"), rangeVar("public", "p2")})
-	assert.Equal(t, []string{"archive.p1", "p2"}, got)
+	got := getInheritedTableNames(conv, "child", []*pg_query.Node{{}, rangeVar("", ""), rangeVar("archive", "p1"), rangeVar("public", "p2")})
+	assert.Equal(t, []string{"archive.p1", "p2"}, got, "archive.p1 is outside public, so it keeps its schema")
+	assert.Equal(t, map[string][]string{"child": {"archive.p1"}}, conv.NonPublicRefs)
 	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }
