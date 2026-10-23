@@ -267,6 +267,11 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
+	if strings.HasPrefix(dataType, "INTERVAL") {
+		// Oracle reports intervals with their precisions in the type name (e.g.
+		// INTERVAL DAY(3) TO SECOND(2)), so they are not added again as modifiers.
+		return schema.Type{Name: dataType}
+	}
 	if dataType == "NUMBER" && !numericPrecision.Valid && numericScale.Valid && numericScale.Int64 == 0 {
 		// INTEGER, INT, SMALLINT and NUMBER(*,0) are all reported as NUMBER with a
 		// NULL precision and a scale of 0. Report them as INTEGER so that they are
