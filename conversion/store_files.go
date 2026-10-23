@@ -31,11 +31,12 @@ import (
 // WriteSchemaFile writes DDL statements in a file. It includes CREATE TABLE
 // statements and ALTER TABLE statements to add foreign keys.
 // The parameter name should end with a .txt.
-func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File, driver string) {
+// It returns an error naming the file if either file can't be written.
+func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File, driver string) error {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
-		return
+		return fmt.Errorf("can't create schema file %s: %w", name, err)
 	}
 	defer f.Close()
 
@@ -54,7 +55,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
 		fmt.Fprintf(out, "Can't write out schema file: %v\n", err)
-		return
+		return fmt.Errorf("can't write out schema file %s: %w", name, err)
 	}
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
 
@@ -65,7 +66,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	f, err = os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create legal schema ddl file %s: %v\n", name, err)
-		return
+		return fmt.Errorf("can't create legal schema ddl file %s: %w", name, err)
 	}
 	defer f.Close()
 
@@ -81,17 +82,19 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	}
 	if _, err = f.WriteString(strings.Join(l, "")); err != nil {
 		fmt.Fprintf(out, "Can't write out legal schema ddl file: %v\n", err)
-		return
+		return fmt.Errorf("can't write out legal schema ddl file %s: %w", name, err)
 	}
 	fmt.Fprintf(out, "Wrote legal schema ddl to file '%s'.\n", name)
+	return nil
 }
 
 // WriteSessionFile writes conv struct to a file in JSON format.
-func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
+// It returns an error naming the file if the file can't be written.
+func WriteSessionFile(conv *internal.Conv, name string, out *os.File) error {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
-		return
+		return fmt.Errorf("can't create session file %s: %w", name, err)
 	}
 	defer f.Close()
 	// Session file will basically contain 'conv' struct in JSON format.
@@ -99,13 +102,14 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
 		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
-		return
+		return fmt.Errorf("can't encode session state to JSON for session file %s: %w", name, err)
 	}
 	if _, err := f.Write(convJSON); err != nil {
 		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
-		return
+		return fmt.Errorf("can't write out session file %s: %w", name, err)
 	}
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+	return nil
 }
 
 // WriteConvGeneratedFiles creates a directory labeled downloads with the current timestamp
@@ -199,11 +203,12 @@ func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name stri
 
 
 // WriteOverridesFile writes the overrides file in JSON format.
-func WriteOverridesFile(conv *internal.Conv, name string, out *os.File) {
+// It returns an error naming the file if the file can't be written.
+func WriteOverridesFile(conv *internal.Conv, name string, out *os.File) error {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create overrides file %s: %v\n", name, err)
-		return
+		return fmt.Errorf("can't create overrides file %s: %w", name, err)
 	}
 	defer f.Close()
 
@@ -213,12 +218,13 @@ func WriteOverridesFile(conv *internal.Conv, name string, out *os.File) {
 	overridesJSON, err := json.MarshalIndent(overrides, "", " ")
 	if err != nil {
 		fmt.Fprintf(out, "Can't encode overrides to JSON: %v\n", err)
-		return
+		return fmt.Errorf("can't encode overrides to JSON for overrides file %s: %w", name, err)
 	}
 
 	if _, err := f.Write(overridesJSON); err != nil {
 		fmt.Fprintf(out, "Can't write out overrides file: %v\n", err)
-		return
+		return fmt.Errorf("can't write out overrides file %s: %w", name, err)
 	}
 	fmt.Fprintf(out, "Wrote overrides to file '%s'.\n", name)
+	return nil
 }
