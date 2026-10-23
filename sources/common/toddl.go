@@ -400,7 +400,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		srcCol := srcTable.ColDefs[srcColId]
 		colName, err := internal.GetSpannerCol(conv, srcTable.Id, srcCol.Id, spColDef)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
+			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcCol.Name, srcTable.Name, err))
 			continue
 		}
 		spColIds = append(spColIds, srcColId)
