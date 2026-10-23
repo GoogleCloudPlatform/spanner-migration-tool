@@ -59,7 +59,7 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
 
-// ProcessDataRows performs data conversion for source database
+// ProcessData performs data conversion for source database
 // 'db'. For each table, we extract data using a "SELECT *" query,
 // convert the data to Spanner data (based on the source and Spanner
 // schemas), and write it to Spanner.  If we can't get/process data

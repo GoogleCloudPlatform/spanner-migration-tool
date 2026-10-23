@@ -38,9 +38,9 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 	return nil, nil
 }
 
-// toSpannerType maps a scalar source schema type (defined by id and
+// toSpannerTypeInternal maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
-// mapping.  toSpannerType returns the Spanner type and a list of type
+// mapping.  toSpannerTypeInternal returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
