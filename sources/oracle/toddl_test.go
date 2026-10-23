@@ -317,7 +317,10 @@ func TestToSpannerTypeCharLength(t *testing.T) {
 		{"VARCHAR2(100) explicit String", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.String, ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_GOOGLESQL},
 		{"VARCHAR2(100) PG", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, "", ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_POSTGRESQL},
 		{"CHAR(10) PG", schema.Type{Name: "CHAR", Mods: []int64{10}}, "", ddl.Type{Name: ddl.String, Len: 10}, constants.DIALECT_POSTGRESQL},
-		{"VARCHAR2(100) to Bytes stays MAX", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) to Bytes", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR(5) to Bytes", schema.Type{Name: "NCHAR", Mods: []int64{5}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 5}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) to Bytes PG", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 100}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR2 without length to Bytes stays MAX", schema.Type{Name: "VARCHAR2"}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
 		{"VARCHAR2 without length", schema.Type{Name: "VARCHAR2"}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
 		{"VARCHAR2 zero length", schema.Type{Name: "VARCHAR2", Mods: []int64{0}}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
 		{"NUMBER(10) to String stays MAX", schema.Type{Name: "NUMBER", Mods: []int64{10}}, ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
@@ -328,6 +331,42 @@ func TestToSpannerTypeCharLength(t *testing.T) {
 			conv.SpDialect = tc.dialect
 			actual, _ := td.ToSpannerType(conv, tc.spType, tc.srcType, false)
 			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestToSpannerTypeRawLength(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	raw := func(mods ...int64) schema.Type { return schema.Type{Name: "RAW", Mods: mods} }
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		spType         string
+		isPk           bool
+		dialect        string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		{"RAW(16)", raw(16), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) PK", raw(16), "", true, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(1)", raw(1), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 1}, nil},
+		{"RAW(2000)", raw(2000), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 2000}, nil},
+		{"RAW(32767) extended", raw(32767), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 32767}, nil},
+		{"RAW(16) PG PK", raw(16), "", true, constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) explicit Bytes", raw(16), ddl.Bytes, false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) to String stays MAX", raw(16), ddl.String, false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}},
+		{"RAW without length", raw(), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		{"RAW zero length", raw(0), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		{"BLOB unaffected", schema.Type{Name: "BLOB"}, "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		{"LONG RAW unaffected", schema.Type{Name: "LONG RAW"}, "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			actual, issues := td.ToSpannerType(conv, tc.spType, tc.srcType, tc.isPk)
+			assert.Equal(t, tc.expected, actual)
+			assert.Equal(t, tc.expectedIssues, issues)
 		})
 	}
 }
