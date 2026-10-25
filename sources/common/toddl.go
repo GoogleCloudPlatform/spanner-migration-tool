@@ -484,6 +484,9 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	if len(srcTable.InheritedFrom) > 0 {
 		tableLevelIssues = append(tableLevelIssues, internal.InheritedTable)
 	}
+	if len(conv.NonPublicRefs[srcTable.Name]) > 0 {
+		tableLevelIssues = append(tableLevelIssues, internal.NonPublicSchemaRef)
+	}
 	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,

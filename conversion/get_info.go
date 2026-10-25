@@ -146,13 +146,11 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		if err = db.Ping(); err != nil {
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
-		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
 			MigrationProjectId: migrationProjectId,
 			SourceProfile:      sourceProfile,
 			TargetProfile:      targetProfile,
-			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
@@ -190,13 +188,11 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		if err = db.Ping(); err != nil {
 			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
-		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
 			MigrationProjectId: migrationProjectId,
 			SourceProfile:      sourceProfile,
 			TargetProfile:      targetProfile,
-			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
