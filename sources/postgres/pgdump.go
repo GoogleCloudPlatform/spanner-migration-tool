@@ -41,6 +41,7 @@ type copyOrInsert struct {
 	table string
 	cols  []string
 	rows  [][]string // Empty for COPY-FROM.
+	skip  bool       // COPY-FROM data for a table that is not migrated.
 }
 
 type stmtType int
@@ -54,20 +55,47 @@ const (
 type pgDumpState struct {
 	// lookupOnlyTables, e.g. foreign inheritance parents, are not migrated.
 	lookupOnlyTables map[string]bool
+	// nonPublicTables names the lookup-only tables read from non-public schemas.
+	nonPublicTables map[string]bool
 }
 
 func newPgDumpState() *pgDumpState {
-	return &pgDumpState{lookupOnlyTables: make(map[string]bool)}
+	return &pgDumpState{lookupOnlyTables: make(map[string]bool), nonPublicTables: make(map[string]bool)}
 }
 
 func (s *pgDumpState) addLookupOnlyTable(tableId string) {
 	s.lookupOnlyTables[tableId] = true
 }
 
+func (s *pgDumpState) addNonPublicTable(conv *internal.Conv, tableId string) {
+	s.addLookupOnlyTable(tableId)
+	s.nonPublicTables[conv.SrcSchema[tableId].Name] = true
+}
+
 func (s *pgDumpState) finalizeSchema(conv *internal.Conv) {
 	resolveInheritedTables(conv)
 	for tableId := range s.lookupOnlyTables {
 		delete(conv.SrcSchema, tableId)
+	}
+	s.dropNonPublicParents(conv)
+}
+
+// dropNonPublicParents unlinks children from non-public parents after copying their columns.
+func (s *pgDumpState) dropNonPublicParents(conv *internal.Conv) {
+	isNonPublic := func(name string) bool { return s.nonPublicTables[name] }
+	for tableId, table := range conv.SrcSchema {
+		if !slices.ContainsFunc(table.InheritedFrom, isNonPublic) {
+			continue
+		}
+		table.InheritedFrom = slices.DeleteFunc(slices.Clone(table.InheritedFrom), isNonPublic)
+		if len(table.InheritedFrom) == 0 {
+			table.InheritedFrom = nil
+		}
+		conv.SrcSchema[tableId] = table
+	}
+	// Non-public tables' own references are not reported.
+	for name := range s.nonPublicTables {
+		delete(conv.NonPublicRefs, name)
 	}
 }
 
@@ -101,6 +129,10 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
+				if ci.skip {
+					skipCopyBlock(conv, r)
+					continue
+				}
 				commonColIds, err := common.PrepareColumns(conv, ci.table, ci.cols)
 				if err != nil && !conv.SchemaMode() {
 					return err
@@ -188,6 +220,20 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_q
 	}
 }
 
+// skipCopyBlock reads past the data of a COPY-FROM statement for a table that is not migrated.
+func skipCopyBlock(conv *internal.Conv, r *internal.Reader) {
+	for {
+		b := r.ReadLine()
+		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
+			return
+		}
+		if r.EOF {
+			conv.Unexpected("Reached eof while parsing copy-block")
+			return
+		}
+	}
+}
+
 func processCopyBlock(conv *internal.Conv, tableId string, commonColIds, srcCols []string, r *internal.Reader) {
 	srcTableName := conv.SrcSchema[tableId].Name
 	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
@@ -254,11 +300,24 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt, state 
 			return processCopyStmt(conv, n.CopyStmt)
 		case *pg_query.Node_CreateStmt:
 			if conv.SchemaMode() {
-				processCreateStmt(conv, n.CreateStmt)
+				if isNonPublicSchema(n.CreateStmt.Relation) {
+					skipNonPublicCreateStmt(conv, n.CreateStmt)
+					if tableId, ok := addNonPublicLookupTable(conv, n.CreateStmt); ok {
+						state.addNonPublicTable(conv, tableId)
+					}
+				} else {
+					processCreateStmt(conv, n.CreateStmt)
+				}
 			}
 		case *pg_query.Node_CreateForeignTableStmt:
 			if conv.SchemaMode() {
-				if tableId, ok := processCreateForeignTableStmt(conv, n.CreateForeignTableStmt); ok {
+				if base := n.CreateForeignTableStmt.GetBaseStmt(); base != nil && isNonPublicSchema(base.Relation) {
+					// Foreign tables are lookup-only, so it is not reported as skipped.
+					conv.SkipStatement(printNodeType(n.CreateForeignTableStmt))
+					if tableId, ok := addNonPublicLookupTable(conv, base); ok {
+						state.addNonPublicTable(conv, tableId)
+					}
+				} else if tableId, ok := processCreateForeignTableStmt(conv, n.CreateForeignTableStmt); ok {
 					state.addLookupOnlyTable(tableId)
 				}
 			}
@@ -287,9 +346,17 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt, state 
 	return nil
 }
 
+func isNonPublicSchema(r *pg_query.RangeVar) bool {
+	return r != nil && r.Schemaname != "" && r.Schemaname != constants.PG_DEFAULT_SCHEMA
+}
+
 func processIndexStmt(conv *internal.Conv, n *pg_query.IndexStmt) {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("cannot process index statement with nil relation"))
+		return
+	}
+	if isNonPublicSchema(n.Relation) {
+		conv.SkipStatement(printNodeType(n))
 		return
 	}
 	tableName, err := getTableName(conv, n.Relation)
@@ -315,6 +382,10 @@ func processIndexStmt(conv *internal.Conv, n *pg_query.IndexStmt) {
 func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		return
+	}
+	if isNonPublicSchema(n.Relation) {
+		conv.SkipStatement(printNodeType(n))
 		return
 	}
 	tableName, err := getTableName(conv, n.Relation)
@@ -399,6 +470,10 @@ func processCreateForeignTableStmt(conv *internal.Conv, n *pg_query.CreateForeig
 		conv.SkipStatement(printNodeType(n))
 		return "", false
 	}
+	if isNonPublicSchema(base.Relation) {
+		conv.SkipStatement(printNodeType(n))
+		return "", false
+	}
 	tableName, err := getTableName(conv, base.Relation)
 	if err != nil {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
@@ -410,9 +485,12 @@ func processCreateForeignTableStmt(conv *internal.Conv, n *pg_query.CreateForeig
 }
 
 func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
-	colDef := make(map[string]schema.Column)
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		return
+	}
+	if isNonPublicSchema(n.Relation) {
+		skipNonPublicCreateStmt(conv, n)
 		return
 	}
 	table, err := getTableName(conv, n.Relation)
@@ -427,6 +505,34 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is a partition", printNodeType(n), table))
 		return
 	}
+	if _, ok := addCreateStmtTable(conv, n, table, table); ok {
+		conv.SchemaStatement(printNodeType(n))
+	}
+}
+
+// addNonPublicLookupTable reads a non-public table, under its qualified name, so public children can copy its columns.
+func addNonPublicLookupTable(conv *internal.Conv, n *pg_query.CreateStmt) (string, bool) {
+	if n.Relation.Relname == "" || n.Partbound != nil {
+		return "", false
+	}
+	return addCreateStmtTable(conv, n, schemaQualifiedName(n.Relation), "")
+}
+
+func skipNonPublicCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
+	conv.SkipStatement(printNodeType(n))
+	conv.AddNonPublicTable(n.Relation.Schemaname, n.Relation.Relname)
+	internal.VerbosePrintf("Processing %v statement: table %s.%s is in non-public schema\n", printNodeType(n), n.Relation.Schemaname, n.Relation.Relname)
+	logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s.%s is in non-public schema", printNodeType(n), n.Relation.Schemaname, n.Relation.Relname))
+}
+
+// schemaQualifiedName returns the table name as "schema.table".
+func schemaQualifiedName(r *pg_query.RangeVar) string {
+	return r.Schemaname + "." + r.Relname
+}
+
+// addCreateStmtTable adds n to SrcSchema as table; refTable, if set, records its non-public references.
+func addCreateStmtTable(conv *internal.Conv, n *pg_query.CreateStmt, table, refTable string) (string, bool) {
+	colDef := make(map[string]schema.Column)
 	var constraints []constraint
 	var colIds []string
 	colNameIdMap := make(map[string]string)
@@ -436,7 +542,7 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 			_, col, cdConstraints, err := processColumn(conv, te.GetColumnDef(), table)
 			if err != nil {
 				logStmtError(conv, n, err)
-				return
+				return "", false
 			}
 			col.Id = internal.GenerateColumnId()
 			colDef[col.Id] = col
@@ -452,7 +558,6 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", printNodeType(te)))
 		}
 	}
-	conv.SchemaStatement(printNodeType(n))
 	tableId := internal.GenerateTableId()
 	conv.SrcSchema[tableId] = schema.Table{
 		Id:           tableId,
@@ -461,10 +566,11 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		ColNameIdMap: colNameIdMap,
 		ColDefs:      colDef,
 	}
-	registerInheritedTable(conv, tableId, getInheritedTableNames(conv, n.InhRelations))
+	registerInheritedTable(conv, tableId, getInheritedTableNames(conv, refTable, n.InhRelations))
 	// Note: constraints contains all info about primary keys, not-null keys
 	// and foreign keys.
 	updateSchema(conv, tableId, constraints, "CREATE TABLE")
+	return tableId, true
 }
 
 func processColumn(conv *internal.Conv, n *pg_query.ColumnDef, table string) (string, schema.Column, []constraint, error) {
@@ -502,6 +608,10 @@ func getAutoGenFromTypeName(typeName string) ddl.AutoGenCol {
 func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInsert {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		return nil
+	}
+	if isNonPublicSchema(n.Relation) {
+		conv.SkipStatement(printNodeType(n))
 		return nil
 	}
 	table, err := getTableName(conv, n.Relation)
@@ -549,6 +659,10 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 	table := "BOGUS_COPY_FROM_TABLE"
 	var err error
 	if n.Relation != nil {
+		if isNonPublicSchema(n.Relation) {
+			conv.SkipStatement(printNodeType(n))
+			return &copyOrInsert{stmt: copyFrom, skip: true}
+		}
 		table, err = getTableName(conv, n.Relation)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", printNodeType(n), err))
@@ -608,6 +722,10 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 }
 
 func processCreateSeqStmt(conv *internal.Conv, n *pg_query.CreateSeqStmt) {
+	if isNonPublicSchema(n.GetSequence()) {
+		conv.SkipStatement(printNodeType(n))
+		return
+	}
 	name := getSeqName(n.GetSequence())
 	conv.ConvLock.Lock()
 	defer conv.ConvLock.Unlock()
@@ -621,6 +739,10 @@ func processCreateSeqStmt(conv *internal.Conv, n *pg_query.CreateSeqStmt) {
 }
 
 func processAlterSeqStmt(conv *internal.Conv, n *pg_query.AlterSeqStmt) {
+	if isNonPublicSchema(n.Sequence) {
+		conv.SkipStatement(printNodeType(n))
+		return
+	}
 	name := getSeqName(n.Sequence)
 	conv.ConvLock.Lock()
 	defer conv.ConvLock.Unlock()
@@ -648,13 +770,13 @@ func addOwnedBy(seq *ddl.Sequence, options []*pg_query.Node) {
 		if opt.GetDefElem().Defname == "owned_by" {
 			colNameItems := opt.GetDefElem().Arg.GetList().Items
 			if len(colNameItems) >= 2 {
-				tableName, _ := getString(colNameItems[len(colNameItems)-2])
 				if len(colNameItems) >= 3 {
 					schemaName, _ := getString(colNameItems[len(colNameItems)-3])
-					if (schemaName != "" && schemaName != "public") {
-						tableName = schemaName + "." + tableName
+					if schemaName != "" && schemaName != constants.PG_DEFAULT_SCHEMA {
+						break
 					}
 				}
+				tableName, _ := getString(colNameItems[len(colNameItems)-2])
 				columnName, _ := getString(colNameItems[len(colNameItems)-1])
 				seq.ColumnsOwningSeq[tableName] = []string{columnName}
 			}
@@ -781,21 +903,12 @@ func getTypeID(nodes []*pg_query.Node) (string, error) {
 func getTableName(conv *internal.Conv, n *pg_query.RangeVar) (string, error) {
 	// RangeVar is used to represent table names. It consists of three components:
 	//  Catalogname: database name; either not specified or the current database
-	//  Schemaname: schemas are PostgreSql namepaces; often unspecified; defaults to "public"
+	//  Schemaname: schemas are PostgreSql namespaces; often unspecified; defaults to "public"
 	//  Relname: name of the table
-	// We build a table name from these three components as follows:
-	// a) nil components are dropped.
-	// b) if more than one component is specified, they are joined using "."
-	//    (Note that Spanner doesn't allow "." in table names, so this
-	//    will eventually get re-mapped when we construct the Spanner table name).
-	// c) Schemaname is dropped if it is "public".
-	// d) return error if Relname is nil or "".
+	// Only tables in the "public" schema are supported; non-public schemas are filtered out by callers.
 	var l []string
 	if n.Catalogname != "" {
 		l = append(l, n.Catalogname)
-	}
-	if n.Schemaname != "" && n.Schemaname != "public" { // Don't include "public".
-		l = append(l, n.Schemaname)
 	}
 	if n.Relname == "" {
 		return "", fmt.Errorf("relname is empty: can't build table name")
@@ -831,6 +944,13 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 			var conName, sequenceName, rawExpr, exprId string
 			switch c.Contype {
 			case pg_query.ConstrType_CONSTR_FOREIGN:
+				if isNonPublicSchema(c.Pktable) {
+					// The referenced table is not migrated, so drop the foreign key.
+					conv.AddNonPublicRef(table, c.Pktable.Schemaname, c.Pktable.Relname)
+					internal.VerbosePrintf("Processing %v statement: dropping foreign key %s on table %s: it references %s.%s, which is outside the public schema\n", stmtType, c.Conname, table, c.Pktable.Schemaname, c.Pktable.Relname)
+					logger.Log.Debug(fmt.Sprintf("Processing %v statement: dropping foreign key %s on table %s: it references %s.%s, which is outside the public schema", stmtType, c.Conname, table, c.Pktable.Schemaname, c.Pktable.Relname))
+					continue
+				}
 				t, err := getTableName(conv, c.Pktable)
 				if err != nil {
 					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", printNodeType(d), err.Error()))
@@ -1251,12 +1371,20 @@ func deparseExpression(node *pg_query.Node) (string, error) {
 	return strings.TrimSpace(strings.TrimPrefix(sql, "SELECT ")), nil
 }
 
-func getInheritedTableNames(conv *internal.Conv, inhRelations []*pg_query.Node) []string {
+func getInheritedTableNames(conv *internal.Conv, childTable string, inhRelations []*pg_query.Node) []string {
 	var parents []string
 	for _, r := range inhRelations {
 		rangeVar := r.GetRangeVar()
 		if rangeVar == nil {
 			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt InhRelations", printNodeType(r)))
+			continue
+		}
+		if isNonPublicSchema(rangeVar) {
+			// Use the qualified name to copy columns from the non-public parent's lookup-only table.
+			if childTable != "" {
+				conv.AddNonPublicRef(childTable, rangeVar.Schemaname, rangeVar.Relname)
+			}
+			parents = append(parents, schemaQualifiedName(rangeVar))
 			continue
 		}
 		name, err := getTableName(conv, rangeVar)
@@ -1293,7 +1421,12 @@ func withoutSelf(conv *internal.Conv, childName string, parents []string) []stri
 // parent's columns, so it is only flattened if the parent comes later in the dump.
 func addInheritedParent(conv *internal.Conv, childId string, def *pg_query.Node) {
 	child := conv.SrcSchema[childId]
-	for _, parent := range withoutSelf(conv, child.Name, getInheritedTableNames(conv, []*pg_query.Node{def})) {
+	if rangeVar := def.GetRangeVar(); isNonPublicSchema(rangeVar) {
+		// Nothing to copy from a parent that isn't migrated.
+		conv.AddNonPublicRef(child.Name, rangeVar.Schemaname, rangeVar.Relname)
+		return
+	}
+	for _, parent := range withoutSelf(conv, child.Name, getInheritedTableNames(conv, child.Name, []*pg_query.Node{def})) {
 		if !slices.Contains(child.InheritedFrom, parent) {
 			child.InheritedFrom = append(child.InheritedFrom, parent)
 		}
@@ -1306,7 +1439,7 @@ func addInheritedParent(conv *internal.Conv, childId string, def *pg_query.Node)
 
 // dropInheritedParent handles ALTER TABLE ... NO INHERIT; the child keeps its columns.
 func dropInheritedParent(conv *internal.Conv, childId string, def *pg_query.Node) {
-	removed := getInheritedTableNames(conv, []*pg_query.Node{def})
+	removed := getInheritedTableNames(conv, "", []*pg_query.Node{def})
 	child := conv.SrcSchema[childId]
 	child.InheritedFrom = slices.DeleteFunc(slices.Clone(child.InheritedFrom), func(name string) bool {
 		return slices.Contains(removed, name)
