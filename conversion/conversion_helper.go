@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -179,8 +180,13 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 		return splts[len(splts)-1]
 	case constants.ORACLE:
 		// connection string formate : "oracle://user:password@104.108.154.85:1521/XE"
+		// The user is url.QueryEscape'd by go_ora.BuildUrl (e.g. APP#1 -> APP%231), so it
+		// is unescaped to get the actual user name, which is used as the schema owner.
 		substr := sqlConnectionStr[9:]
 		dbName := strings.Split(substr, ":")[0]
+		if unescaped, err := url.QueryUnescape(dbName); err == nil {
+			dbName = unescaped
+		}
 		return dbName
 	}
 	return ""
