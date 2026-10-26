@@ -121,6 +121,17 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 		default:
 			// NUMERIC is a valid key column in GoogleSQL. The PostgreSQL dialect
 			// restriction is handled by common.ToPGDialectType in ToSpannerType.
+			if (srcType.Name == "numeric" || srcType.Name == "decimal") && len(srcType.Mods) >= 2 {
+				precision := srcType.Mods[0]
+				scale := srcType.Mods[1]
+				if scale > 9 || precision-scale > 29 {
+					return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
+				}
+			} else if (srcType.Name == "numeric" || srcType.Name == "decimal") && len(srcType.Mods) == 1 {
+				if srcType.Mods[0] > 29 {
+					return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
+				}
+			}
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 	case "date":
@@ -132,7 +143,14 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 		}
 	case "time":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
-	case "datetime2", "datetimeoffset", "datetime", "smalldatetime":
+	case "datetime", "datetime2", "smalldatetime":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Datetime}
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
+		}
+	case "datetimeoffset":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Datetime}
@@ -165,9 +183,9 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 		}
-	case "binary", "varbinary", "image":
+	case "binary", "varbinary":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
@@ -179,6 +197,13 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 				return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, nil
+		}
+	case "image":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
 		}
 	case "json":
 		switch spType {

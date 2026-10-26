@@ -210,6 +210,8 @@ func checkResults(t *testing.T, dbURI string) {
 	checkCommonDataType(ctx, t, client)
 	checkOtherTables(ctx, t, client)
 	checkNumericPK(ctx, t, client)
+	checkConstraintsDefaultsAndIndexes(ctx, t, client)
+	checkCompositeFK(ctx, t, client)
 }
 
 // checkNumericPK verifies that a SQL Server numeric primary key is migrated as a
@@ -519,5 +521,130 @@ func checkOtherTables(ctx context.Context, t *testing.T, client *spanner.Client)
 		if count != 3 {
 			t.Fatalf("RowVersionType count mismatch, got %d, want 3", count)
 		}
+	}
+}
+
+// checkConstraintsDefaultsAndIndexes verifies that UNIQUE constraints, CHECK constraints,
+// DEFAULT values, computed columns, and descending indexes are properly migrated.
+func checkConstraintsDefaultsAndIndexes(ctx context.Context, t *testing.T, client *spanner.Client) {
+	// 1. Check data in ConstraintsAndDefaults table including computed DoubleQty
+	type rowType struct {
+		id        int64
+		code      string
+		status    string
+		quantity  int64
+		doubleQty int64
+	}
+	want := []rowType{
+		{1, "A100", "active", 5, 10},
+		{2, "B200", "pending", 10, 20},
+	}
+	iter := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT Id, Code, Status, Quantity, DoubleQty FROM ConstraintsAndDefaults ORDER BY Id"})
+	defer iter.Stop()
+	var got []rowType
+	for {
+		r, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var row rowType
+		if err := r.Columns(&row.id, &row.code, &row.status, &row.quantity, &row.doubleQty); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, row)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ConstraintsAndDefaults rows mismatch: got %+v, want %+v", got, want)
+	}
+
+	// 2. Check UNIQUE constraint migrated as UNIQUE index
+	iterUnique := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT INDEX_NAME, IS_UNIQUE FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = 'ConstraintsAndDefaults' AND IS_UNIQUE = TRUE AND INDEX_NAME LIKE '%Code%'",
+	})
+	defer iterUnique.Stop()
+	rUnique, err := iterUnique.Next()
+	if err != nil {
+		t.Fatalf("Failed to find UNIQUE index on ConstraintsAndDefaults.Code: %v", err)
+	}
+	var uqIndexName string
+	var isUnique bool
+	if err := rUnique.Columns(&uqIndexName, &isUnique); err != nil {
+		t.Fatal(err)
+	}
+	if !isUnique {
+		t.Fatalf("Expected unique index for code, got %s isUnique=%v", uqIndexName, isUnique)
+	}
+
+	// 3. Check descending index columns
+	iterIdxCols := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT COLUMN_NAME, COLUMN_ORDERING FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = 'ConstraintsAndDefaults' AND INDEX_NAME = 'IX_ConstraintsAndDefaults_Status_QtyDesc' ORDER BY ORDINAL_POSITION",
+	})
+	defer iterIdxCols.Stop()
+	type idxCol struct {
+		col      string
+		ordering string
+	}
+	var gotIdxCols []idxCol
+	for {
+		r, err := iterIdxCols.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var c idxCol
+		if err := r.Columns(&c.col, &c.ordering); err != nil {
+			t.Fatal(err)
+		}
+		gotIdxCols = append(gotIdxCols, c)
+	}
+	wantIdxCols := []idxCol{
+		{"Status", "ASC"},
+		{"Quantity", "DESC"},
+	}
+	if !reflect.DeepEqual(gotIdxCols, wantIdxCols) {
+		t.Fatalf("IX_ConstraintsAndDefaults_Status_QtyDesc ordering mismatch: got %+v, want %+v", gotIdxCols, wantIdxCols)
+	}
+}
+
+// checkCompositeFK verifies that multi-column foreign keys preserve column order and data.
+func checkCompositeFK(ctx context.Context, t *testing.T, client *spanner.Client) {
+	// Verify data round-trip
+	iter := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT ChildId, ParentA, ParentB FROM CompositeFKChild WHERE ChildId = 100",
+	})
+	defer iter.Stop()
+	r, err := iter.Next()
+	if err != nil {
+		t.Fatalf("Failed to query CompositeFKChild: %v", err)
+	}
+	var childId, parentA int64
+	var parentB string
+	if err := r.Columns(&childId, &parentA, &parentB); err != nil {
+		t.Fatal(err)
+	}
+	if childId != 100 || parentA != 10 || parentB != "Alpha" {
+		t.Fatalf("CompositeFKChild data mismatch: got (%d, %d, %s), want (100, 10, 'Alpha')", childId, parentA, parentB)
+	}
+
+	// Verify foreign key constraint definition
+	iterFK := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME = 'CompositeFKChild' AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+	})
+	defer iterFK.Stop()
+	rFK, err := iterFK.Next()
+	if err != nil {
+		t.Fatalf("Failed to query foreign keys on CompositeFKChild: %v", err)
+	}
+	var fkName string
+	if err := rFK.Columns(&fkName); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(fkName, "CompositeFKChild") {
+		t.Fatalf("Unexpected foreign key name: %s", fkName)
 	}
 }

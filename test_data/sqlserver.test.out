@@ -104,6 +104,61 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
+/****** Object:  Table [dbo].[ConstraintsAndDefaults] -- UNIQUE, CHECK, DEFAULT, PERSISTED Computed Column, and DESC Index ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[ConstraintsAndDefaults](
+	[Id] [int] NOT NULL,
+	[Code] [nvarchar](20) NOT NULL,
+	[Status] [varchar](20) NOT NULL DEFAULT ('pending'),
+	[Quantity] [int] NOT NULL DEFAULT ((1)),
+	[DoubleQty] AS ([Quantity]*(2)) PERSISTED,
+ CONSTRAINT [PK_ConstraintsAndDefaults] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [UQ_ConstraintsAndDefaults_Code] UNIQUE NONCLUSTERED 
+(
+	[Code] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [CK_ConstraintsAndDefaults_Quantity] CHECK (([Quantity]>(0)))
+) ON [PRIMARY]
+GO
+CREATE NONCLUSTERED INDEX [IX_ConstraintsAndDefaults_Status_QtyDesc] ON [dbo].[ConstraintsAndDefaults]
+(
+	[Status] ASC,
+	[Quantity] DESC
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[CompositeFKParent] & [dbo].[CompositeFKChild] -- Composite Foreign Key order preservation ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[CompositeFKParent](
+	[PartA] [int] NOT NULL,
+	[PartB] [nvarchar](20) NOT NULL,
+ CONSTRAINT [PK_CompositeFKParent] PRIMARY KEY CLUSTERED 
+(
+	[PartA] ASC,
+	[PartB] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+CREATE TABLE [dbo].[CompositeFKChild](
+	[ChildId] [int] NOT NULL,
+	[ParentA] [int] NOT NULL,
+	[ParentB] [nvarchar](20) NOT NULL,
+ CONSTRAINT [PK_CompositeFKChild] PRIMARY KEY CLUSTERED 
+(
+	[ChildId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [FK_CompositeFKChild_Parent] FOREIGN KEY([ParentA], [ParentB])
+REFERENCES [dbo].[CompositeFKParent] ([PartA], [PartB])
+) ON [PRIMARY]
+GO
 SET IDENTITY_INSERT [dbo].[AllTypes] ON 
 GO
 INSERT [dbo].[AllTypes] ([Id], [BigInt], [Binary], [Bit], [Char], [Date], [DateTime], [DateTime2], [DateTimeOffset], [Decimal], [Float], [Geography], [Geometry], [HierarchyId], [Image], [Int], [Money], [NChar], [NText], [Numeric], [NVarChar], [NVarCharMax], [Real], [SmallDateTime], [SmallInt], [SmallMoney], [SQLVariant], [Text], [Time], [TinyInt], [UniqueIdentifier], [VarBinary], [VarBinaryMax], [VarChar], [VarCharMax], [Xml], [SysName], [Json]) VALUES (1, -9223372036854775808, 0x42696E6172792064617461000000000000000000000000000000000000000000000000000000000000000000000000000000, 0, N'ABC       ', CAST(N'2021-12-15' AS Date), CAST(N'2021-12-15T07:39:52.943' AS DateTime), CAST(N'2021-12-15T07:39:52.9433333' AS DateTime2), CAST(N'2021-12-15T07:39:52.9433333+01:20' AS DateTimeOffset), CAST(123456789.123456789 AS Decimal(18, 9)), 1.2, 0xE6100000010C1E1B81785DD34740E5D022DBF9965EC0, 0xE61000000114D7A3703D0A975EC08716D9CEF7D34740CBA145B6F3955EC08716D9CEF7D34740, N'/2/', 0x5465787420617320696D616765, 42, 922337203685477.5807, N'A         ', N'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.', CAST(1.12345678912345679 AS Numeric(18, 17)), N'ABC', N'ABCD', 5.5, CAST(N'2021-12-15T07:40:00' AS SmallDateTime), 32767, 214748.3647, CAST(1.200000000000000001234 AS numeric(22,21)), N'Lorem ipsum dolor sit amet', CAST(N'07:39:52.9500000' AS Time), 255, N'5d434705-4f3e-461e-ae36-0f96834a70ba', 0x56617242696E617279283530292064617461, 0x56617242696E617279286D6178292064617461, N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE AB', N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE', N'<note><to>Tove</to><from>Jani</from><heading>Reminder</heading><body>Don''t forget me this weekend!</body></note>', N'sysname_test_1', N'{"a":1,"b":[true,null],"c":"str"}')
@@ -137,6 +192,14 @@ GO
 INSERT [dbo].[NumericPK] ([Id], [Name]) VALUES (CAST(99999999.99 AS numeric(10, 2)), N'max')
 GO
 INSERT [dbo].[NumericPK] ([Id], [Name]) VALUES (CAST(-0.01 AS numeric(10, 2)), NULL)
+GO
+INSERT [dbo].[ConstraintsAndDefaults] ([Id], [Code], [Status], [Quantity]) VALUES (1, N'A100', 'active', 5)
+GO
+INSERT [dbo].[ConstraintsAndDefaults] ([Id], [Code], [Status], [Quantity]) VALUES (2, N'B200', 'pending', 10)
+GO
+INSERT [dbo].[CompositeFKParent] ([PartA], [PartB]) VALUES (10, N'Alpha')
+GO
+INSERT [dbo].[CompositeFKChild] ([ChildId], [ParentA], [ParentB]) VALUES (100, 10, N'Alpha')
 GO
 USE [master]
 GO
