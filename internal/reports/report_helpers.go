@@ -419,9 +419,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 					l = append(l, toAppend)
 				case internal.Datetime:
+					// Shared by sources whose date/time types have no time zone (e.g. MySQL
+					// DATETIME, Oracle DATE/TIMESTAMP). Batched: reported once per table
+					// with an example column.
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
+						Description: fmt.Sprintf("Some columns have a source DB type without a time zone which is mapped to Spanner type %s in table '%s' e.g. column '%s' of type %s. %s", spColType, conv.SpSchema[tableId].Name, spColName, srcColType, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Widened:
@@ -720,7 +723,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.AutoIncrement:        {Brief: "Spanner does not support auto_increment attribute", Severity: warning, Category: "AUTO_INCREMENT_ATTRIBUTE_USES"},
 	internal.IdentitySkipRange:    {Brief: "Set Skip Range or Start Counter With values to avoid duplicate value errors.", Severity: note, Category: "IDENTITY_SKIP_RANGE_SUGGESTION"},
 	internal.Timestamp:            {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", Severity: suggestion, batch: true, Category: "TIMESTAMP_SUGGESTION"},
-	internal.Datetime:             {Brief: "Spanner timestamp is closer to MySQL timestamp", Severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
+	internal.Datetime:             {Brief: "The source type has no time zone, while Spanner timestamp is an absolute point in time. Please check how the values should be interpreted", Severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
 	internal.Time:                 {Brief: "Spanner does not support time/year types", Severity: warning, batch: true, Category: "TIME_YEAR_TYPE_USES"},
 	internal.Widened:              {Brief: "Some columns will consume more storage in Spanner", Severity: warning, batch: true, Category: "STORAGE_WARNING"},
 	internal.StringOverflow:       {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", Severity: warning, Category: "STRING_OVERFLOW_WARNING"},

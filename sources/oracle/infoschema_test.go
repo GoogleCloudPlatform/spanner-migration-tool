@@ -83,6 +83,8 @@ func TestToType(t *testing.T) {
 		{"NUMBER(*,2)", "NUMBER", null, val(2), schema.Type{Name: "NUMBER"}},
 		{"FLOAT(126)", "FLOAT", val(126), null, schema.Type{Name: "FLOAT", Mods: []int64{126}}},
 		{"BINARY_DOUBLE", "BINARY_DOUBLE", null, null, schema.Type{Name: "BINARY_DOUBLE"}},
+		{"INTERVAL DAY(3) TO SECOND(2)", "INTERVAL DAY(3) TO SECOND(2)", val(3), val(2), schema.Type{Name: "INTERVAL DAY(3) TO SECOND(2)"}},
+		{"INTERVAL YEAR(4) TO MONTH", "INTERVAL YEAR(4) TO MONTH", val(4), val(0), schema.Type{Name: "INTERVAL YEAR(4) TO MONTH"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
