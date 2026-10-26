@@ -41,3 +41,37 @@ func TestGetDbNameFromSQLConnectionStrOracle(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDbNameFromSQLConnectionStrSqlServer(t *testing.T) {
+	tests := []struct {
+		name     string
+		connStr  string
+		expected string
+	}{
+		{
+			name:     "plain connection string",
+			connStr:  "sqlserver://user:password@localhost:1433?database=testdb",
+			expected: "testdb",
+		},
+		{
+			name:     "connection string with additional parameters",
+			connStr:  "sqlserver://user:password@localhost:1433?database=testdb&encrypt=true",
+			expected: "testdb",
+		},
+		{
+			name:     "database name with spaces and special characters URL encoded",
+			connStr:  "sqlserver://user%231:p%40ss%23word@localhost:1433?database=my+test%23db&encrypt=true",
+			expected: "my test#db",
+		},
+		{
+			name:     "database name with percent-encoded space",
+			connStr:  "sqlserver://user:password@localhost:1433?database=my%20test%20db",
+			expected: "my test db",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, getDbNameFromSQLConnectionStr(constants.SQLSERVER, tc.connStr))
+		})
+	}
+}

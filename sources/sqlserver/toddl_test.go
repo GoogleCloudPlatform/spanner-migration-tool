@@ -118,6 +118,48 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in default case")
 	}
+
+	// Tests for datetime types: datetime, datetime2, smalldatetime emit Datetime warning; datetimeoffset does not.
+	for _, dt := range []string{"datetime", "datetime2", "smalldatetime"} {
+		spTy, issues := toSpannerTypeInternal(schema.Type{Name: dt}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Timestamp}, spTy, dt)
+		assert.Equal(t, []internal.SchemaIssue{internal.Datetime}, issues, dt)
+	}
+	spTy, issues := toSpannerTypeInternal(schema.Type{Name: "datetimeoffset"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Timestamp}, spTy)
+	assert.Nil(t, issues)
+
+	// Tests for numeric/decimal overflow warning
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{38, 10}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "decimal", Mods: []int64{18, 17}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{38, 0}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{18, 4}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Nil(t, issues)
+
+	// Tests for large object types
+	for _, lob := range []string{"ntext", "text", "xml"} {
+		spTy, issues = toSpannerTypeInternal(schema.Type{Name: lob}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, spTy, lob)
+		assert.Equal(t, []internal.SchemaIssue{internal.StringOverflow}, issues, lob)
+	}
+
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "image"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
+
+	spTy, issues = toSpannerTypeInternal(schema.Type{Name: "image", Mods: []int64{2147483647}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
 }
 
 // NUMERIC is a valid key column in GoogleSQL; only the PostgreSQL dialect
@@ -273,6 +315,8 @@ func TestToSpannerType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c10": {internal.Datetime},
+			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
 		},
 	}
@@ -384,6 +428,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c10": {internal.Datetime},
+			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
 		},
 	}

@@ -71,6 +71,9 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
+		if spColDef.GeneratedColumn.IsPresent {
+			continue
+		}
 		var x interface{}
 		var err error
 		x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
