@@ -352,7 +352,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				Type:      genType,
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    sanitizeSQLServerExpression(cc.definition, true),
+					Statement:    sanitizeSQLServerExpression(cc.definition, false),
 				},
 			}
 		}
