@@ -483,6 +483,7 @@ func TestGetCheckConstraints(t *testing.T) {
 			rows: [][]driver.Value{
 				{"ck_items_price", "(([price] > 0))"},
 				{"ck_items_status", "([status] IN ('a', 'b'))"},
+				{"ck_items_not_null", "([unit$price] IS NOT NULL AND [unit$price] > 0)"},
 			},
 		},
 	}
@@ -491,11 +492,13 @@ func TestGetCheckConstraints(t *testing.T) {
 	isi := InfoSchemaImpl{"testdb", db}
 	cks, err := isi.getCheckConstraints(conv, common.SchemaAndName{Schema: "dbo", Name: "items"})
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(cks))
+	assert.Equal(t, 3, len(cks))
 	assert.Equal(t, "ck_items_price", cks[0].Name)
 	assert.Equal(t, "(price > 0)", cks[0].Expr)
 	assert.Equal(t, "ck_items_status", cks[1].Name)
 	assert.Equal(t, "(status IN ('a', 'b'))", cks[1].Expr)
+	assert.Equal(t, "ck_items_not_null", cks[2].Name)
+	assert.Equal(t, "(unit_price IS NOT NULL AND unit_price > 0)", cks[2].Expr)
 }
 
 func TestGetColumns_DefaultsAndComputed(t *testing.T) {
@@ -543,13 +546,13 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 	cVirt := colDefs[colIds[3]]
 	assert.True(t, cVirt.GeneratedColumn.IsPresent)
 	assert.Equal(t, ddl.GeneratedColVirtual, cVirt.GeneratedColumn.Type)
-	assert.Equal(t, "(col1 + col2)", cVirt.GeneratedColumn.Value.Statement)
+	assert.Equal(t, "col1 + col2", cVirt.GeneratedColumn.Value.Statement)
 
 	// stored_col: GeneratedColumn stored
 	cStored := colDefs[colIds[4]]
 	assert.True(t, cStored.GeneratedColumn.IsPresent)
 	assert.Equal(t, ddl.GeneratedColStored, cStored.GeneratedColumn.Type)
-	assert.Equal(t, "(col1 * 2)", cStored.GeneratedColumn.Value.Statement)
+	assert.Equal(t, "col1 * 2", cStored.GeneratedColumn.Value.Statement)
 }
 
 func TestGetForeignKeys_CompositeOrder(t *testing.T) {
