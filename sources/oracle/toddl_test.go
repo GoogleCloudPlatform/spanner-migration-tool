@@ -405,3 +405,59 @@ func TestToSpannerTypeNumeric(t *testing.T) {
 		})
 	}
 }
+
+func TestToSpannerTypeWarnings(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	typ := func(name string, mods ...int64) schema.Type { return schema.Type{Name: name, Mods: mods} }
+	noTz := []internal.SchemaIssue{internal.Datetime}
+	overflow := []internal.SchemaIssue{internal.PossibleOverflow}
+	widened := []internal.SchemaIssue{internal.Widened}
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		spType         string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		// #1444: date/time types without a time zone mapped to TIMESTAMP.
+		{"DATE", typ("DATE"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(6)", typ("TIMESTAMP(6)"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(0)", typ("TIMESTAMP(0)"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(6) WITH TIME ZONE", typ("TIMESTAMP(6) WITH TIME ZONE"), "", ddl.Type{Name: ddl.Timestamp}, nil},
+		{"TIMESTAMP(6) WITH LOCAL TIME ZONE", typ("TIMESTAMP(6) WITH LOCAL TIME ZONE"), "", ddl.Type{Name: ddl.Timestamp}, nil},
+		{"DATE -> DATE", typ("DATE"), ddl.Date, ddl.Type{Name: ddl.Date}, widened},
+		{"TIMESTAMP(6) -> STRING", typ("TIMESTAMP(6)"), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		// #1445: intervals stored as strings.
+		{"INTERVAL DAY TO SECOND", typ("INTERVAL DAY(3) TO SECOND(2)"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		{"INTERVAL YEAR TO MONTH", typ("INTERVAL YEAR(4) TO MONTH"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		// #1443: large objects that can exceed the Spanner per value limit.
+		{"LONG RAW", typ("LONG RAW"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, overflow},
+		{"BLOB", typ("BLOB"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, overflow},
+		{"BLOB -> STRING", typ("BLOB"), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		{"CLOB", typ("CLOB"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"NCLOB", typ("NCLOB"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"LONG", typ("LONG"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"CLOB -> BYTES", typ("CLOB"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		// Types split out of the LOB branches keep their previous behaviour.
+		// XMLTYPE values can exceed the Spanner per value limit.
+		{"XMLTYPE", typ("XMLTYPE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"XMLTYPE -> BYTES", typ("XMLTYPE"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		// BFILE content (a file outside of the database) cannot be migrated.
+		{"BFILE", typ("BFILE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}},
+		{"BFILE -> BYTES", typ("BFILE"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}},
+		// Types split out of the LOB/XMLTYPE branches keep their previous behaviour.
+		{"URITYPE unchanged", typ("URITYPE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil},
+		{"ANYDATA unchanged", typ("ANYDATA"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+	}
+	for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
+		for _, tc := range tests {
+			t.Run(dialect+"/"+tc.name, func(t *testing.T) {
+				conv.SpDialect = dialect
+				actual, issues := td.ToSpannerType(conv, tc.spType, tc.srcType, false)
+				assert.Equal(t, tc.expected, actual)
+				assert.Equal(t, tc.expectedIssues, issues)
+			})
+		}
+	}
+}
