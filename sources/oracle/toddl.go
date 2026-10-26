@@ -265,6 +265,7 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow}
 		}
 	case "DATE":
+		// Oracle DATE holds a date and a time of day without a time zone.
 		switch spType {
 		case ddl.Date:
 			return ddl.Type{Name: ddl.Date}, []internal.SchemaIssue{internal.Widened}
@@ -273,7 +274,7 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Timestamp}, nil
+			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
 		}
 	case "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE":
 		switch spType {
@@ -282,16 +283,22 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
+			if baseType == "TIMESTAMP" {
+				// Unlike the time zone aware variants, TIMESTAMP has no time zone.
+				return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
+			}
 			return ddl.Type{Name: ddl.Timestamp}, nil
 		}
 	case "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND":
+		// Spanner has no interval type, so intervals are stored as strings (the
+		// PostgreSQL source reports interval the same way).
 		switch spType {
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Float64:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "RAW":
 		switch spType {
@@ -300,14 +307,41 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
-	case "LONG RAW", "BLOB", "SDO_GEORASTER", "ANYDATA", "ANYTYPE", "ANYDATASET", "ORDAUDIO", "ORDIMAGE", "ORDVIDEO", "ORDDOC", "SI_STILLIMAGE", "SI_COLOR", "SI_AVERAGECOLOR", "SI_COLORHISTOGRAM", "SI_POSITIONALCOLOR", "SI_TEXTURE", "SI_FEATURELIST":
+	case "LONG RAW", "BLOB":
+		// LONG RAW (up to 2 GB) and BLOB (up to 4 GB and more) can hold values larger
+		// than a Spanner BYTES/STRING value (10 MiB).
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
+		}
+	case "SDO_GEORASTER", "ANYDATA", "ANYTYPE", "ANYDATASET", "ORDAUDIO", "ORDIMAGE", "ORDVIDEO", "ORDDOC", "SI_STILLIMAGE", "SI_COLOR", "SI_AVERAGECOLOR", "SI_COLORHISTOGRAM", "SI_POSITIONALCOLOR", "SI_TEXTURE", "SI_FEATURELIST":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
-	case "CLOB", "NCLOB", "LONG", "XMLTYPE", "URITYPE", "DBURITYPE", "XDBURITYPE", "HTTPURITYPE", "EXPRESSION", "MLSLABEL", "REF":
+	case "CLOB", "NCLOB", "LONG":
+		// CLOB, NCLOB (up to 4 GB and more) and LONG (up to 2 GB) can hold values
+		// larger than a Spanner STRING(MAX)/BYTES value.
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
+		}
+	case "XMLTYPE":
+		// XMLTYPE values (stored as a LOB, up to 4 GB and more) can be larger than a
+		// Spanner STRING(MAX)/BYTES value.
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
+		}
+	case "URITYPE", "DBURITYPE", "XDBURITYPE", "HTTPURITYPE", "EXPRESSION", "MLSLABEL", "REF":
 		switch spType {
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -315,11 +349,14 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "BFILE":
+		// A BFILE is a locator of a file stored outside of the database. The file
+		// content cannot be migrated, so the column is reported as having no
+		// appropriate Spanner type (which also makes it nullable).
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 		default:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 		}
 	case "ROWID", "UROWID":
 		switch spType {
