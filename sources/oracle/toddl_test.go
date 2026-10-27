@@ -502,3 +502,34 @@ func TestToSpannerTypeWarnings(t *testing.T) {
 		}
 	}
 }
+
+func TestGetColumnAutoGen(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+
+	// Oracle IDENTITY columns are read as AUTO_INCREMENT and map to Spanner IDENTITY.
+	autoGen, err := td.GetColumnAutoGen(conv, ddl.AutoGenCol{Name: constants.AUTO_INCREMENT, GenerationType: constants.AUTO_INCREMENT}, "c1", "t1")
+	assert.Nil(t, err)
+	assert.Equal(t, &ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY, IdentityOptions: conv.DefaultIdentityOptions}, autoGen)
+
+	// Anything else is not supported, but never returns nil.
+	autoGen, err = td.GetColumnAutoGen(conv, ddl.AutoGenCol{Name: "x", GenerationType: "x"}, "c1", "t1")
+	assert.NotNil(t, err)
+	assert.Equal(t, &ddl.AutoGenCol{}, autoGen)
+}
+
+// Oracle allows identity columns on any NUMBER. Spanner identity columns must be INT64,
+// so the common conversion maps them with an explicit INT64 target type.
+func TestToSpannerTypeIdentityAsInt64(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
+		conv.SpDialect = dialect
+		ty, issues := td.ToSpannerType(conv, ddl.Int64, schema.Type{Name: "NUMBER"}, true)
+		assert.Equal(t, ddl.Type{Name: ddl.Int64}, ty, dialect)
+		assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues, dialect)
+		ty, issues = td.ToSpannerType(conv, ddl.Int64, schema.Type{Name: "NUMBER", Mods: []int64{10}}, true)
+		assert.Equal(t, ddl.Type{Name: ddl.Int64}, ty, dialect)
+		assert.Nil(t, issues, dialect)
+	}
+}

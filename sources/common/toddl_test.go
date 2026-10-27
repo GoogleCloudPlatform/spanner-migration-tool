@@ -1070,3 +1070,87 @@ func TestApplyExpressionGeneratedColumnPKErrors(t *testing.T) {
 	applyExpressionGeneratedColumnPKErrors(conv, expressions)
 	assert.False(t, conv.SpSchema["t1"].ColDefs["c1"].GeneratedColumn.IsPresent)
 }
+
+// Spanner identity columns must be INT64: an identity column that the source maps to
+// another type is mapped again to INT64 with the source's own type mapping.
+func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
+	identity := &ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}
+	srcAutoGen := ddl.AutoGenCol{Name: constants.AUTO_INCREMENT, GenerationType: constants.AUTO_INCREMENT}
+	tests := []struct {
+		name           string
+		firstType      ddl.Type
+		firstIssues    []internal.SchemaIssue
+		autoGen        *ddl.AutoGenCol
+		autoGenErr     error
+		expectRemap    bool
+		expectedType   ddl.Type
+		expectedIssues []internal.SchemaIssue
+		expectedAuto   ddl.AutoGenCol
+	}{
+		{
+			name:           "identity mapped to NUMERIC is mapped again to INT64",
+			firstType:      ddl.Type{Name: ddl.Numeric},
+			firstIssues:    []internal.SchemaIssue{internal.Numeric},
+			autoGen:        identity,
+			expectRemap:    true,
+			expectedType:   ddl.Type{Name: ddl.Int64},
+			expectedIssues: []internal.SchemaIssue{internal.PossibleOverflow, internal.IdentitySkipRange},
+			expectedAuto:   *identity,
+		},
+		{
+			name:           "identity already INT64 is unchanged",
+			firstType:      ddl.Type{Name: ddl.Int64},
+			firstIssues:    nil,
+			autoGen:        identity,
+			expectedType:   ddl.Type{Name: ddl.Int64},
+			expectedIssues: []internal.SchemaIssue{internal.IdentitySkipRange},
+			expectedAuto:   *identity,
+		},
+		{
+			name:           "no auto generation returned does not panic",
+			firstType:      ddl.Type{Name: ddl.Numeric},
+			firstIssues:    nil,
+			autoGen:        nil,
+			expectedType:   ddl.Type{Name: ddl.Numeric},
+			expectedIssues: nil,
+			expectedAuto:   ddl.AutoGenCol{},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			srcTable := schema.Table{
+				Name:        "T",
+				Id:          "t1",
+				ColIds:      []string{"c1"},
+				PrimaryKeys: []schema.Key{{ColId: "c1"}},
+				ColDefs: map[string]schema.Column{
+					"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}, AutoGen: srcAutoGen},
+				},
+			}
+			mockToddl := new(MockToDdl)
+			mockToddl.On("ToSpannerType", mock.Anything, "", mock.Anything, true).Return(tc.firstType, tc.firstIssues)
+			mockToddl.On("ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow})
+			if tc.autoGen == nil {
+				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(nil, tc.autoGenErr)
+			} else {
+				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(tc.autoGen, tc.autoGenErr)
+			}
+
+			ss := SchemaToSpannerImpl{}
+			err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false)
+
+			assert.Nil(t, err)
+			col := conv.SpSchema["t1"].ColDefs["c1"]
+			assert.Equal(t, tc.expectedType, col.T)
+			assert.True(t, col.NotNull)
+			assert.Equal(t, tc.expectedAuto, col.AutoGen)
+			assert.Equal(t, tc.expectedIssues, conv.SchemaIssues["t1"].ColumnLevelIssues["c1"])
+			if tc.expectRemap {
+				mockToddl.AssertCalled(t, "ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true)
+			} else {
+				mockToddl.AssertNotCalled(t, "ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true)
+			}
+		})
+	}
+}

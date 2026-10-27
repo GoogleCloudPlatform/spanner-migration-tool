@@ -410,6 +410,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 
 		isPk := IsPrimaryKey(srcColId, srcTable)
 		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type, isPk)
+		// Number of issues reported by the type mapping, which come first in issues.
+		typeIssueCount := len(issues)
 
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {
@@ -440,15 +442,29 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		var autoGenCol *ddl.AutoGenCol = &ddl.AutoGenCol{}
 		if srcAutoGen.Name != "" {
 			autoGenCol, err = toddl.GetColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
-			if autoGenCol != nil {
-				if err != nil {
-					srcCol.Ignored.AutoIncrement = true
-					issues = append(issues, internal.AutoIncrement)
-				} else if autoGenCol.GenerationType == constants.SEQUENCE {
-					issues = append(issues, internal.SequenceCreated)
-				} else if autoGenCol.GenerationType == constants.IDENTITY {
-					issues = append(issues, internal.IdentitySkipRange)
+			if autoGenCol == nil {
+				// The source returned no auto generation (e.g. an unsupported type):
+				// migrate the column without it instead of dereferencing nil.
+				autoGenCol = &ddl.AutoGenCol{}
+			} else if err != nil {
+				srcCol.Ignored.AutoIncrement = true
+				issues = append(issues, internal.AutoIncrement)
+			} else if autoGenCol.GenerationType == constants.SEQUENCE {
+				issues = append(issues, internal.SequenceCreated)
+			} else if autoGenCol.GenerationType == constants.IDENTITY {
+				if ty.Name != ddl.Int64 {
+					// Spanner identity columns must be INT64, while some sources allow
+					// identity columns of other types (e.g. Oracle NUMBER maps to NUMERIC).
+					// Map the column again with the source's own type mapping for INT64,
+					// which reports any possible overflow, and replace the issues of the
+					// first mapping with the ones of this mapping.
+					int64Ty, int64Issues := toddl.ToSpannerType(conv, ddl.Int64, srcCol.Type, isPk)
+					otherIssues := issues[typeIssueCount:]
+					issues = append(append([]internal.SchemaIssue{}, int64Issues...), otherIssues...)
+					ty = int64Ty
+					isNotNull = srcCol.NotNull
 				}
+				issues = append(issues, internal.IdentitySkipRange)
 			}
 		}
 		if len(issues) > 0 {
