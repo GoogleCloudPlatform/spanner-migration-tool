@@ -29,7 +29,6 @@ type ToDdlImpl struct{}
 
 func (td ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, spType, srcType, isPk)
-	ty = applyCharLength(ty, srcType)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		var pg_issues []internal.SchemaIssue
 		ty, pg_issues = common.ToPGDialectType(ty, isPk)
@@ -46,34 +45,6 @@ func (td ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGen
 		return autoGen, nil
 	}
 	return nil, nil
-}
-
-// oracleCharTypes lists the Oracle character types that carry a declared
-// length (in characters) which should be preserved in the Spanner STRING(N) type.
-var oracleCharTypes = map[string]bool{
-	"VARCHAR2": true, "VARCHAR": true, "CHAR": true, "CHARACTER": true,
-	"NVARCHAR2": true, "NCHAR": true, "NCHAR VARYING": true,
-	"NATIONAL CHARACTER": true, "NATIONAL CHAR": true,
-	"NATIONAL CHARACTER VARYING": true, "NATIONAL CHAR VARYING": true,
-}
-
-// applyCharLength carries the declared length of Oracle character columns
-// (e.g. VARCHAR2(100), CHAR(10)) over to the Spanner STRING type, matching the
-// behaviour of the MySQL and PostgreSQL sources. Only applies when the column
-// is mapped to an unbounded STRING; other target types are left untouched.
-func applyCharLength(ty ddl.Type, srcType schema.Type) ddl.Type {
-	if ty.Name != ddl.String || ty.IsArray || ty.Len != ddl.MaxLength || len(srcType.Mods) == 0 {
-		return ty
-	}
-	re := regexp.MustCompile(`\(\d+(,\s*\d+)?\)`)
-	baseType := strings.TrimSpace(strings.ToUpper(re.ReplaceAllString(srcType.Name, "")))
-	if !oracleCharTypes[baseType] {
-		return ty
-	}
-	if n := srcType.Mods[0]; n > 0 && n <= ddl.StringMaxLength {
-		ty.Len = n
-	}
-	return ty
 }
 
 func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
@@ -176,10 +147,18 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 	var issues []internal.SchemaIssue
 	switch baseType {
 	case "VARCHAR2", "VARCHAR", "CHAR", "CHARACTER", "NVARCHAR2", "NCHAR", "NCHAR VARYING", "NATIONAL CHARACTER", "NATIONAL CHAR", "NATIONAL CHARACTER VARYING", "NATIONAL CHAR VARYING":
+		// The declared length is carried over to STRING(n) and BYTES(n), matching the
+		// MySQL and PostgreSQL sources.
 		switch spType {
 		case ddl.Bytes:
+			if len(mods) > 0 && mods[0] > 0 && mods[0] <= ddl.BytesMaxLength {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
+			if len(mods) > 0 && mods[0] > 0 && mods[0] <= ddl.StringMaxLength {
+				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "NUMBER", "NUMERIC", "DECIMAL", "DEC":
@@ -301,10 +280,15 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "RAW":
+		// RAW(n) is variable length binary data of at most n bytes, so its length is
+		// carried over to BYTES(n). Spanner PostgreSQL BYTEA does not support a length.
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
+			if len(mods) > 0 && mods[0] > 0 && mods[0] <= ddl.BytesMaxLength {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "LONG RAW", "BLOB":
