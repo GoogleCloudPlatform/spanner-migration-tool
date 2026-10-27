@@ -15,6 +15,7 @@
 package profiles
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,5 +210,33 @@ func TestGetSchemaSampleSize(t *testing.T) {
 	for _, tc := range testCases {
 		res := GetSchemaSampleSize(tc.inputSourceProfile)
 		assert.Equal(t, tc.expectedOutput, res, tc.name)
+	}
+}
+
+func TestGetORACLEConnectionStrSpecialCharacters(t *testing.T) {
+	testCases := []struct {
+		name     string
+		user     string
+		password string
+	}{
+		{"plain", "SMT_USER", "Secret123"},
+		{"password with space", "SMT_USER", "Smt case 18"},
+		{"password with plus", "SMT_USER", "a+b"},
+		{"password with reserved characters", "SMT_USER", "p@ss:w/rd?#%&="},
+		{"user with # and $", "C##APP$1", "pw"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			connStr := GetORACLEConnectionStr("127.0.0.1", "1521", tc.user, tc.password, "XEPDB1")
+			// go-ora parses the connection string with url.Parse.
+			u, err := url.Parse(connStr)
+			assert.NoError(t, err)
+			assert.Equal(t, "oracle", u.Scheme)
+			assert.Equal(t, tc.user, u.User.Username())
+			pwd, _ := u.User.Password()
+			assert.Equal(t, tc.password, pwd)
+			assert.Equal(t, "127.0.0.1:1521", u.Host)
+			assert.Equal(t, "/XEPDB1", u.Path)
+		})
 	}
 }

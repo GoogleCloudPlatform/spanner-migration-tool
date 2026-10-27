@@ -63,7 +63,6 @@ import (
 	index "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
 	primarykey "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
 
-	go_ora "github.com/sijms/go-ora/v2"
 )
 
 func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
@@ -98,8 +97,7 @@ func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
 		u.RawQuery = q.Encode()
 		dataSourceName = u.String()
 	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	default:
 		return "", fmt.Errorf("driver : '%s' is not supported", config.Driver)
 	}
@@ -319,8 +317,7 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 		u.RawQuery = q.Encode()
 		dataSourceName = u.String()
 	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.CASSANDRA:
 		keyspaceMetadata, err := validateCassandraConnection(config)
 		if err != nil {
