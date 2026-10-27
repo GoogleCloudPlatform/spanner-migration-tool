@@ -198,14 +198,16 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	var q string
 	// CHAR_LENGTH (declared length in characters) is used instead of DATA_LENGTH
 	// (length in bytes) so that VARCHAR2(n CHAR), NVARCHAR2(n), NCHAR(n) etc. map
-	// to Spanner STRING(n), which is also measured in characters.
+	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
+	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
+	// used instead, mapping it to Spanner BYTES(n).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CHAR_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CHAR_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
@@ -223,9 +225,9 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	for rows.Next() {
 		var tableName, colName, dataType, isNullable, identityCol string
 		var colDefault sql.NullString
-		var charMaxLen, numericPrecision, numericScale sql.NullInt64
+		var colLength, numericPrecision, numericScale sql.NullInt64
 
-		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &identityCol)
+		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &colLength, &numericPrecision, &numericScale, &identityCol)
 		if err != nil {
 			continue
 		}
@@ -243,7 +245,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
-			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
+			Type:    toType(dataType, colLength, numericPrecision, numericScale),
 			NotNull: isNullable == "N",
 			AutoGen: colAutoGen,
 		}
@@ -265,7 +267,10 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	return result, nil
 }
 
-func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
+// toType builds the source schema type of a column. length is the declared length
+// of the column: in characters for character types (CHAR_LENGTH) and in bytes for
+// RAW (DATA_LENGTH).
+func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
 	if strings.HasPrefix(dataType, "INTERVAL") {
 		// Oracle reports intervals with their precisions in the type name (e.g.
@@ -281,8 +286,8 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	} else if charLen.Valid && strings.Contains(dataType, "CHAR") {
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW") {
+		return schema.Type{Name: dataType, Mods: []int64{length.Int64}}
 	}
 	return schema.Type{Name: dataType}
 }
@@ -420,6 +425,8 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 		args[i+1] = name
 	}
 
+	// The n-th referencing column (A) is paired with the n-th referenced column (B) by
+	// matching positions, so that composite foreign keys keep one pair per column.
 	q := fmt.Sprintf(`SELECT 
 			A.table_name,
 			B.table_name AS ref_table, 
@@ -428,9 +435,9 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 			A.constraint_name AS name
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
-		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
 		WHERE A.owner = :1 AND A.table_name IN (%s)
-		ORDER BY A.table_name, A.position`, strings.Join(placeholders, ","))
+		ORDER BY A.table_name, A.constraint_name, A.position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
