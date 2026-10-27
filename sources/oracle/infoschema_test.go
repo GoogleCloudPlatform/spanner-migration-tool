@@ -142,17 +142,20 @@ func TestGenerateSrcSchema(t *testing.T) {
 			k.column_name,
 			t.constraint_type,
 			t.search_condition,
-			t.constraint_name
+			t.constraint_name,
+			c.nullable
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		LEFT JOIN all_tab_columns c
+		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (:2)
 		ORDER BY k.table_name, k.position`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
-			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name"},
+			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
 			rows: [][]driver.Value{
-				{"TEST_TABLE", "ID", "P", nil, "PK_TEST"},
-				{"TEST_TABLE", "NAME", "C", "IS JSON", "SYS_C1"},
+				{"TEST_TABLE", "ID", "P", nil, "PK_TEST", "N"},
+				{"TEST_TABLE", "NAME", "C", "IS JSON", "SYS_C1", "Y"},
 			},
 		},
 		{
@@ -395,6 +398,85 @@ func TestToSpannerGeneratedExpr(t *testing.T) {
 	}
 }
 
+func TestGetConstraintsBatchNotNullChecks(t *testing.T) {
+	// Oracle stores each NOT NULL column as a check constraint `"COL" IS NOT NULL`. Only those
+	// are skipped; user-written checks mentioning IS NOT NULL are kept.
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta(`SELECT 
+			k.table_name,
+			k.column_name,
+			t.constraint_type,
+			t.search_condition,
+			t.constraint_name,
+			c.nullable
+		FROM all_constraints t
+		INNER JOIN all_cons_columns k
+		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		LEFT JOIN all_tab_columns c
+		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
+		WHERE t.owner = :1 AND k.table_name IN (:2)
+		ORDER BY k.table_name, k.position`),
+			args: []driver.Value{"TESTDB", "CONTACTS"},
+			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
+			rows: [][]driver.Value{
+				{"CONTACTS", "ID", "P", nil, "CONTACTS_PK", "N"},
+				// System NOT NULL constraint of a NOT NULL column: skipped.
+				{"CONTACTS", "ID", "C", `"ID" IS NOT NULL`, "SYS_C001", "N"},
+				// Named NOT NULL constraint (CONSTRAINT NN_EMAIL NOT NULL): skipped.
+				{"CONTACTS", "EMAIL", "C", `"EMAIL" IS NOT NULL`, "NN_EMAIL", "N"},
+				// Multi-column checks: one row per column, kept once.
+				{"CONTACTS", "EMAIL", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "N"},
+				{"CONTACTS", "PHONE", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "Y"},
+				{"CONTACTS", "STATUS", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y"},
+				{"CONTACTS", "END_DATE", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y"},
+				// User-written single-column checks on nullable columns: kept.
+				{"CONTACTS", "NICK", "C", "nick IS NOT NULL", "CK_NICK", "Y"},
+				{"CONTACTS", "CODE", "C", `"CODE" IS NOT NULL`, "CK_CODE", "Y"},
+				// Unrelated check on a NOT NULL column: kept.
+				{"CONTACTS", "AGE", "C", "age > 0", "CK_AGE", "N"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	isi := InfoSchemaImpl{DbName: "testdb", Db: db}
+	result, err := isi.GetConstraintsBatch(internal.MakeConv(), []common.SchemaAndName{{Schema: "TESTDB", Name: "CONTACTS"}})
+	assert.Nil(t, err)
+
+	checks := map[string]string{}
+	for _, ck := range result["CONTACTS"].CheckConstraints {
+		checks[ck.Name] = ck.Expr
+	}
+	assert.Equal(t, map[string]string{
+		"CK_CONTACT": "(email IS NOT NULL OR phone IS NOT NULL)",
+		"CK_STATUS":  "(status <> 'X' AND end_date IS NOT NULL)",
+		"CK_NICK":    "(nick IS NOT NULL)",
+		"CK_CODE":    "(CODE IS NOT NULL)",
+		"CK_AGE":     "(age > 0)",
+	}, checks)
+	assert.Equal(t, []string{"ID"}, result["CONTACTS"].PrimaryKeys)
+}
+
+func TestIsNotNullConstraint(t *testing.T) {
+	tests := []struct {
+		condition, col, nullable string
+		want                     bool
+	}{
+		{`"EMAIL" IS NOT NULL`, "EMAIL", "N", true},
+		{` "EMAIL" IS NOT NULL `, "EMAIL", "N", true},
+		{`"Mixed Case" IS NOT NULL`, "Mixed Case", "N", true},
+		{`"EMAIL" IS NOT NULL`, "EMAIL", "Y", false},
+		{`"EMAIL" IS NOT NULL`, "EMAIL", "", false},
+		{`"PHONE" IS NOT NULL`, "EMAIL", "N", false},
+		{`email IS NOT NULL`, "EMAIL", "N", false},
+		{`"EMAIL" IS NOT NULL OR "PHONE" IS NOT NULL`, "EMAIL", "N", false},
+		{`"EMAIL" IS NULL`, "EMAIL", "N", false},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.want, isNotNullConstraint(tc.condition, tc.col, tc.nullable), "condition %q col %q nullable %q", tc.condition, tc.col, tc.nullable)
+	}
+}
+
 func TestGetForeignKeysBatchComposite(t *testing.T) {
 	// Rows as returned by Oracle once the referencing and referenced columns are paired
 	// by position: one row per column pair of each foreign key.
@@ -520,15 +602,18 @@ func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
 			k.column_name,
 			t.constraint_type,
 			t.search_condition,
-			t.constraint_name
+			t.constraint_name,
+			c.nullable
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		LEFT JOIN all_tab_columns c
+		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (:2)
 		ORDER BY k.table_name, k.position`)
 	rows := [][]driver.Value{
-		{"ORDERS", "QTY", "C", `"QTY" > 0`, "CK_QTY"},
-		{"ORDERS", "STATUS", "C", `"STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s'`, "CK_STATUS"},
+		{"ORDERS", "QTY", "C", `"QTY" > 0`, "CK_QTY", "Y"},
+		{"ORDERS", "STATUS", "C", `"STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s'`, "CK_STATUS", "Y"},
 	}
 
 	for _, tc := range []struct {
@@ -551,7 +636,7 @@ func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
 			db := mkMockDB(t, []mockSpec{{
 				query: query,
 				args:  []driver.Value{"TESTDB", "ORDERS"},
-				cols:  []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name"},
+				cols:  []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
 				rows:  rows,
 			}})
 			defer db.Close()
