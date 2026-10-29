@@ -1071,49 +1071,73 @@ func TestApplyExpressionGeneratedColumnPKErrors(t *testing.T) {
 	assert.False(t, conv.SpSchema["t1"].ColDefs["c1"].GeneratedColumn.IsPresent)
 }
 
-// Spanner identity columns must be INT64: an identity column that the source maps to
-// another type is mapped again to INT64 with the source's own type mapping.
+// Spanner identity columns must be INT64. An identity column that the source maps to
+// another type keeps its type and loses the identity: if it is not part of the primary
+// key, it gets a warning; if it is, a new INT64 identity column replaces it in the
+// primary key and a unique index keeps the source primary key columns unique.
 func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 	identity := &ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}
 	srcAutoGen := ddl.AutoGenCol{Name: constants.AUTO_INCREMENT, GenerationType: constants.AUTO_INCREMENT}
 	tests := []struct {
 		name           string
-		firstType      ddl.Type
-		firstIssues    []internal.SchemaIssue
+		primaryKeys    []schema.Key
+		mappedType     ddl.Type
+		mappedIssues   []internal.SchemaIssue
 		autoGen        *ddl.AutoGenCol
-		autoGenErr     error
-		expectRemap    bool
-		expectedType   ddl.Type
-		expectedIssues []internal.SchemaIssue
 		expectedAuto   ddl.AutoGenCol
+		expectedIssues []internal.SchemaIssue
+		expectNewPk    bool
 	}{
 		{
-			name:           "identity mapped to NUMERIC is mapped again to INT64",
-			firstType:      ddl.Type{Name: ddl.Numeric},
-			firstIssues:    []internal.SchemaIssue{internal.Numeric},
+			name:           "INT64 identity primary key is unchanged",
+			primaryKeys:    []schema.Key{{ColId: "c1"}},
+			mappedType:     ddl.Type{Name: ddl.Int64},
 			autoGen:        identity,
-			expectRemap:    true,
-			expectedType:   ddl.Type{Name: ddl.Int64},
-			expectedIssues: []internal.SchemaIssue{internal.PossibleOverflow, internal.IdentitySkipRange},
 			expectedAuto:   *identity,
+			expectedIssues: []internal.SchemaIssue{internal.IdentitySkipRange},
 		},
 		{
-			name:           "identity already INT64 is unchanged",
-			firstType:      ddl.Type{Name: ddl.Int64},
-			firstIssues:    nil,
+			name:           "INT64 identity non key column is unchanged",
+			mappedType:     ddl.Type{Name: ddl.Int64},
 			autoGen:        identity,
-			expectedType:   ddl.Type{Name: ddl.Int64},
-			expectedIssues: []internal.SchemaIssue{internal.IdentitySkipRange},
 			expectedAuto:   *identity,
+			expectedIssues: []internal.SchemaIssue{internal.IdentitySkipRange},
+		},
+		{
+			name:           "NUMERIC identity non key column loses the identity with a warning",
+			primaryKeys:    []schema.Key{{ColId: "c2"}},
+			mappedType:     ddl.Type{Name: ddl.Numeric},
+			mappedIssues:   []internal.SchemaIssue{internal.Numeric},
+			autoGen:        identity,
+			expectedAuto:   ddl.AutoGenCol{},
+			expectedIssues: []internal.SchemaIssue{internal.Numeric, internal.IdentityTypeNotSupported},
+		},
+		{
+			name:           "NUMERIC identity primary key is replaced by a new INT64 identity column",
+			primaryKeys:    []schema.Key{{ColId: "c1"}},
+			mappedType:     ddl.Type{Name: ddl.Numeric},
+			mappedIssues:   []internal.SchemaIssue{internal.Numeric},
+			autoGen:        identity,
+			expectedAuto:   ddl.AutoGenCol{},
+			expectedIssues: []internal.SchemaIssue{internal.Numeric},
+			expectNewPk:    true,
+		},
+		{
+			name:           "NUMERIC identity in a composite primary key is replaced in place",
+			primaryKeys:    []schema.Key{{ColId: "c2", Order: 1}, {ColId: "c1", Desc: true, Order: 2}},
+			mappedType:     ddl.Type{Name: ddl.Numeric},
+			autoGen:        identity,
+			expectedAuto:   ddl.AutoGenCol{},
+			expectedIssues: nil,
+			expectNewPk:    true,
 		},
 		{
 			name:           "no auto generation returned does not panic",
-			firstType:      ddl.Type{Name: ddl.Numeric},
-			firstIssues:    nil,
+			primaryKeys:    []schema.Key{{ColId: "c1"}},
+			mappedType:     ddl.Type{Name: ddl.Numeric},
 			autoGen:        nil,
-			expectedType:   ddl.Type{Name: ddl.Numeric},
-			expectedIssues: nil,
 			expectedAuto:   ddl.AutoGenCol{},
+			expectedIssues: nil,
 		},
 	}
 	for _, tc := range tests {
@@ -1122,35 +1146,75 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 			srcTable := schema.Table{
 				Name:        "T",
 				Id:          "t1",
-				ColIds:      []string{"c1"},
-				PrimaryKeys: []schema.Key{{ColId: "c1"}},
+				ColIds:      []string{"c1", "c2"},
+				PrimaryKeys: tc.primaryKeys,
 				ColDefs: map[string]schema.Column{
 					"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}, AutoGen: srcAutoGen},
+					"c2": {Name: "synth_id", Id: "c2", NotNull: true, Type: schema.Type{Name: "VARCHAR2"}},
 				},
 			}
+			conv.SrcSchema[srcTable.Id] = srcTable
 			mockToddl := new(MockToDdl)
-			mockToddl.On("ToSpannerType", mock.Anything, "", mock.Anything, true).Return(tc.firstType, tc.firstIssues)
-			mockToddl.On("ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow})
+			mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, mock.Anything).Return(tc.mappedType, tc.mappedIssues)
+			mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "VARCHAR2"}, mock.Anything).Return(ddl.Type{Name: ddl.String, Len: 10}, []internal.SchemaIssue(nil))
 			if tc.autoGen == nil {
-				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(nil, tc.autoGenErr)
+				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(nil, nil)
 			} else {
-				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(tc.autoGen, tc.autoGenErr)
+				mockToddl.On("GetColumnAutoGen", mock.Anything, srcAutoGen, "c1", "t1").Return(tc.autoGen, nil)
 			}
 
 			ss := SchemaToSpannerImpl{}
 			err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false)
-
 			assert.Nil(t, err)
-			col := conv.SpSchema["t1"].ColDefs["c1"]
-			assert.Equal(t, tc.expectedType, col.T)
+
+			spTable := conv.SpSchema["t1"]
+			col := spTable.ColDefs["c1"]
+			// The source column always keeps its type and NOT NULL.
+			assert.Equal(t, tc.mappedType, col.T)
 			assert.True(t, col.NotNull)
 			assert.Equal(t, tc.expectedAuto, col.AutoGen)
 			assert.Equal(t, tc.expectedIssues, conv.SchemaIssues["t1"].ColumnLevelIssues["c1"])
-			if tc.expectRemap {
-				mockToddl.AssertCalled(t, "ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true)
-			} else {
-				mockToddl.AssertNotCalled(t, "ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, true)
+			mockToddl.AssertNotCalled(t, "ToSpannerType", mock.Anything, ddl.Int64, mock.Anything, mock.Anything)
+
+			if !tc.expectNewPk {
+				assert.Equal(t, []string{"c1", "c2"}, spTable.ColIds)
+				assert.Empty(t, spTable.Indexes)
+				return
 			}
+			// A new INT64 identity column replaces the source column in the primary key.
+			assert.Equal(t, 3, len(spTable.ColIds))
+			newColId := spTable.ColIds[2]
+			newCol := spTable.ColDefs[newColId]
+			assert.Equal(t, "synth_id0", newCol.Name) // "synth_id" is already a column name.
+			assert.Equal(t, ddl.Type{Name: ddl.Int64}, newCol.T)
+			assert.True(t, newCol.NotNull)
+			assert.Equal(t, constants.IDENTITY, newCol.AutoGen.GenerationType)
+			assert.Equal(t, []internal.SchemaIssue{internal.IdentityPrimaryKeyAdded, internal.IdentitySkipRange}, conv.SchemaIssues["t1"].ColumnLevelIssues[newColId])
+
+			var expectedPk, expectedUniqueKeys []ddl.IndexKey
+			for _, k := range tc.primaryKeys {
+				expectedUniqueKeys = append(expectedUniqueKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc, Order: k.Order})
+				colId := k.ColId
+				if colId == "c1" {
+					colId = newColId
+				}
+				expectedPk = append(expectedPk, ddl.IndexKey{ColId: colId, Desc: k.Desc, Order: k.Order})
+			}
+			assert.Equal(t, expectedPk, spTable.PrimaryKeys)
+			// A unique index keeps the source primary key columns unique.
+			assert.Equal(t, 1, len(spTable.Indexes))
+			assert.True(t, spTable.Indexes[0].Unique)
+			assert.Equal(t, "T_original_pk", spTable.Indexes[0].Name)
+			assert.Equal(t, "t1", spTable.Indexes[0].TableId)
+			assert.Equal(t, expectedUniqueKeys, spTable.Indexes[0].Keys)
 		})
 	}
+}
+
+func TestUniqueColumnName(t *testing.T) {
+	colDefs := map[string]ddl.ColumnDef{"c1": {Name: "ID"}}
+	assert.Equal(t, "synth_id", uniqueColumnName(colDefs, "synth_id"))
+	colDefs["c2"] = ddl.ColumnDef{Name: "SYNTH_ID"}
+	colDefs["c3"] = ddl.ColumnDef{Name: "synth_id0"}
+	assert.Equal(t, "synth_id1", uniqueColumnName(colDefs, "synth_id"))
 }

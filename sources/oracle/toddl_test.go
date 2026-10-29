@@ -518,9 +518,9 @@ func TestGetColumnAutoGen(t *testing.T) {
 	assert.Equal(t, &ddl.AutoGenCol{}, autoGen)
 }
 
-// Oracle allows identity columns on any NUMBER. Spanner identity columns must be INT64,
-// so the common conversion maps them with an explicit INT64 target type.
-func TestToSpannerTypeIdentityAsInt64(t *testing.T) {
+// An Oracle NUMBER column can optionally be mapped to INT64, with a PossibleOverflow
+// warning when its precision is unspecified or exceeds INT64.
+func TestToSpannerTypeNumberAsInt64(t *testing.T) {
 	conv := internal.MakeConv()
 	td := ToDdlImpl{}
 	for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
