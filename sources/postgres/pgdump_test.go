@@ -2685,3 +2685,48 @@ func TestGetInheritedTableNames(t *testing.T) {
 	assert.Equal(t, map[string][]string{"child": {"archive.p1"}}, conv.NonPublicRefs)
 	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }
+
+func TestProcessPgDump_DefaultTransactionIsolation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "SET default_transaction_isolation repeatable read",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "ALTER DATABASE SET default_transaction_isolation serializable",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET default_transaction_isolation read committed ignored",
+			input:    "SET default_transaction_isolation = 'read committed';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "subsequent unsupported SET resets earlier isolation",
+			input:    "SET default_transaction_isolation = 'serializable';\nSET default_transaction_isolation = 'read committed';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "RESET default_transaction_isolation clears earlier isolation",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nRESET default_transaction_isolation;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "SET TO DEFAULT clears earlier isolation",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nSET default_transaction_isolation TO DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			assert.Equal(t, tc.expected, conv.DatabaseOptions.DefaultTransactionIsolation)
+		})
+	}
+}

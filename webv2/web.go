@@ -733,9 +733,15 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
+	sessionState.Conv.DatabaseOptions.DbName = details.TargetDetails.TargetDB
+	sessionState.Conv.DatabaseOptions.DefaultTimezone = details.TargetDetails.DefaultTimezone
+	sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = details.TargetDetails.DefaultTransactionIsolation
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
 	if details.TargetDetails.DefaultTimezone != "" {
 		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
+	}
+	if details.TargetDetails.DefaultTransactionIsolation != "" {
+		targetProfileString = fmt.Sprintf("%v,defaultTransactionIsolation=%v", targetProfileString, details.TargetDetails.DefaultTransactionIsolation)
 	}
 		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
 		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)

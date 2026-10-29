@@ -61,6 +61,7 @@ describe('PrepareMigrationComponent', () => {
       [TargetDetails.GcsMetadataName]: 'mockGcsMetadataName',
       [TargetDetails.GcsMetadataRootPath]: 'mockGcsMetadataRootPath',
       [TargetDetails.DefaultTimezone]: 'mockDefaultTimezone',
+      [TargetDetails.DefaultTransactionIsolation]: 'repeatable read',
       [MigrationDetails.IsGcsMetadataPathSet]: 'true'
     };
 
@@ -84,6 +85,7 @@ describe('PrepareMigrationComponent', () => {
           GcsBucketRootPath: 'mockGcsMetadataRootPath',
         },
         DefaultTimezone: 'mockDefaultTimezone',
+        DefaultTransactionIsolation: 'repeatable read',
       });
     });
   });
@@ -104,5 +106,44 @@ describe('PrepareMigrationComponent', () => {
 
     expect(component.migrationModes).toEqual([MigrationModes.schemaOnly]);
     expect(component.selectedMigrationMode).toEqual(MigrationModes.schemaOnly);
+  });
+
+  it('should seed DefaultTransactionIsolation from conv.DatabaseOptions when target details are not set', () => {
+    spyOn(localStorage, 'getItem').and.returnValue(null);
+    const setItemSpy = spyOn(localStorage, 'setItem');
+    component.isTargetDetailSet = false;
+    (component as any).data.convSubject.next({
+      DatabaseOptions: {
+        DbName: 'db',
+        DefaultTimezone: '',
+        DefaultTransactionIsolation: 'repeatable read',
+      },
+    } as IConv);
+
+    expect(setItemSpy).toHaveBeenCalledWith(TargetDetails.DefaultTransactionIsolation, 'repeatable read');
+    expect(component.targetDetails.DefaultTransactionIsolation).toEqual('repeatable read');
+  });
+
+  it('should not overwrite cleared DefaultTransactionIsolation when target details are already set', () => {
+    spyOn(localStorage, 'getItem').and.returnValue(null);
+    const setItemSpy = spyOn(localStorage, 'setItem');
+    component.isTargetDetailSet = true;
+    component.targetDetails.DefaultTransactionIsolation = '';
+    (component as any).data.convSubject.next({
+      DatabaseOptions: {
+        DbName: 'db',
+        DefaultTimezone: '',
+        DefaultTransactionIsolation: 'repeatable read',
+      },
+    } as IConv);
+
+    expect(setItemSpy).not.toHaveBeenCalledWith(TargetDetails.DefaultTransactionIsolation, 'repeatable read');
+    expect(component.targetDetails.DefaultTransactionIsolation).toEqual('');
+  });
+
+  it('should remove DefaultTransactionIsolation in clearLocalStorage', () => {
+    const removeItemSpy = spyOn(localStorage, 'removeItem');
+    component.clearLocalStorage();
+    expect(removeItemSpy).toHaveBeenCalledWith(TargetDetails.DefaultTransactionIsolation);
   });
 });

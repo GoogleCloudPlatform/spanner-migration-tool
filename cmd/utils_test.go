@@ -17,6 +17,8 @@ package cmd
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,4 +73,31 @@ func TestGetSessionFileName(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestApplyTargetDatabaseOptions(t *testing.T) {
+	t.Run("overrides session DatabaseOptions when specified in target profile", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.DatabaseOptions.DefaultTimezone = "UTC"
+		conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
+
+		applyTargetDatabaseOptions(conv, profiles.TargetProfileConnectionSpanner{
+			DefaultTimezone:             "America/New_York",
+			DefaultTransactionIsolation: "serializable",
+		})
+
+		assert.Equal(t, "America/New_York", conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "serializable", conv.DatabaseOptions.DefaultTransactionIsolation)
+	})
+
+	t.Run("preserves session DatabaseOptions when omitted in target profile", func(t *testing.T) {
+		conv := internal.MakeConv()
+		conv.DatabaseOptions.DefaultTimezone = "UTC"
+		conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
+
+		applyTargetDatabaseOptions(conv, profiles.TargetProfileConnectionSpanner{})
+
+		assert.Equal(t, "UTC", conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "repeatable read", conv.DatabaseOptions.DefaultTransactionIsolation)
+	})
 }

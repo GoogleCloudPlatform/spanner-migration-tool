@@ -133,6 +133,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	checkResults(t, dbURI, true)
+	checkDefaultTransactionIsolation(ctx, t, dbURI, constants.ISOLATION_LEVEL_REPEATABLE_READ)
 }
 
 func toDefaultTimezoneArg(defaultTimezone string) string {
@@ -320,6 +321,23 @@ func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	checkCheckConstraints(ctx, t, dbURI)
+	checkDefaultTransactionIsolation(ctx, t, dbURI, constants.ISOLATION_LEVEL_REPEATABLE_READ)
+}
+
+func checkDefaultTransactionIsolation(ctx context.Context, t *testing.T, dbURI, expectedIsolation string) {
+	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbURI})
+	if err != nil {
+		t.Fatalf("Could not read DDL from database %s: %v", dbURI, err)
+	}
+	expectedOption := fmt.Sprintf("default_transaction_isolation = '%s'", expectedIsolation)
+	found := false
+	for _, stmt := range resp.Statements {
+		if strings.Contains(stmt, "ALTER DATABASE") && strings.Contains(stmt, expectedOption) {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Expected DDL to contain %q, got statements: %v", expectedOption, resp.Statements)
 }
 
 func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
