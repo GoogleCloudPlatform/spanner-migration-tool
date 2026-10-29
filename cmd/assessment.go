@@ -158,6 +158,7 @@ func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, s
 		if err != nil {
 			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
+		applyTargetDatabaseOptions(conv, targetProfile.Conn.Sp)
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 		schemaToSpanner := common.SchemaToSpannerImpl{
 			ExpressionVerificationAccessor: expressionVerificationAccessor,

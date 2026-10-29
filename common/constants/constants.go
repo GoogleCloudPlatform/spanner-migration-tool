@@ -55,6 +55,10 @@ const (
 	DIALECT_POSTGRESQL string = "postgresql"
 	DIALECT_GOOGLESQL  string = "google_standard_sql"
 
+	// Supported default transaction isolation levels for Cloud Spanner database.
+	ISOLATION_LEVEL_REPEATABLE_READ string = "repeatable read"
+	ISOLATION_LEVEL_SERIALIZABLE    string = "serializable"
+
 	// Temp directory name to write data which we cleanup at the end.
 	SMT_TMP_DIR string = "spanner_migration_tool_tmp_data"
 

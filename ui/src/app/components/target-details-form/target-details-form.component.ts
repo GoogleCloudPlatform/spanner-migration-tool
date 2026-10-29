@@ -15,6 +15,10 @@ export class TargetDetailsFormComponent implements OnInit {
   dialect: string = ''
 
   timezones: { timezone: string }[] = Object.values(Intl.supportedValuesOf('timeZone')).map((timezone) => ({ timezone: timezone }))
+  isolationLevels: { label: string; value: string }[] = [
+    { label: 'SERIALIZABLE', value: 'serializable' },
+    { label: 'REPEATABLE READ', value: 'repeatable read' },
+  ]
 
   constructor(
     private formBuilder: FormBuilder,
@@ -27,10 +31,12 @@ export class TargetDetailsFormComponent implements OnInit {
     this.targetDetailsForm = this.formBuilder.group({
       targetDb: ['', [Validators.required,Validators.pattern('^[a-z][a-z0-9-_]{0,28}[a-z0-9]$')]],
       defaultTimezone: [''],
+      defaultTransactionIsolation: [''],
     })
     this.targetDetailsForm.setValue({
       targetDb: localStorage.getItem(TargetDetails.TargetDB),
       defaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone),
+      defaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation),
     })
   }
 
@@ -45,6 +51,11 @@ export class TargetDetailsFormComponent implements OnInit {
       localStorage.setItem(TargetDetails.DefaultTimezone, formValue.defaultTimezone)
     } else{
       localStorage.removeItem(TargetDetails.DefaultTimezone)
+    }
+    if (formValue.defaultTransactionIsolation) {
+      localStorage.setItem(TargetDetails.DefaultTransactionIsolation, formValue.defaultTransactionIsolation)
+    } else {
+      localStorage.removeItem(TargetDetails.DefaultTransactionIsolation)
     }
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, "true")
     this.dialogRef.close()

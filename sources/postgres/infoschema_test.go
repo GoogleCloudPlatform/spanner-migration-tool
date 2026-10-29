@@ -1393,3 +1393,18 @@ func TestInheritanceLookupErrors(t *testing.T) {
 	assert.ErrorContains(t, err, "permission denied")
 	assert.Nil(t, mock.ExpectationsWereMet())
 }
+
+func TestGetDefaultTransactionIsolation(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SHOW default_transaction_isolation;",
+			cols:  []string{"default_transaction_isolation"},
+			rows:  [][]driver.Value{{"repeatable read"}},
+		},
+	}
+	isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	got, err := isi.GetDefaultTransactionIsolation()
+	assert.NoError(t, err)
+	assert.Equal(t, "repeatable read", got)
+}
+

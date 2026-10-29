@@ -36,7 +36,6 @@ type InfoSchema interface {
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
-
 }
 
 // StandardInfoSchema supports per-table fetching of metadata.
@@ -102,6 +101,27 @@ type TableInheritanceProvider interface {
 // NonPublicTableProvider is an optional interface for listing skipped non-public tables.
 type NonPublicTableProvider interface {
 	GetNonPublicTables() ([]SchemaAndName, error)
+}
+
+// DefaultTransactionIsolationProvider is an optional interface for sources that
+// expose a database/global default transaction isolation level.
+type DefaultTransactionIsolationProvider interface {
+	GetDefaultTransactionIsolation() (string, error)
+}
+
+// NormalizeSupportedIsolationLevel normalizes a source transaction isolation
+// level string (e.g. "REPEATABLE-READ", "repeatable read", "SERIALIZABLE") to
+// the Spanner-supported lowercase form ("repeatable read" or "serializable").
+// Returns "" if the isolation level is not supported by Spanner.
+func NormalizeSupportedIsolationLevel(val string) string {
+	replaced := strings.ReplaceAll(strings.ToLower(val), "-", " ")
+	normalized := strings.Join(strings.Fields(replaced), " ")
+	switch normalized {
+	case "repeatable read", "serializable":
+		return normalized
+	default:
+		return ""
+	}
 }
 
 // SchemaAndName contains the schema and name for a table
@@ -229,8 +249,27 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 
 	annotateInheritedTables(conv, infoSchema)
 	annotateNonPublicTables(conv, infoSchema)
+	annotateDatabaseOptions(conv, infoSchema)
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return tableCount, nil
+}
+
+func annotateDatabaseOptions(conv *internal.Conv, infoSchema InfoSchema) {
+	if conv.DatabaseOptions.DefaultTransactionIsolation != "" {
+		return
+	}
+	provider, ok := infoSchema.(DefaultTransactionIsolationProvider)
+	if !ok {
+		return
+	}
+	isolationLevel, err := provider.GetDefaultTransactionIsolation()
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Couldn't get default transaction isolation: %s", err))
+		return
+	}
+	if normalized := NormalizeSupportedIsolationLevel(isolationLevel); normalized != "" {
+		conv.DatabaseOptions.DefaultTransactionIsolation = normalized
+	}
 }
 
 func annotateInheritedTables(conv *internal.Conv, infoSchema InfoSchema) {

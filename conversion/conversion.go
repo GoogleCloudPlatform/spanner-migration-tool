@@ -40,7 +40,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
 
@@ -68,8 +67,11 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
-	conv.DatabaseOptions = ddl.DatabaseOptions{
-		DefaultTimezone: targetProfile.Conn.Sp.DefaultTimezone,
+	if targetProfile.Conn.Sp.DefaultTimezone != "" {
+		conv.DatabaseOptions.DefaultTimezone = targetProfile.Conn.Sp.DefaultTimezone
+	}
+	if targetProfile.Conn.Sp.DefaultTransactionIsolation != "" {
+		conv.DatabaseOptions.DefaultTransactionIsolation = targetProfile.Conn.Sp.DefaultTransactionIsolation
 	}
 	return conv, err
 }

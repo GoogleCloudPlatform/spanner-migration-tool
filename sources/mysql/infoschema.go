@@ -171,10 +171,20 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
-
-
-
-
+// GetDefaultTransactionIsolation returns the global default transaction isolation level
+// configured on the MySQL database.
+func (isi InfoSchemaImpl) GetDefaultTransactionIsolation() (string, error) {
+	var isolationLevel string
+	err := isi.Db.QueryRow("SELECT @@global.transaction_isolation;").Scan(&isolationLevel)
+	if err != nil {
+		// Fallback for MySQL < 5.7.20 where the variable was named tx_isolation.
+		err = isi.Db.QueryRow("SELECT @@global.tx_isolation;").Scan(&isolationLevel)
+		if err != nil {
+			return "", fmt.Errorf("couldn't get global transaction_isolation: %w", err)
+		}
+	}
+	return isolationLevel, nil
+}
 
 // GetColumnsBatch returns a list of Column objects and names for a batch of tables.
 func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableColumns, error) {

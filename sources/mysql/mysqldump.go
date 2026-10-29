@@ -212,7 +212,8 @@ func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
 	if stmt.Variables != nil && len(stmt.Variables) > 0 {
 		for _, variable := range stmt.Variables {
-			if variable.Name == "TIME_ZONE" {
+			switch strings.ToLower(variable.Name) {
+			case "time_zone":
 				value := variable.Value
 				switch val := value.(type) {
 				case *driver.ValueExpr:
@@ -228,6 +229,15 @@ func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
 					// end of the dump file. We track the setting of TIME_ZONE, but
 					// ignore the restore statements.
 					return
+				}
+			case "transaction_isolation", "tx_isolation":
+				switch val := variable.Value.(type) {
+				case *driver.ValueExpr:
+					if val.GetValue() != nil {
+						conv.DatabaseOptions.DefaultTransactionIsolation = common.NormalizeSupportedIsolationLevel(fmt.Sprintf("%v", val.GetValue()))
+					}
+				case *ast.DefaultExpr:
+					conv.DatabaseOptions.DefaultTransactionIsolation = ""
 				}
 			}
 		}

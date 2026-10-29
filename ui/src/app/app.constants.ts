@@ -82,7 +82,8 @@ export enum TargetDetails {
   Dialect = 'dialect',
   GcsMetadataName = 'gcsName',
   GcsMetadataRootPath = 'gcsRootPath',
-  DefaultTimezone = 'defaultTimezone'
+  DefaultTimezone = 'defaultTimezone',
+  DefaultTransactionIsolation = 'defaultTransactionIsolation'
 }
 
 export const Profile = {
