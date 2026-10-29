@@ -405,6 +405,18 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("Column '%s' has been converted to an identity column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
+				case internal.IdentityTypeNotSupported:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Column '%s' is an identity column of type %s, which is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief),
+					}
+					l = append(l, toAppend)
+				case internal.IdentityPrimaryKeyAdded:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Column '%s' was added as the INT64 identity primary key, because Spanner identity columns must be INT64 and the source identity primary key column is not. The source primary key columns are kept, with a unique index. To use the source column as the identity primary key instead, change its type to INT64, set Auto-Generation to IDENTITY, make it the primary key and drop '%s'", conv.SpSchema[tableId].Name, spColName, spColName),
+					}
+					l = append(l, toAppend)
 				case internal.SequenceCreated:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -768,6 +780,10 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.InheritedTable:               {Brief: "Inherited table automatically flattened into a standalone table", Severity: note, Category: "INHERITED_TABLE"},
 	internal.NonPublicTable:               {Brief: "Tables outside the 'public' schema are ignored", Severity: warning, Category: "NON_PUBLIC_TABLE_IGNORED"},
 	internal.NonPublicSchemaRef:           {Brief: "References to tables outside the 'public' schema are ignored", Severity: note, Category: "NON_PUBLIC_SCHEMA_REFERENCE"},
+	internal.IdentityTypeNotSupported: {Brief: "Spanner identity columns must be INT64, so the identity was not migrated. To keep it, change the column type to INT64 and set Auto-Generation to IDENTITY", Severity: warning, Category: "IDENTITY_TYPE_NOT_SUPPORTED",
+		CategoryDescription: "Identity column type is not INT64, identity was not migrated"},
+	internal.IdentityPrimaryKeyAdded: {Brief: "column was added as the INT64 identity primary key because the source identity primary key column is not INT64. The source primary key columns are kept, with a unique index", Severity: warning, Category: "IDENTITY_PRIMARY_KEY_ADDED",
+		CategoryDescription: "Identity primary key column type is not INT64, INT64 identity column added as primary key"},
 }
 
 type Severity int

@@ -165,6 +165,8 @@ const (
 	InheritedTable
 	NonPublicTable
 	NonPublicSchemaRef
+	IdentityTypeNotSupported
+	IdentityPrimaryKeyAdded
 )
 
 const (
