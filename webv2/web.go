@@ -63,7 +63,6 @@ import (
 	index "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
 	primarykey "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
 
-	go_ora "github.com/sijms/go-ora/v2"
 )
 
 func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
@@ -78,7 +77,7 @@ func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
 		cfg.Addr = fmt.Sprintf("%s:%s", config.Host, config.Port)
 		cfg.DBName = config.Database
 		dataSourceName = cfg.FormatDSN()
-	case constants.SQLSERVER, constants.POSTGRES:
+	case constants.POSTGRES:
 		u := url.URL{
 			Scheme:   config.Driver,
 			User:     url.UserPassword(config.User, config.Password),
@@ -87,9 +86,18 @@ func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
 			RawQuery: "sslmode=disable", // Add other parameters here
 		}
 		dataSourceName = u.String()
+	case constants.SQLSERVER:
+		u := url.URL{
+			Scheme: "sqlserver",
+			User:   url.UserPassword(config.User, config.Password),
+			Host:   fmt.Sprintf("%s:%s", config.Host, config.Port),
+		}
+		q := u.Query()
+		q.Set("database", config.Database)
+		u.RawQuery = q.Encode()
+		dataSourceName = u.String()
 	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	default:
 		return "", fmt.Errorf("driver : '%s' is not supported", config.Driver)
 	}
@@ -299,10 +307,17 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.SQLSERVER:
-		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+		u := url.URL{
+			Scheme: "sqlserver",
+			User:   url.UserPassword(config.User, config.Password),
+			Host:   fmt.Sprintf("%s:%s", config.Host, config.Port),
+		}
+		q := u.Query()
+		q.Set("database", config.Database)
+		u.RawQuery = q.Encode()
+		dataSourceName = u.String()
 	case constants.ORACLE:
-		portNumber, _ := strconv.Atoi(config.Port)
-		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.CASSANDRA:
 		keyspaceMetadata, err := validateCassandraConnection(config)
 		if err != nil {

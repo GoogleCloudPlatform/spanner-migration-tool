@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,9 +46,9 @@ var (
 
 type SpannerRecord struct {
 	Date_t      spanner.NullTime
-	Float_t     string
-	Int_t       string
-	Numeric_t   string
+	Float_t     float64
+	Int_t       int64
+	Numeric_t   int64
 	String_t    string
 	Timestamp_t string
 }
@@ -158,18 +157,20 @@ func checkResults(t *testing.T, dbURI string) {
 }
 
 func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Client) {
+	// FLOAT_T is FLOAT(126) -> FLOAT64, INTEGER_T is NUMBER(9,0) -> INT64 and
+	// NUMERIC_T is NUMBER(*,0) (INTEGER) -> INT64.
 	wantRecord := SpannerRecord{
 		Date_t:      spanner.NullTime{Valid: true, Time: time.Date(2022, 1, 18, 0, 0, 0, 0, time.UTC)},
-		Float_t:     "1234.567890000",
-		Int_t:       "42.000000000",
-		Numeric_t:   "42.000000000",
+		Float_t:     1234.56789,
+		Int_t:       42,
+		Numeric_t:   42,
 		String_t:    "some varchar data",
 		Timestamp_t: "2022-01-19T11:27:18.262Z",
 	}
 	var date spanner.NullTime
-	var floatVal big.Rat
-	var intVal big.Rat
-	var numericVal big.Rat
+	var floatVal spanner.NullFloat64
+	var intVal spanner.NullInt64
+	var numericVal spanner.NullInt64
 	var stringVal string
 	var timeVal spanner.NullTime
 	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{3}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
@@ -189,9 +190,9 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		fmt.Fprintf(os.Stdout, "%v,%v,%v,%v,%v,%v", date, floatVal, intVal, numericVal, stringVal, timeVal)
 		gotRecord := SpannerRecord{
 			Date_t:      date,
-			Float_t:     floatVal.FloatString(9),
-			Int_t:       intVal.FloatString(9),
-			Numeric_t:   numericVal.FloatString(9),
+			Float_t:     floatVal.Float64,
+			Int_t:       intVal.Int64,
+			Numeric_t:   numericVal.Int64,
 			String_t:    stringVal,
 			Timestamp_t: timeVal.String(),
 		}

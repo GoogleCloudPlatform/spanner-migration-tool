@@ -78,7 +78,7 @@
       "schemaReport": {
         "rating": "EXCELLENT",
         "pkMissing": false,
-        "issues": 1,
+        "issues": 0,
         "warnings": 0,
         "totalColumns": 2
       },
@@ -87,18 +87,7 @@
         "badRows": 0,
         "totalRows": 0,
         "dryRun": false
-      },
-      "issues": [
-        {
-          "issueType": "Note",
-          "issueList": [
-            {
-              "category": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
-              "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
-            }
-          ]
-        }
-      ]
+      }
     },
     {
       "srcTableName": "excellent_schema",

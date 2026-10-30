@@ -89,7 +89,7 @@ func TestToSpannerType(t *testing.T) {
 		{"DEC - Alt (ddl.Float64)", "DEC", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
 		{"DEC - Alt (ddl.String)", "DEC", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
 		{"DEC - Alt (ddl.Int64)", "DEC", ddl.Int64, false, ddl.Type{Name: ddl.Int64}, constants.DIALECT_GOOGLESQL},
-		{"FLOAT - Default", "FLOAT", "", false, ddl.Type{Name: ddl.Numeric}, constants.DIALECT_GOOGLESQL},
+		{"FLOAT - Default", "FLOAT", "", false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
 		{"FLOAT - PG PK", "FLOAT", "", true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_POSTGRESQL},
 		{"FLOAT - Alt (ddl.Float64)", "FLOAT", ddl.Float64, false, ddl.Type{Name: ddl.Float64}, constants.DIALECT_GOOGLESQL},
 		{"FLOAT - Alt (ddl.String)", "FLOAT", ddl.String, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
@@ -297,5 +297,208 @@ func TestToSpannerType(t *testing.T) {
 			actual, _ := td.ToSpannerType(conv, tc.spType, srcSchemaType, tc.isPk)
 			assert.Equal(t, tc.expected, actual)
 		})
+	}
+}
+
+func TestToSpannerTypeCharLength(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	tests := []struct {
+		name     string
+		srcType  schema.Type
+		spType   string
+		expected ddl.Type
+		dialect  string
+	}{
+		{"VARCHAR2(100)", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, "", ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"CHAR(10)", schema.Type{Name: "CHAR", Mods: []int64{10}}, "", ddl.Type{Name: ddl.String, Len: 10}, constants.DIALECT_GOOGLESQL},
+		{"NVARCHAR2(50)", schema.Type{Name: "NVARCHAR2", Mods: []int64{50}}, "", ddl.Type{Name: ddl.String, Len: 50}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR(5)", schema.Type{Name: "NCHAR", Mods: []int64{5}}, "", ddl.Type{Name: ddl.String, Len: 5}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) explicit String", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.String, ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) PG", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, "", ddl.Type{Name: ddl.String, Len: 100}, constants.DIALECT_POSTGRESQL},
+		{"CHAR(10) PG", schema.Type{Name: "CHAR", Mods: []int64{10}}, "", ddl.Type{Name: ddl.String, Len: 10}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR2(100) to Bytes", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 100}, constants.DIALECT_GOOGLESQL},
+		{"NCHAR(5) to Bytes", schema.Type{Name: "NCHAR", Mods: []int64{5}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 5}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2(100) to Bytes PG", schema.Type{Name: "VARCHAR2", Mods: []int64{100}}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: 100}, constants.DIALECT_POSTGRESQL},
+		{"VARCHAR2 without length to Bytes stays MAX", schema.Type{Name: "VARCHAR2"}, ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2 without length", schema.Type{Name: "VARCHAR2"}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"VARCHAR2 zero length", schema.Type{Name: "VARCHAR2", Mods: []int64{0}}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"NUMBER(10) to String stays MAX", schema.Type{Name: "NUMBER", Mods: []int64{10}}, ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+		{"CLOB unaffected", schema.Type{Name: "CLOB"}, "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, constants.DIALECT_GOOGLESQL},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			actual, _ := td.ToSpannerType(conv, tc.spType, tc.srcType, false)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestToSpannerTypeRawLength(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	raw := func(mods ...int64) schema.Type { return schema.Type{Name: "RAW", Mods: mods} }
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		spType         string
+		isPk           bool
+		dialect        string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		{"RAW(16)", raw(16), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) PK", raw(16), "", true, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(1)", raw(1), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 1}, nil},
+		{"RAW(2000)", raw(2000), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 2000}, nil},
+		{"RAW(32767) extended", raw(32767), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 32767}, nil},
+		{"RAW(16) PG PK", raw(16), "", true, constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) explicit Bytes", raw(16), ddl.Bytes, false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"RAW(16) to String stays MAX", raw(16), ddl.String, false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}},
+		{"RAW without length", raw(), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		{"RAW zero length", raw(0), "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		// BLOB and LONG RAW have no declared length, so they stay BYTES(MAX) (with a
+		// possible overflow warning since their values can exceed 10 MiB).
+		{"BLOB unaffected", schema.Type{Name: "BLOB"}, "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}},
+		{"LONG RAW unaffected", schema.Type{Name: "LONG RAW"}, "", false, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			actual, issues := td.ToSpannerType(conv, tc.spType, tc.srcType, tc.isPk)
+			assert.Equal(t, tc.expected, actual)
+			assert.Equal(t, tc.expectedIssues, issues)
+		})
+	}
+}
+
+func TestToSpannerTypeNumeric(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	gsql, pg := constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL
+	num := func(mods ...int64) schema.Type { return schema.Type{Name: "NUMBER", Mods: mods} }
+	numericIssue := []internal.SchemaIssue{internal.Numeric}
+	overflowIssue := []internal.SchemaIssue{internal.PossibleOverflow}
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		spType         string
+		isPk           bool
+		dialect        string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		// Integers that always fit INT64.
+		{"NUMBER(1)", num(1), "", false, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(9)", num(9), "", false, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(18)", num(18), "", false, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(5,-2)", num(5, -2), "", false, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(10) PK", num(10), "", true, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(10) PG PK", num(10), "", true, pg, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(17,-2) needs 19 digits", num(17, -2), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		// Values that fit NUMERIC.
+		{"NUMBER(19)", num(19), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(29)", num(29), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(10,2)", num(10, 2), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(38,9)", num(38, 9), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(3,5)", num(3, 5), "", false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(10,2) PG", num(10, 2), "", false, pg, ddl.Type{Name: ddl.Numeric}, nil},
+		// Values that exceed GoogleSQL NUMERIC.
+		{"NUMBER(30)", num(30), "", false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER(38)", num(38), "", false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER(38,2)", num(38, 2), "", false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER(38,10)", num(38, 10), "", false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER", num(), "", false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER(38) PG", num(38), "", false, pg, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER PG", num(), "", false, pg, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(38) PG PK", num(38), "", true, pg, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NumericPKNotSupported}},
+		// Explicit target types.
+		{"NUMBER(9) -> INT64", num(9), ddl.Int64, false, gsql, ddl.Type{Name: ddl.Int64}, nil},
+		{"NUMBER(38) -> INT64", num(38), ddl.Int64, false, gsql, ddl.Type{Name: ddl.Int64}, overflowIssue},
+		{"NUMBER(9) -> NUMERIC", num(9), ddl.Numeric, false, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"NUMBER(38) -> NUMERIC", num(38), ddl.Numeric, false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"NUMBER(9) -> STRING", num(9), ddl.String, false, gsql, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}},
+		{"NUMBER(9) -> FLOAT64", num(9), ddl.Float64, false, gsql, ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}},
+		// INTEGER (NUMBER(*,0)).
+		{"INTEGER", schema.Type{Name: "INTEGER"}, "", false, gsql, ddl.Type{Name: ddl.Int64}, overflowIssue},
+		{"INTEGER PG PK", schema.Type{Name: "INTEGER"}, "", true, pg, ddl.Type{Name: ddl.Int64}, overflowIssue},
+		{"INTEGER -> NUMERIC", schema.Type{Name: "INTEGER"}, ddl.Numeric, false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		{"INTEGER -> NUMERIC PG", schema.Type{Name: "INTEGER"}, ddl.Numeric, false, pg, ddl.Type{Name: ddl.Numeric}, nil},
+		// FLOAT(p): p is binary precision.
+		{"FLOAT(10)", schema.Type{Name: "FLOAT", Mods: []int64{10}}, "", false, gsql, ddl.Type{Name: ddl.Float64}, nil},
+		{"FLOAT(53)", schema.Type{Name: "FLOAT", Mods: []int64{53}}, "", false, gsql, ddl.Type{Name: ddl.Float64}, nil},
+		{"FLOAT(63) / REAL", schema.Type{Name: "FLOAT", Mods: []int64{63}}, "", false, gsql, ddl.Type{Name: ddl.Float64}, numericIssue},
+		{"FLOAT(126) / DOUBLE PRECISION", schema.Type{Name: "FLOAT", Mods: []int64{126}}, "", false, gsql, ddl.Type{Name: ddl.Float64}, numericIssue},
+		{"FLOAT(126) PG", schema.Type{Name: "FLOAT", Mods: []int64{126}}, "", false, pg, ddl.Type{Name: ddl.Float64}, numericIssue},
+		{"FLOAT(126) PK", schema.Type{Name: "FLOAT", Mods: []int64{126}}, "", true, gsql, ddl.Type{Name: ddl.Numeric}, nil},
+		{"FLOAT(126) -> NUMERIC", schema.Type{Name: "FLOAT", Mods: []int64{126}}, ddl.Numeric, false, gsql, ddl.Type{Name: ddl.Numeric}, numericIssue},
+		// Unchanged binary floating point types.
+		{"BINARY_FLOAT", schema.Type{Name: "BINARY_FLOAT"}, "", false, gsql, ddl.Type{Name: ddl.Float32}, nil},
+		{"BINARY_DOUBLE", schema.Type{Name: "BINARY_DOUBLE"}, "", false, gsql, ddl.Type{Name: ddl.Float64}, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv.SpDialect = tc.dialect
+			actual, issues := td.ToSpannerType(conv, tc.spType, tc.srcType, tc.isPk)
+			assert.Equal(t, tc.expected, actual)
+			assert.Equal(t, tc.expectedIssues, issues)
+		})
+	}
+}
+
+func TestToSpannerTypeWarnings(t *testing.T) {
+	conv := internal.MakeConv()
+	td := ToDdlImpl{}
+	typ := func(name string, mods ...int64) schema.Type { return schema.Type{Name: name, Mods: mods} }
+	noTz := []internal.SchemaIssue{internal.Datetime}
+	overflow := []internal.SchemaIssue{internal.PossibleOverflow}
+	widened := []internal.SchemaIssue{internal.Widened}
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		spType         string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		// #1444: date/time types without a time zone mapped to TIMESTAMP.
+		{"DATE", typ("DATE"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(6)", typ("TIMESTAMP(6)"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(0)", typ("TIMESTAMP(0)"), "", ddl.Type{Name: ddl.Timestamp}, noTz},
+		{"TIMESTAMP(6) WITH TIME ZONE", typ("TIMESTAMP(6) WITH TIME ZONE"), "", ddl.Type{Name: ddl.Timestamp}, nil},
+		{"TIMESTAMP(6) WITH LOCAL TIME ZONE", typ("TIMESTAMP(6) WITH LOCAL TIME ZONE"), "", ddl.Type{Name: ddl.Timestamp}, nil},
+		{"DATE -> DATE", typ("DATE"), ddl.Date, ddl.Type{Name: ddl.Date}, widened},
+		{"TIMESTAMP(6) -> STRING", typ("TIMESTAMP(6)"), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		// #1445: intervals stored as strings.
+		{"INTERVAL DAY TO SECOND", typ("INTERVAL DAY(3) TO SECOND(2)"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		{"INTERVAL YEAR TO MONTH", typ("INTERVAL YEAR(4) TO MONTH"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		// #1443: large objects that can exceed the Spanner per value limit.
+		{"LONG RAW", typ("LONG RAW"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, overflow},
+		{"BLOB", typ("BLOB"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, overflow},
+		{"BLOB -> STRING", typ("BLOB"), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		{"CLOB", typ("CLOB"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"NCLOB", typ("NCLOB"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"LONG", typ("LONG"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"CLOB -> BYTES", typ("CLOB"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		// Types split out of the LOB branches keep their previous behaviour.
+		// XMLTYPE values can exceed the Spanner per value limit.
+		{"XMLTYPE", typ("XMLTYPE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, overflow},
+		{"XMLTYPE -> BYTES", typ("XMLTYPE"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.PossibleOverflow}},
+		// BFILE content (a file outside of the database) cannot be migrated.
+		{"BFILE", typ("BFILE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}},
+		{"BFILE -> BYTES", typ("BFILE"), ddl.Bytes, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}},
+		// Types split out of the LOB/XMLTYPE branches keep their previous behaviour.
+		{"URITYPE unchanged", typ("URITYPE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil},
+		{"ANYDATA unchanged", typ("ANYDATA"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+	}
+	for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
+		for _, tc := range tests {
+			t.Run(dialect+"/"+tc.name, func(t *testing.T) {
+				conv.SpDialect = dialect
+				actual, issues := td.ToSpannerType(conv, tc.spType, tc.srcType, false)
+				assert.Equal(t, tc.expected, actual)
+				assert.Equal(t, tc.expectedIssues, issues)
+			})
+		}
 	}
 }

@@ -72,7 +72,9 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[colId].Type.Name {
-			case "NUMBER":
+			case "NUMBER", "INTEGER", "FLOAT":
+				// Read numbers as text so that the driver does not convert them to
+				// float64 and lose precision (FLOAT holds up to 38 decimal digits).
 				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
 			case "XMLTYPE":
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
@@ -194,13 +196,18 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	}
 
 	var q string
+	// CHAR_LENGTH (declared length in characters) is used instead of DATA_LENGTH
+	// (length in bytes) so that VARCHAR2(n CHAR), NVARCHAR2(n), NCHAR(n) etc. map
+	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
+	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
+	// used instead, mapping it to Spanner BYTES(n).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
@@ -218,9 +225,9 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	for rows.Next() {
 		var tableName, colName, dataType, isNullable, identityCol string
 		var colDefault sql.NullString
-		var charMaxLen, numericPrecision, numericScale sql.NullInt64
+		var colLength, numericPrecision, numericScale sql.NullInt64
 
-		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &identityCol)
+		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &colLength, &numericPrecision, &numericScale, &identityCol)
 		if err != nil {
 			continue
 		}
@@ -238,7 +245,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
-			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
+			Type:    toType(dataType, colLength, numericPrecision, numericScale),
 			NotNull: isNullable == "N",
 			AutoGen: colAutoGen,
 		}
@@ -260,14 +267,27 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	return result, nil
 }
 
-func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
+// toType builds the source schema type of a column. length is the declared length
+// of the column: in characters for character types (CHAR_LENGTH) and in bytes for
+// RAW (DATA_LENGTH).
+func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
-	if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+	if strings.HasPrefix(dataType, "INTERVAL") {
+		// Oracle reports intervals with their precisions in the type name (e.g.
+		// INTERVAL DAY(3) TO SECOND(2)), so they are not added again as modifiers.
+		return schema.Type{Name: dataType}
+	}
+	if dataType == "NUMBER" && !numericPrecision.Valid && numericScale.Valid && numericScale.Int64 == 0 {
+		// INTEGER, INT, SMALLINT and NUMBER(*,0) are all reported as NUMBER with a
+		// NULL precision and a scale of 0. Report them as INTEGER so that they are
+		// not mistaken for an unconstrained NUMBER.
+		return schema.Type{Name: "INTEGER"}
+	} else if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	} else if charLen.Valid && strings.Contains(dataType, "CHAR") {
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW") {
+		return schema.Type{Name: dataType, Mods: []int64{length.Int64}}
 	}
 	return schema.Type{Name: dataType}
 }
@@ -405,6 +425,8 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 		args[i+1] = name
 	}
 
+	// The n-th referencing column (A) is paired with the n-th referenced column (B) by
+	// matching positions, so that composite foreign keys keep one pair per column.
 	q := fmt.Sprintf(`SELECT 
 			A.table_name,
 			B.table_name AS ref_table, 
@@ -413,9 +435,9 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 			A.constraint_name AS name
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
-		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
 		WHERE A.owner = :1 AND A.table_name IN (%s)
-		ORDER BY A.table_name, A.position`, strings.Join(placeholders, ","))
+		ORDER BY A.table_name, A.constraint_name, A.position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
@@ -495,6 +517,11 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		args[i+1] = name
 	}
 
+	// Oracle enforces a primary key with an index that is listed in ALL_INDEXES like any
+	// other index. Spanner already indexes the primary key, so the index enforcing the
+	// primary key is skipped when it has exactly the primary key columns (same columns in
+	// the same order). An existing wider index reused by Oracle to enforce the primary key
+	// (e.g. index on (ID, NAME) for PRIMARY KEY (ID)) is still migrated.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -507,6 +534,19 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_constraints C
+			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
+			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
+				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
+			AND NOT EXISTS (
+				SELECT 1 FROM all_ind_columns X
+				WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name
+				AND NOT EXISTS (
+					SELECT 1 FROM all_cons_columns CC
+					WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name
+					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)

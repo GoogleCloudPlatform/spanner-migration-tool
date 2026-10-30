@@ -17,12 +17,12 @@ package profiles
 import (
 	"encoding/csv"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
-	go_ora "github.com/sijms/go-ora/v2"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
@@ -102,7 +102,7 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypeOracle:
 			connParams := sourceProfile.Conn.Oracle
-			return getORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		}
 	}
 	return sqlConnectionStr
@@ -158,7 +158,17 @@ func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 	return int64(100000)
 }
 
-func getORACLEConnectionStr(server, port, user, password, dbName string) string {
-	portNumber, _ := strconv.Atoi(port)
-	return go_ora.BuildUrl(server, portNumber, dbName, user, password, nil)
+// GetORACLEConnectionStr builds the go-ora connection URL
+// (oracle://user:password@host:port/service). The user and password are escaped as
+// URL user info (e.g. a space becomes %20), which go-ora decodes back with url.Parse,
+// so any character round trips. go_ora.BuildUrl is not used since it escapes them
+// with url.QueryEscape, which turns a space into '+' that url.Parse keeps as '+'.
+func GetORACLEConnectionStr(server, port, user, password, dbName string) string {
+	u := url.URL{
+		Scheme: "oracle",
+		User:   url.UserPassword(user, password),
+		Host:   net.JoinHostPort(server, port),
+		Path:   "/" + dbName,
+	}
+	return u.String()
 }

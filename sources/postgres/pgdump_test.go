@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v6"
@@ -143,17 +144,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 				");\n" +
 				"ALTER TABLE ONLY sales.identity_test\n" +
 				"    ADD CONSTRAINT identity_test_pkey PRIMARY KEY (id);",
-			expectedSchema: map[string]ddl.CreateTable{
-				"sales_identity_test": ddl.CreateTable{
-					Name:   "sales_identity_test",
-					ColIds: []string{"id", "col"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"id":  ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
-						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
-				},
-			},
+			expectedSchema: map[string]ddl.CreateTable{},
 		},
 		{
 			name:  "Identity column declared inline is implicitly NOT NULL",
@@ -317,17 +308,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 			input: "CREATE TABLE custom.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
 				"CREATE SEQUENCE custom.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY custom.serial_test.id;\n" +
 				"ALTER TABLE ONLY custom.serial_test ALTER COLUMN id SET DEFAULT nextval('custom.serial_test_id_seq'::regclass);",
-			expectedSchema: map[string]ddl.CreateTable{
-				"custom_serial_test": ddl.CreateTable{
-					Name:   "custom_serial_test",
-					ColIds: []string{"id", "col"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
-						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
-				},
-			},
+			expectedSchema: map[string]ddl.CreateTable{},
 		},
 		{
 			name: "Column using sequence without owning it",
@@ -371,7 +352,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -387,7 +368,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 					Name:   "serial_test",
 					ColIds: []string{"id", "col"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "10"}}},
 						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
@@ -427,6 +408,7 @@ func TestProcessPgDump_Serial(t *testing.T) {
 }
 
 // Identity columns carry IdentitySkipRange only, like serial -- not DefaultValue.
+// A plain DEFAULT is migrated onto the Spanner column, so it raises no issue either.
 func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 	input := "CREATE TABLE public.identity_test (id bigint NOT NULL, ser serial, plain integer DEFAULT 7);\n" +
 		"ALTER TABLE public.identity_test ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (\n" +
@@ -437,10 +419,11 @@ func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 	wantIssues := map[string]struct {
 		identitySkipRange bool
 		defaultValue      bool
+		defaultMigrated   bool
 	}{
-		"id":    {identitySkipRange: true, defaultValue: false},
-		"ser":   {identitySkipRange: true, defaultValue: false},
-		"plain": {identitySkipRange: false, defaultValue: true},
+		"id":    {identitySkipRange: true, defaultValue: false, defaultMigrated: false},
+		"ser":   {identitySkipRange: true, defaultValue: false, defaultMigrated: false},
+		"plain": {identitySkipRange: false, defaultValue: false, defaultMigrated: true},
 	}
 
 	for tableId, tbl := range conv.SpSchema {
@@ -455,8 +438,21 @@ func TestProcessPgDump_IdentityDoesNotWarnAboutDefault(t *testing.T) {
 				"column %s: unexpected IdentitySkipRange state, issues=%v", colName, issues)
 			assert.Equal(t, want.defaultValue, slices.Contains(issues, internal.DefaultValue),
 				"column %s: unexpected DefaultValue state, issues=%v", colName, issues)
+			assert.Equal(t, want.defaultMigrated, tbl.ColDefs[colId].DefaultValue.IsPresent,
+				"column %s: unexpected migrated default", colName)
 		}
 	}
+}
+
+func TestProcessPgDump_SetDefaultNullClearsDefault(t *testing.T) {
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE t (id bigint, status text DEFAULT 'new'::text);\n" +
+			"ALTER TABLE ONLY t ALTER COLUMN status SET DEFAULT NULL;\n")
+
+	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
+	col := conv.SrcSchema[tableId].ColDefs[conv.SrcSchema[tableId].ColNameIdMap["status"]]
+	assert.False(t, col.DefaultValue.IsPresent)
+	assert.False(t, col.Ignored.Default)
 }
 
 func TestProcessPgDump(t *testing.T) {
@@ -560,7 +556,7 @@ func TestProcessPgDump(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"id":          {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"integer_col": {Name: "integer_col", T: ddl.Type{Name: ddl.Int64}},
-						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}},
+						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'NEW'"}}},
 					},
 					PrimaryKeys:      []ddl.IndexKey{{ColId: "id", Order: 1}},
 					CheckConstraints: []ddl.CheckConstraint{},
@@ -830,24 +826,11 @@ func TestProcessPgDump(t *testing.T) {
 				}},
 		},
 		{
-			name:  "Create table with pg schema",
-			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
-			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_test": ddl.CreateTable{
-					Name:   "myschema_test",
-					ColIds: []string{"a", "b"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
-		},
-		{
 			name:  "Create table with numeric primary key",
-			input: "CREATE TABLE myschema.numericpk (a numeric PRIMARY KEY, b text);\n",
+			input: "CREATE TABLE numericpk (a numeric PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_numericpk": ddl.CreateTable{
-					Name:   "myschema_numericpk",
+				"numericpk": ddl.CreateTable{
+					Name:   "numericpk",
 					ColIds: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
@@ -868,6 +851,71 @@ func TestProcessPgDump(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
+		},
+		{
+			name: "Create table with generated column",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text," +
+				"d text GENERATED ALWAYS AS ((b || c)) STORED," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c", "d"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(b || c)"}, Type: ddl.GeneratedColStored}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
+		},
+		{
+			name: "Create table with generated column casting a varchar column to text",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b character varying(50)," +
+				"c character varying(50) GENERATED ALWAYS AS (upper((b)::text)) STORED," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: 50}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: 50}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(upper(b))"}, Type: ddl.GeneratedColStored}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
+		},
+		{
+			name: "Create table with default value",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text DEFAULT 'xyz'::text," +
+				"c text," +
+				"PRIMARY KEY(a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:   "test",
+					ColIds: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'xyz'"}}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}},
+					Indexes:     []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Multiple statements on one line",
@@ -1527,19 +1575,6 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 				}},
 		},
 		{
-			name:  "Create table with pg schema",
-			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
-			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_test": ddl.CreateTable{
-					Name:   "myschema_test",
-					ColIds: []string{"a", "b"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
-		},
-		{
 			name: "ALTER TABLE SET NOT NULL",
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n" +
 				"ALTER TABLE test ALTER COLUMN b SET NOT NULL;\n",
@@ -1903,6 +1938,179 @@ func TestProcessPgDump_GetBadRows(t *testing.T) {
 	assert.Equal(t, 1, len(conv.SampleBadRows(100)))
 }
 
+// Statements on non-public schemas are skipped, even when names collide with public tables.
+func TestProcessPgDump_NonPublicSchemaSkipped(t *testing.T) {
+	tests := []struct {
+		name                    string
+		input                   string
+		expectedSchema          map[string]ddl.CreateTable
+		expectedData            []spannerData
+		expectedNonPublicTables []string
+		expectedNonPublicRefs   map[string][]string
+	}{
+		{
+			name:                    "table in non-public schema is skipped",
+			input:                   "CREATE TABLE custom.test (a text PRIMARY KEY, b bigint);",
+			expectedSchema:          map[string]ddl.CreateTable{},
+			expectedNonPublicTables: []string{"custom.test"},
+		},
+		{
+			name: "non-public ALTER TABLE and CREATE INDEX do not affect same-named public table",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY, name text);\n" +
+				"CREATE TABLE custom.test (id bigint, name text);\n" +
+				"ALTER TABLE ONLY custom.test ALTER COLUMN name SET NOT NULL;\n" +
+				"CREATE INDEX custom_idx ON custom.test (name);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": {
+					Name:   "test",
+					ColIds: []string{"id", "name"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":   {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"name": {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedNonPublicTables: []string{"custom.test"},
+		},
+		{
+			name: "non-public sequence does not mark same-named public column as identity",
+			input: "CREATE TABLE public.test (id integer NOT NULL PRIMARY KEY DEFAULT nextval('test_id_seq'::regclass));\n" +
+				"CREATE SEQUENCE custom.test_id_seq AS integer;\n" +
+				"ALTER SEQUENCE custom.test_id_seq OWNED BY custom.test.id;\n" +
+				"CREATE SEQUENCE test_id_seq AS integer OWNED BY custom.test.id;\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": {
+					Name:        "test",
+					ColIds:      []string{"id"},
+					ColDefs:     map[string]ddl.ColumnDef{"id": {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "foreign key referencing non-public table is skipped",
+			input: "CREATE TABLE public.orders (id bigint PRIMARY KEY, vendor_id bigint);\n" +
+				"ALTER TABLE ONLY public.orders ADD CONSTRAINT fk_vendor FOREIGN KEY (vendor_id) REFERENCES custom.vendors(id);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"orders": {
+					Name:   "orders",
+					ColIds: []string{"id", "vendor_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":        {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"vendor_id": {Name: "vendor_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedNonPublicRefs: map[string][]string{"orders": {"custom.vendors"}},
+		},
+		{
+			name: "public child of a non-public parent gets the parent's columns",
+			input: "CREATE TABLE public.base (id bigint PRIMARY KEY, other text);\n" +
+				"CREATE TABLE sales.base (id bigint NOT NULL, status text DEFAULT 'new'::text, a bigint, a2 bigint GENERATED ALWAYS AS ((a * 2)) STORED);\n" +
+				"CREATE TABLE public.kid (extra bigint) INHERITS (sales.base);\n" +
+				"ALTER TABLE ONLY public.kid ADD CONSTRAINT kid_pkey PRIMARY KEY (id);\n" +
+				"COPY public.kid (id, status, a, extra) FROM stdin;\n" +
+				"1\tnew\t5\t7\n" +
+				"\\.\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"base": {
+					Name:   "base",
+					ColIds: []string{"id", "other"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":    {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"other": {Name: "other", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+				"kid": {
+					Name:   "kid",
+					ColIds: []string{"id", "status", "a", "a2", "extra"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":     {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"status": {Name: "status", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "'new'"}}},
+						"a":      {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"a2":     {Name: "a2", T: ddl.Type{Name: ddl.Int64}, GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{Statement: "(a * 2)"}, Type: ddl.GeneratedColStored}},
+						"extra":  {Name: "extra", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "id", Order: 1}},
+				},
+			},
+			expectedData: []spannerData{
+				{table: "kid", cols: []string{"id", "status", "a", "extra"}, vals: []interface{}{int64(1), "new", int64(5), int64(7)}},
+			},
+			expectedNonPublicTables: []string{"sales.base"},
+			expectedNonPublicRefs:   map[string][]string{"kid": {"sales.base"}},
+		},
+		{
+			name: "public child of a non-public foreign table gets its columns",
+			input: "CREATE FOREIGN TABLE sales.remote_cities (id bigint, name text) SERVER loop;\n" +
+				"CREATE TABLE public.local_cities (zone text) INHERITS (sales.remote_cities);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"local_cities": {
+					Name:   "local_cities",
+					ColIds: []string{"id", "name", "zone", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":       {Name: "id", T: ddl.Type{Name: ddl.Int64}},
+						"name":     {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"zone":     {Name: "zone", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
+				},
+			},
+			expectedNonPublicRefs: map[string][]string{"local_cities": {"sales.remote_cities"}},
+		},
+		{
+			name: "data after a skipped non-public COPY is still migrated",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY);\n" +
+				"COPY sales.test (id) FROM stdin;\n" +
+				"7\n" +
+				"\\.\n" +
+				"COPY public.test (id) FROM stdin;\n" +
+				"1\n" +
+				"\\.\n",
+			expectedData: []spannerData{
+				{table: "test", cols: []string{"id"}, vals: []interface{}{int64(1)}},
+			},
+		},
+		{
+			name: "non-public COPY and INSERT do not write into same-named public table",
+			input: "CREATE TABLE public.test (id bigint PRIMARY KEY, name text);\n" +
+				"COPY public.test (id, name) FROM stdin;\n" +
+				"1\talice\n" +
+				"\\.\n" +
+				"COPY custom.test (id, name) FROM stdin;\n" +
+				"2\tbob\n" +
+				"\\.\n" +
+				"INSERT INTO custom.test (id, name) VALUES (3, 'carol');\n",
+			expectedData: []spannerData{
+				{table: "test", cols: []string{"id", "name"}, vals: []interface{}{int64(1), "alice"}},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDump(tc.input)
+			noIssues(conv, t, tc.name)
+			if tc.expectedSchema != nil {
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			}
+			if tc.expectedData != nil {
+				assert.Equal(t, tc.expectedData, rows)
+			}
+			assert.Equal(t, tc.expectedNonPublicTables, conv.NonPublicTables)
+			assert.Equal(t, tc.expectedNonPublicRefs, conv.NonPublicRefs)
+			for srcTableName := range tc.expectedNonPublicRefs {
+				tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTableName)
+				assert.NoError(t, err)
+				assert.Contains(t, conv.SchemaIssues[tableId].TableLevelIssues, internal.NonPublicSchemaRef)
+			}
+		})
+	}
+}
+
 func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -1972,17 +2180,23 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 
 func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
+	conv.SpProjectId = "p"
+	conv.SpInstanceId = "i"
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("RefreshSpannerClient", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ctx := context.Background()
 	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
 		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
@@ -2005,8 +2219,11 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
+
+	mockDDLVerifier := expressions_api.AcceptAllDDLVerifier()
+
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, mockDDLVerifier, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
@@ -2066,4 +2283,405 @@ func printJSON(s string) {
 // It is not used by any tests, but is a useful utility for debugging.
 func printJSONType(ty string) {
 	printJSON(fmt.Sprintf("CREATE TABLE t (a %s);", ty))
+}
+
+func srcColNames(t *testing.T, conv *internal.Conv, tableName string) []string {
+	t.Helper()
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+	assert.NoError(t, err, "source table %s not found", tableName)
+	table := conv.SrcSchema[tableId]
+	names := []string{}
+	for _, colId := range table.ColIds {
+		names = append(names, table.ColDefs[colId].Name)
+	}
+	return names
+}
+
+func TestProcessPgDump_Inheritance(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		cols      map[string][]string // Every source table and its columns, in order.
+		inherited map[string][]string // Tables flagged as inherited, and their parents.
+		warning   bool                // An unexpected condition is reported.
+	}{
+		{
+			name: "single parent",
+			input: "CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+				"CREATE TABLE capitals (state text) INHERITS (cities);\n",
+			cols:      map[string][]string{"cities": {"name", "population"}, "capitals": {"name", "population", "state"}},
+			inherited: map[string][]string{"capitals": {"cities"}},
+		},
+		{
+			name: "multiple parents",
+			input: "CREATE TABLE p1 (a bigint);\n" +
+				"CREATE TABLE p2 (b bigint);\n" +
+				"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n",
+			cols:      map[string][]string{"p1": {"a"}, "p2": {"b"}, "child": {"a", "b", "c"}},
+			inherited: map[string][]string{"child": {"p1", "p2"}},
+		},
+		{
+			name: "chain declared child first",
+			input: "CREATE TABLE c (c3 bigint) INHERITS (b);\n" +
+				"CREATE TABLE b (c2 bigint) INHERITS (a);\n" +
+				"CREATE TABLE a (c1 bigint);\n",
+			cols:      map[string][]string{"a": {"c1"}, "b": {"c1", "c2"}, "c": {"c1", "c2", "c3"}},
+			inherited: map[string][]string{"b": {"a"}, "c": {"b"}},
+		},
+		{
+			name: "redeclared column is merged at the parent's position",
+			input: "CREATE TABLE base (id bigint, note text);\n" +
+				"CREATE TABLE derived (note text NOT NULL, extra bigint) INHERITS (base);\n",
+			cols:      map[string][]string{"base": {"id", "note"}, "derived": {"id", "note", "extra"}},
+			inherited: map[string][]string{"derived": {"base"}},
+		},
+		{
+			name: "diamond",
+			input: "CREATE TABLE root (id bigint);\n" +
+				"CREATE TABLE l (lv bigint) INHERITS (root);\n" +
+				"CREATE TABLE r (rv bigint) INHERITS (root);\n" +
+				"CREATE TABLE leaf (x bigint) INHERITS (l, r);\n",
+			cols:      map[string][]string{"root": {"id"}, "l": {"id", "lv"}, "r": {"id", "rv"}, "leaf": {"id", "lv", "rv", "x"}},
+			inherited: map[string][]string{"l": {"root"}, "r": {"root"}, "leaf": {"l", "r"}},
+		},
+		{
+			name: "child outside public is not migrated",
+			input: "CREATE TABLE public.cities (name text);\n" +
+				"CREATE TABLE archive.archived (at text) INHERITS (public.cities);\n",
+			cols: map[string][]string{"cities": {"name"}},
+		},
+		{
+			name: "parent outside public gives its columns but is not migrated",
+			input: "CREATE TABLE public.parent (x bigint);\n" +
+				"CREATE TABLE archive.parent (secret text);\n" +
+				"CREATE TABLE public.child (c bigint) INHERITS (archive.parent);\n",
+			cols: map[string][]string{"parent": {"x"}, "child": {"secret", "c"}},
+		},
+		{
+			name: "chain of parents outside public",
+			input: "CREATE TABLE sales.root (rid bigint);\n" +
+				"CREATE TABLE sales.base (id bigint) INHERITS (sales.root);\n" +
+				"CREATE TABLE public.kid (extra bigint) INHERITS (sales.base);\n",
+			cols: map[string][]string{"kid": {"rid", "id", "extra"}},
+		},
+		{
+			name: "public and non-public parents",
+			input: "CREATE TABLE public.p (a bigint);\n" +
+				"CREATE TABLE sales.q (b bigint);\n" +
+				"CREATE TABLE public.kid (c bigint) INHERITS (public.p, sales.q);\n",
+			cols:      map[string][]string{"p": {"a"}, "kid": {"a", "b", "c"}},
+			inherited: map[string][]string{"kid": {"p"}},
+		},
+		{
+			// e.g. pg_dump -n public: the child's inherited columns can't be found.
+			name:    "parent outside public missing from the dump",
+			input:   "CREATE TABLE public.kid (c bigint) INHERITS (sales.base);\n",
+			cols:    map[string][]string{"kid": {"c"}},
+			warning: true,
+		},
+		{
+			// The child already has the parent's columns.
+			name: "ALTER TABLE INHERIT a parent outside public",
+			input: "CREATE TABLE sales.base (id bigint);\n" +
+				"CREATE TABLE public.kid (id bigint, c bigint);\n" +
+				"ALTER TABLE public.kid INHERIT sales.base;\n",
+			cols: map[string][]string{"kid": {"id", "c"}},
+		},
+		{
+			name: "foreign table outside public does not hide a public table",
+			input: "CREATE TABLE public.items (id bigint);\n" +
+				"CREATE FOREIGN TABLE archive.items (id bigint) SERVER s;\n",
+			cols: map[string][]string{"items": {"id"}},
+		},
+		{
+			name: "partitions are not inheritance",
+			input: "CREATE TABLE m (id bigint NOT NULL, d date NOT NULL) PARTITION BY RANGE (d);\n" +
+				"CREATE TABLE m_2024 PARTITION OF m FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');\n",
+			cols:    map[string][]string{"m": {"id", "d"}},
+			warning: true,
+		},
+		{
+			name: "ALTER TABLE INHERIT keeps the child's column order",
+			input: "CREATE TABLE parent (id bigint, v text);\n" +
+				"CREATE TABLE child (z bigint, v text, id bigint);\n" +
+				"ALTER TABLE ONLY child INHERIT parent;\n" +
+				"ALTER TABLE ONLY child INHERIT parent;\n",
+			cols:      map[string][]string{"parent": {"id", "v"}, "child": {"z", "v", "id"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "ALTER TABLE INHERIT as written by pg_dump",
+			input: "CREATE TABLE parent (id bigint, v text);\n" +
+				"CREATE TABLE child (z bigint, v text, id bigint) INHERITS (parent);\n",
+			cols:      map[string][]string{"parent": {"id", "v"}, "child": {"z", "v", "id"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "ALTER TABLE INHERIT before the parent is declared",
+			input: "CREATE TABLE child (x bigint);\n" +
+				"ALTER TABLE child INHERIT parent;\n" +
+				"CREATE TABLE parent (a bigint);\n",
+			cols:      map[string][]string{"parent": {"a"}, "child": {"a", "x"}},
+			inherited: map[string][]string{"child": {"parent"}},
+		},
+		{
+			name: "NO INHERIT keeps the inherited columns",
+			input: "CREATE TABLE p1 (a bigint);\n" +
+				"CREATE TABLE p2 (b bigint);\n" +
+				"CREATE TABLE child (c bigint) INHERITS (p1, p2);\n" +
+				"ALTER TABLE child NO INHERIT p1;\n" +
+				"CREATE TABLE solo (d bigint) INHERITS (p2);\n" +
+				"ALTER TABLE solo NO INHERIT p2;\n",
+			cols:      map[string][]string{"p1": {"a"}, "p2": {"b"}, "child": {"a", "b", "c"}, "solo": {"b", "d"}},
+			inherited: map[string][]string{"child": {"p2"}},
+		},
+		{
+			name: "foreign tables are not migrated",
+			input: "CREATE FOREIGN TABLE fparent (id bigint, v text) SERVER loop;\n" +
+				"CREATE TABLE fchild (extra text) INHERITS (fparent);\n" +
+				"ALTER TABLE ONLY fchild ADD CONSTRAINT fchild_pkey PRIMARY KEY (id);\n" +
+				"CREATE TABLE rparent (id bigint);\n" +
+				"CREATE FOREIGN TABLE fchild2 () INHERITS (rparent) SERVER loop;\n" +
+				"CREATE TABLE m (d date NOT NULL) PARTITION BY RANGE (d);\n" +
+				"CREATE FOREIGN TABLE m_old PARTITION OF m FOR VALUES FROM ('2000-01-01') TO ('2001-01-01') SERVER loop;\n",
+			cols:      map[string][]string{"fchild": {"id", "v", "extra"}, "rparent": {"id"}, "m": {"d"}},
+			inherited: map[string][]string{"fchild": {"fparent"}},
+		},
+		{
+			name:    "missing parent",
+			input:   "CREATE TABLE orphan (x bigint) INHERITS (nonexistent);\n",
+			cols:    map[string][]string{"orphan": {"x"}},
+			warning: true,
+		},
+		{
+			name: "one of two parents missing",
+			input: "CREATE TABLE child (c bigint) INHERITS (nonexistent, parent);\n" +
+				"CREATE TABLE parent (p bigint);\n",
+			cols:      map[string][]string{"parent": {"p"}, "child": {"p", "c"}},
+			inherited: map[string][]string{"child": {"parent"}},
+			warning:   true,
+		},
+		{
+			name: "self reference",
+			input: "CREATE TABLE s1 (s bigint) INHERITS (s1);\n" +
+				"CREATE TABLE s2 (s bigint);\n" +
+				"ALTER TABLE s2 INHERIT s2;\n",
+			cols:    map[string][]string{"s1": {"s"}, "s2": {"s"}},
+			warning: true,
+		},
+		{
+			name: "cycle",
+			input: "CREATE TABLE a (x bigint) INHERITS (b);\n" +
+				"CREATE TABLE b (y bigint) INHERITS (a);\n",
+			cols:    map[string][]string{"a": {"x"}, "b": {"y"}},
+			warning: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			if tc.warning {
+				assert.NotZero(t, len(conv.Stats.Unexpected))
+			} else {
+				noIssues(conv, t, tc.name)
+			}
+			assert.Len(t, conv.SrcSchema, len(tc.cols))
+			for name, cols := range tc.cols {
+				assert.Equal(t, cols, srcColNames(t, conv, name), name)
+				tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, name)
+				assert.Equal(t, tc.inherited[name], conv.SrcSchema[tableId].InheritedFrom, name)
+				flagged := slices.Contains(conv.SchemaIssues[tableId].TableLevelIssues, internal.InheritedTable)
+				assert.Equal(t, tc.inherited[name] != nil, flagged, name)
+			}
+		})
+	}
+}
+
+func TestProcessPgDump_InheritedColumns(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected ddl.ColumnDef // Column "a" of table "child" in Spanner.
+	}{
+		{
+			name: "serial is not inherited",
+			input: "CREATE TABLE parent (a serial NOT NULL);\n" +
+				"CREATE TABLE child () INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "identity is not inherited",
+			input: "CREATE TABLE parent (a bigint GENERATED ALWAYS AS IDENTITY);\n" +
+				"CREATE TABLE child () INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "identity added to the parent after the child",
+			input: "CREATE TABLE child () INHERITS (parent);\n" +
+				"CREATE TABLE parent (a bigint NOT NULL);\n" +
+				"ALTER TABLE parent ALTER COLUMN a ADD GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME parent_a_seq);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+		},
+		{
+			name: "NOT NULL from any parent wins",
+			input: "CREATE TABLE p1 (a text);\n" +
+				"CREATE TABLE p2 (a text NOT NULL);\n" +
+				"CREATE TABLE child () INHERITS (p1, p2);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+		},
+		{
+			name: "child keeps its own NOT NULL",
+			input: "CREATE TABLE parent (a text);\n" +
+				"CREATE TABLE child (a text NOT NULL) INHERITS (parent);\n",
+			expected: ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+		},
+	}
+	for _, tc := range tests {
+		conv, _ := runProcessPgDump(tc.input)
+		noIssues(conv, t, tc.name)
+		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "child")
+		assert.NoError(t, err, tc.name)
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		assert.NoError(t, err, tc.name)
+		cd := conv.SpSchema[tableId].ColDefs[colId]
+		cd.Comment = ""
+		cd.Id = ""
+		assert.Equal(t, tc.expected, cd, tc.name)
+	}
+}
+
+func TestProcessPgDump_InheritedTableConstraints(t *testing.T) {
+	// Primary keys and indexes stay on the parent; the child only has its own.
+	conv, _ := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"CREATE INDEX cities_population_idx ON cities (population);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (state);\n")
+	noIssues(conv, t, "inherited table constraints")
+	internal.AssertSpSchema(conv, t, map[string]ddl.CreateTable{
+		"cities": {
+			Name:   "cities",
+			ColIds: []string{"name", "population"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "name", Order: 1}},
+			Indexes:     []ddl.CreateIndex{{Name: "cities_population_idx", TableId: "cities", Keys: []ddl.IndexKey{{ColId: "population", Order: 1}}}},
+		},
+		"capitals": {
+			Name:   "capitals",
+			ColIds: []string{"name", "population", "state"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"name":       {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"population": {Name: "population", T: ddl.Type{Name: ddl.Int64}},
+				"state":      {Name: "state", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "state", Order: 1}},
+		},
+	}, stripSchemaComments(conv.SpSchema))
+}
+
+func TestProcessPgDump_InheritedTableData(t *testing.T) {
+	conv, rows := runProcessPgDump(
+		"CREATE TABLE cities (name text NOT NULL, population bigint);\n" +
+			"CREATE TABLE capitals (state text) INHERITS (cities);\n" +
+			"ALTER TABLE ONLY cities ADD CONSTRAINT cities_pkey PRIMARY KEY (name);\n" +
+			"ALTER TABLE ONLY capitals ADD CONSTRAINT capitals_pkey PRIMARY KEY (name);\n" +
+			"COPY cities (name, population) FROM stdin;\n" +
+			"springfield	100\n" +
+			"\\.\n" +
+			"INSERT INTO capitals VALUES ('madison', 260, 'WI');\n")
+	noIssues(conv, t, "inherited table data")
+	assert.Equal(t, []spannerData{
+		{table: "cities", cols: []string{"name", "population"}, vals: []interface{}{"springfield", int64(100)}},
+		{table: "capitals", cols: []string{"name", "population", "state"}, vals: []interface{}{"madison", int64(260), "WI"}},
+	}, rows)
+}
+
+func TestProcessPgDump_DataForUnknownTable(t *testing.T) {
+	for _, input := range []string{
+		"INSERT INTO ghost (a) VALUES (1);\n",
+		"COPY ghost (a) FROM stdin;\n1\n\\.\n",
+	} {
+		conv, rows := runProcessPgDump(input)
+		assert.Empty(t, rows, input)
+		var skipped int64
+		for _, stat := range conv.Stats.Statement {
+			skipped += stat.Skip
+		}
+		assert.NotZero(t, skipped, input)
+	}
+}
+
+func TestCopyInheritedColumn(t *testing.T) {
+	parentCol := schema.Column{
+		Id: "p", Name: "a", NotNull: true,
+		Type:            schema.Type{Name: "varchar", Mods: []int64{10}},
+		DefaultValue:    ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "e1", Statement: "'x'"}},
+		GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "e2", Statement: "(a || '!')"}},
+	}
+	col := copyInheritedColumn(parentCol)
+
+	// The copy gets fresh ids so it doesn't collide with the parent.
+	assert.NotEqual(t, "p", col.Id)
+	assert.NotEqual(t, "e1", col.DefaultValue.Value.ExpressionId)
+	assert.NotEqual(t, "e2", col.GeneratedColumn.Value.ExpressionId)
+	col.Id, col.DefaultValue.Value.ExpressionId, col.GeneratedColumn.Value.ExpressionId = "p", "e1", "e2"
+	assert.Equal(t, parentCol, col)
+
+	col.Type.Mods[0] = 99
+	assert.Equal(t, []int64{10}, parentCol.Type.Mods, "editing the copy must not change the parent")
+}
+
+func TestMergeInheritedColumn(t *testing.T) {
+	def := ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "pd", Statement: "'p'"}}
+	gen := ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "pg", Statement: "(a + 1)"}}
+	seq := ddl.AutoGenCol{Name: "p_seq", GenerationType: "sequence"}
+	parentCol := schema.Column{Id: "p", NotNull: true, Ignored: schema.Ignored{Default: true}, DefaultValue: def, GeneratedColumn: gen, AutoGen: seq}
+
+	// The child takes the parent's attributes; copied expressions get fresh ids.
+	got := mergeInheritedColumn(schema.Column{Id: "c"}, parentCol)
+	assert.NotEqual(t, "pd", got.DefaultValue.Value.ExpressionId)
+	assert.NotEqual(t, "pg", got.GeneratedColumn.Value.ExpressionId)
+	got.DefaultValue.Value.ExpressionId, got.GeneratedColumn.Value.ExpressionId = "pd", "pg"
+	parentCol.Id = "c"
+	assert.Equal(t, parentCol, got)
+
+	// The child keeps its own attributes.
+	childCol := schema.Column{
+		Id:              "c",
+		NotNull:         true,
+		DefaultValue:    ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "cd", Statement: "'c'"}},
+		GeneratedColumn: ddl.GeneratedColumn{IsPresent: true, Value: ddl.Expression{ExpressionId: "cg", Statement: "(a * 2)"}},
+		AutoGen:         ddl.AutoGenCol{Name: "c_seq", GenerationType: "sequence"},
+	}
+	got = mergeInheritedColumn(childCol, schema.Column{Id: "p", DefaultValue: def, GeneratedColumn: gen, AutoGen: seq})
+	assert.Equal(t, childCol, got)
+}
+
+func TestFlattenInheritedTable_ChildWithoutColumns(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema["t1"] = schema.Table{
+		Id: "t1", Name: "parent", ColIds: []string{"c1"},
+		ColDefs:      map[string]schema.Column{"c1": {Id: "c1", Name: "a"}},
+		ColNameIdMap: map[string]string{"a": "c1"},
+	}
+	conv.SrcSchema["t2"] = schema.Table{Id: "t2", Name: "child", InheritedFrom: []string{"parent"}}
+
+	assert.True(t, flattenInheritedTable(conv, "t2"))
+	assert.Equal(t, []string{"a"}, srcColNames(t, conv, "child"))
+}
+
+func TestGetInheritedTableNames(t *testing.T) {
+	rangeVar := func(schemaName, name string) *pg_query.Node {
+		return &pg_query.Node{Node: &pg_query.Node_RangeVar{RangeVar: &pg_query.RangeVar{Schemaname: schemaName, Relname: name}}}
+	}
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	got := getInheritedTableNames(conv, "child", []*pg_query.Node{{}, rangeVar("", ""), rangeVar("archive", "p1"), rangeVar("public", "p2")})
+	assert.Equal(t, []string{"archive.p1", "p2"}, got, "archive.p1 is outside public, so it keeps its schema")
+	assert.Equal(t, map[string][]string{"child": {"archive.p1"}}, conv.NonPublicRefs)
+	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }

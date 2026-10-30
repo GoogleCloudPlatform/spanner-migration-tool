@@ -218,6 +218,45 @@ describe('ObjectDetailComponent', () => {
     expect(title.nativeElement.textContent).toEqual('OBJECT VIEWER')
   })
 
+  describe('displayed default value columns', () => {
+    beforeEach(() => {
+      conversionServiceSpy.getPkMapping = jasmine.createSpy('getPkMapping').and.returnValue([])
+      dataServiceSpy.getSummary = jasmine.createSpy('getSummary').and.returnValue(of({}))
+    })
+
+    it('should not be shown when the source does not support defaults', () => {
+      component.supportsDefaultAndSequence = false
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns).not.toContain('spDefaultValue')
+      expect(component.srcDisplayedColumns).not.toContain('srcDefaultValue')
+    })
+
+    it('should be shown alongside the auto generated columns', () => {
+      component.supportsAutoGen = true
+      component.supportsDefaultAndSequence = true
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns).toContain('spAutoGen')
+      expect(component.spDisplayedColumns).toContain('spDefaultValue')
+      expect(component.srcDisplayedColumns).toContain('srcDefaultValue')
+    })
+
+    it('should not be added twice when changes are reapplied', () => {
+      component.supportsAutoGen = true
+      component.supportsDefaultAndSequence = true
+      component.ngOnChanges({})
+      const spColspan = component.spColspan
+      const srcColspan = component.srcColspan
+      component.ngOnChanges({})
+
+      expect(component.spDisplayedColumns.filter((c) => c === 'spDefaultValue').length).toEqual(1)
+      expect(component.srcDisplayedColumns.filter((c) => c === 'srcDefaultValue').length).toEqual(1)
+      expect(component.spColspan).toEqual(spColspan)
+      expect(component.srcColspan).toEqual(srcColspan)
+    })
+  })
+
   it('should save sequence', () => {
     let formBuilder = new FormBuilder();
     component.spRowArray = formBuilder.array([

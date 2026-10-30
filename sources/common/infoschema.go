@@ -94,6 +94,16 @@ type PartitionInfoSchema interface {
 	PartitionParent(schema string, table string) (parentSchema string, parentTable string, ok bool)
 }
 
+// TableInheritanceProvider is an optional interface for sources that support table inheritance.
+type TableInheritanceProvider interface {
+	GetInheritedTables(conv *internal.Conv) (map[string][]string, error)
+}
+
+// NonPublicTableProvider is an optional interface for listing skipped non-public tables.
+type NonPublicTableProvider interface {
+	GetNonPublicTables() ([]SchemaAndName, error)
+}
+
 // SchemaAndName contains the schema and name for a table
 type SchemaAndName struct {
 	Schema string
@@ -217,8 +227,43 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		return 0, e
 	}
 
+	annotateInheritedTables(conv, infoSchema)
+	annotateNonPublicTables(conv, infoSchema)
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return tableCount, nil
+}
+
+func annotateInheritedTables(conv *internal.Conv, infoSchema InfoSchema) {
+	provider, ok := infoSchema.(TableInheritanceProvider)
+	if !ok {
+		return
+	}
+	inherited, err := provider.GetInheritedTables(conv)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Couldn't get table inheritance information: %s", err))
+		return
+	}
+	for tableId, table := range conv.SrcSchema {
+		if parents, ok := inherited[table.Name]; ok && len(parents) > 0 {
+			table.InheritedFrom = parents
+			conv.SrcSchema[tableId] = table
+		}
+	}
+}
+
+func annotateNonPublicTables(conv *internal.Conv, infoSchema InfoSchema) {
+	provider, ok := infoSchema.(NonPublicTableProvider)
+	if !ok {
+		return
+	}
+	tables, err := provider.GetNonPublicTables()
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Couldn't get non-public tables: %s", err))
+		return
+	}
+	for _, t := range tables {
+		conv.AddNonPublicTable(t.Schema, t.Name)
+	}
 }
 
 func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis BatchedInfoSchema, tables []SchemaAndName, numWorkers int) (int, error) {
