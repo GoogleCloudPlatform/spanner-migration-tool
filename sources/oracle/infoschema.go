@@ -164,10 +164,10 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
-// GetColumnsBatch fetches column metadata simultaneously for multiple tables via ALL_TAB_COLS.
+// GetColumnsBatch fetches column metadata simultaneously for multiple tables via ALL_TAB_COLUMNS.
 // It extracts the column data types, nullable bounds, character capacities, precision/scales,
 // and implicitly generated identities (such as AUTO_INCREMENT mappings for IDENTITY_COLUMN='YES').
-// Invisible columns and virtual columns are handled inherently as they appear in ALL_TAB_COLS.
+// Invisible columns and virtual columns are handled inherently as they appear in ALL_TAB_COLUMNS.
 // Limitations: complex abstract domains (like custom object schemas) may fall back to default mappings.
 func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableColumns, error) {
 	if len(tables) == 0 {
@@ -190,7 +190,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	}
 
 	var hasIdentityColumn int
-	err := isi.Db.QueryRow("SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'").Scan(&hasIdentityColumn)
+	err := isi.Db.QueryRow("SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLUMNS' AND column_name = 'IDENTITY_COLUMN'").Scan(&hasIdentityColumn)
 	if err != nil {
 		hasIdentityColumn = 0
 	}
@@ -201,14 +201,21 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
 	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
 	// used instead, mapping it to Spanner BYTES(n).
+	//
+	// ALL_TAB_COLUMNS (not ALL_TAB_COLS) is read so that hidden system generated
+	// columns are skipped, such as the SYS_NC...$ columns behind function based indexes,
+	// the SYS_C...$ columns left by SET UNUSED and the storage columns of XMLTYPE. This
+	// matches the MySQL and PostgreSQL sources (information_schema.COLUMNS). Oracle
+	// filters them for each version (USER_GENERATED = 'YES' from 12c, HIDDEN_COLUMN = 'NO'
+	// in 11g), and user INVISIBLE columns (12c+) are still listed and migrated.
 	if hasIdentityColumn > 0 {
 		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
-		FROM ALL_TAB_COLS 
+		FROM ALL_TAB_COLUMNS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
 		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
-		FROM ALL_TAB_COLS 
+		FROM ALL_TAB_COLUMNS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	}
@@ -293,8 +300,8 @@ func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt6
 }
 
 // GetConstraintsBatch filters ALL_CONSTRAINTS to selectively capture primary keys ('P')
-// and Check constraints ('C'). It filters out basic NOT NULL constraints since they are processed
-// directly via table column definitions. It natively discovers 'IS JSON' check constraints.
+// and Check constraints ('C'). It filters out the check constraints Oracle creates for NOT NULL
+// columns since they are processed directly via table column definitions. It natively discovers 'IS JSON' check constraints.
 // It does not capture foreign key constraints directly; they are fetched securely in GetForeignKeysBatch.
 // Functional dependencies or advanced check constraints using user-defined functions are unsupported
 // via standard schema mapping.
@@ -316,15 +323,20 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		args[i+1] = name
 	}
 
+	// The column's nullability is fetched to recognise the check constraints Oracle creates
+	// for NOT NULL columns (see isNotNullConstraint).
 	q := fmt.Sprintf(`SELECT 
 			k.table_name,
 			k.column_name,
 			t.constraint_type,
 			t.search_condition,
-			t.constraint_name
+			t.constraint_name,
+			c.nullable
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		LEFT JOIN all_tab_columns c
+		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (%s)
 		ORDER BY k.table_name, k.position`, strings.Join(placeholders, ","))
 
@@ -339,10 +351,10 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	checkKeys := make(map[string]map[string]schema.CheckConstraint)
 
 	var tableName, col, constraint, constraintName string
-	var condition sql.NullString
+	var condition, nullable sql.NullString
 
 	for rows.Next() {
-		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName)
+		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName, &nullable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -363,7 +375,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 			}
 			m[tableName][col] = append(m[tableName][col], constraint)
 
-			if condition.Valid && !strings.Contains(condition.String, "IS NOT NULL") {
+			if condition.Valid && !isNotNullConstraint(condition.String, col, nullable.String) {
 				if _, ok := checkKeys[tableName]; !ok {
 					checkKeys[tableName] = make(map[string]schema.CheckConstraint)
 				}
@@ -401,6 +413,15 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		}
 	}
 	return result, nil
+}
+
+// isNotNullConstraint reports whether a check constraint is the one Oracle creates for a
+// NOT NULL column: the condition is exactly `"COL" IS NOT NULL` on that column and the
+// column is NOT NULL. Such constraints are skipped because the column's NOT NULL already
+// carries them. User-written checks are kept, e.g. `EMAIL IS NOT NULL OR PHONE IS NOT NULL`,
+// or `EMAIL IS NOT NULL` on a nullable column.
+func isNotNullConstraint(condition, col, nullable string) bool {
+	return nullable == "N" && strings.TrimSpace(condition) == `"`+col+`" IS NOT NULL`
 }
 
 // GetForeignKeysBatch specifically pulls referential constraints by mapping R_CONSTRAINT_NAMEs
