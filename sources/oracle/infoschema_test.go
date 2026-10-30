@@ -23,9 +23,11 @@ import (
 	"regexp"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -123,15 +125,15 @@ func TestGenerateSrcSchema(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
-			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "COL_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN"},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "COL_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN", "VIRTUAL_COLUMN"},
 			rows: [][]driver.Value{
-				{"TEST_TABLE", "ID", "NUMBER", "N", nil, nil, 38, 0, "YES"},
-				{"TEST_TABLE", "NAME", "VARCHAR2", "Y", nil, 50, nil, nil, "NO"},
+				{"TEST_TABLE", "ID", "NUMBER", "N", `"TESTDB"."ISEQ$$_123".nextval`, nil, 38, 0, "YES", "NO"},
+				{"TEST_TABLE", "NAME", "VARCHAR2", "Y", "'ACTIVE' ", 50, nil, nil, "NO", "NO"},
 			},
 		},
 		{
@@ -233,10 +235,14 @@ for _, t := range conv.SrcSchema {
 		colIdMapped := table.ColNameIdMap["ID"]
 		assert.Equal(t, "NUMBER", table.ColDefs[colIdMapped].Type.Name)
 		assert.Equal(t, true, table.ColDefs[colIdMapped].NotNull)
+		assert.Equal(t, false, table.ColDefs[colIdMapped].DefaultValue.IsPresent)
+		assert.Equal(t, false, table.ColDefs[colIdMapped].Ignored.Default)
 		
 		colNameMapped := table.ColNameIdMap["NAME"]
 		assert.Equal(t, "VARCHAR2", table.ColDefs[colNameMapped].Type.Name)
 		assert.Equal(t, false, table.ColDefs[colNameMapped].NotNull)
+		assert.Equal(t, true, table.ColDefs[colNameMapped].DefaultValue.IsPresent)
+		assert.Equal(t, "'ACTIVE'", table.ColDefs[colNameMapped].DefaultValue.Value.Statement)
 
 		// Check primary key constraint accurately
 		assert.Equal(t, 1, len(table.PrimaryKeys))
@@ -245,6 +251,147 @@ for _, t := range conv.SrcSchema {
 		// Check JSON check constraint structures organically mapped
 		assert.Equal(t, 1, len(table.CheckConstraints))
 		assert.Equal(t, "(IS JSON)", table.CheckConstraints[0].Expr)
+	}
+}
+
+func TestToSpannerDefault(t *testing.T) {
+	tests := []struct {
+		name     string
+		raw      string
+		dataType string
+		gsqlStmt string
+		pgStmt   string
+		ok       bool
+	}{
+		{"numeric zero", "0\n", "NUMBER", "0", "0", true},
+		{"negative number", " -1 ", "NUMBER", "-1", "-1", true},
+		{"decimal", "1.5", "NUMBER", "1.5", "1.5", true},
+		{"paren number", "(5)", "NUMBER", "(5)", "(5)", true},
+		{"bare NUMBER numeric literal", "42", "NUMBER", "42", "42", true},
+		{"string literal", "'ACTIVE' ", "VARCHAR2", "'ACTIVE'", "'ACTIVE'", true},
+		{"string with escaped quote", "'it''s'", "VARCHAR2", `'it\'s'`, "'it''s'", true},
+		{"string with backslash", `'a\b'`, "VARCHAR2", `'a\\b'`, `'a\b'`, true},
+		{"null keyword", "NULL\n", "VARCHAR2", "", "", true},
+		{"null lowercase in parens", "(null)", "VARCHAR2", "", "", true},
+		{"empty string literal (null in Oracle)", "''", "VARCHAR2", "", "", true},
+		{"whitespace only", "   \n", "VARCHAR2", "", "", true},
+		{"SYSDATE", "SYSDATE", "DATE", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"current_date", "current_date", "DATE", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"SYSTIMESTAMP", "SYSTIMESTAMP", "TIMESTAMP(6)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"SYSTIMESTAMP(3)", "SYSTIMESTAMP(3)", "TIMESTAMP(3)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", "TIMESTAMP(6)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"CURRENT_TIMESTAMP(6)", "CURRENT_TIMESTAMP(6)", "TIMESTAMP(6)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"LOCALTIMESTAMP", "LOCALTIMESTAMP", "TIMESTAMP(6)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"LOCALTIMESTAMP(3)", "LOCALTIMESTAMP(3)", "TIMESTAMP(3)", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"paren SYSDATE", "(SYSDATE)", "DATE", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP", true},
+		{"DATE literal on DATE column", "DATE '2020-01-01'", "DATE", "TIMESTAMP '2020-01-01 00:00:00'", "'2020-01-01 00:00:00'::timestamptz", true},
+		{"TO_DATE function", "TO_DATE('2020-01-01', 'YYYY-MM-DD')", "DATE", "", "", false},
+		{"sequence nextval quoted", `"SMT"."ORD_SEQ"."NEXTVAL"`, "NUMBER", "", "", false},
+		{"sequence nextval unquoted", "ord_seq.nextval", "NUMBER", "", "", false},
+		{"sequence nextval in parens", `(ord_seq.nextval)`, "NUMBER", "", "", false},
+		{"unsupported function passed to verifier", "SYS_GUID()", "RAW", "SYS_GUID()", "SYS_GUID()", true},
+		{"date arithmetic passed to verifier", "SYSDATE + 1", "DATE", "SYSDATE + 1", "SYSDATE + 1", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt, ok := toSpannerDefault(tc.raw, tc.dataType, constants.DIALECT_GOOGLESQL)
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.gsqlStmt, stmt)
+
+			pgStmt, pgOk := toSpannerDefault(tc.raw, tc.dataType, constants.DIALECT_POSTGRESQL)
+			assert.Equal(t, tc.ok, pgOk)
+			assert.Equal(t, tc.pgStmt, pgStmt)
+		})
+	}
+}
+
+func TestGetColumnsBatchDefaults(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'`),
+			cols:  []string{"COUNT"},
+			rows:  [][]driver.Value{{1}},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+		FROM ALL_TAB_COLS 
+		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
+		ORDER BY TABLE_NAME, COLUMN_ID`),
+			args: []driver.Value{"TESTDB", "DEFS"},
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "COL_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN", "VIRTUAL_COLUMN"},
+			rows: [][]driver.Value{
+				{"DEFS", "ID", "NUMBER", "N", `"TESTDB"."ISEQ$$_1".nextval`, nil, 10, 0, "YES", "NO"},
+				{"DEFS", "STATUS", "VARCHAR2", "N", "'ACTIVE' ", 20, nil, nil, "NO", "NO"},
+				{"DEFS", "CREATED_AT", "TIMESTAMP(6)", "N", "SYSTIMESTAMP", nil, nil, 6, "NO", "NO"},
+				{"DEFS", "SEQ_COL", "NUMBER", "N", `"TESTDB"."ORD_SEQ"."NEXTVAL"`, nil, 10, 0, "NO", "NO"},
+				{"DEFS", "NULL_DEF", "VARCHAR2", "Y", "NULL", 20, nil, nil, "NO", "NO"},
+				{"DEFS", "VIRT_COL", "NUMBER", "Y", `"PRICE"*"QTY"`, nil, nil, nil, "NO", "YES"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	defer db.Close()
+
+	conv := internal.MakeConv()
+	conv.SpDialect = constants.DIALECT_GOOGLESQL
+	isi := InfoSchemaImpl{DbName: "testdb", Db: db}
+	cols, err := isi.GetColumnsBatch(conv, []common.SchemaAndName{{Schema: "TESTDB", Name: "DEFS"}})
+	assert.Nil(t, err)
+
+	byName := map[string]schema.Column{}
+	for _, c := range cols["DEFS"].ColDefs {
+		byName[c.Name] = c
+	}
+
+	assert.False(t, byName["ID"].DefaultValue.IsPresent)
+	assert.False(t, byName["ID"].Ignored.Default)
+
+	assert.True(t, byName["STATUS"].DefaultValue.IsPresent)
+	assert.Equal(t, "'ACTIVE'", byName["STATUS"].DefaultValue.Value.Statement)
+
+	assert.True(t, byName["CREATED_AT"].DefaultValue.IsPresent)
+	assert.Equal(t, "CURRENT_TIMESTAMP()", byName["CREATED_AT"].DefaultValue.Value.Statement)
+
+	assert.False(t, byName["SEQ_COL"].DefaultValue.IsPresent)
+	assert.True(t, byName["SEQ_COL"].Ignored.Default)
+
+	assert.False(t, byName["NULL_DEF"].DefaultValue.IsPresent)
+	assert.False(t, byName["NULL_DEF"].Ignored.Default)
+
+	assert.False(t, byName["VIRT_COL"].DefaultValue.IsPresent)
+	assert.False(t, byName["VIRT_COL"].Ignored.Default)
+	assert.True(t, byName["VIRT_COL"].GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColVirtual, byName["VIRT_COL"].GeneratedColumn.Type)
+	assert.Equal(t, "PRICE*QTY", byName["VIRT_COL"].GeneratedColumn.Value.Statement)
+}
+
+func TestToSpannerGeneratedExpr(t *testing.T) {
+	colDefs := map[string]schema.Column{
+		"c1": {Id: "c1", Name: "PRICE"},
+		"c2": {Id: "c2", Name: "QTY"},
+		"c3": {Id: "c3", Name: "FIRST_NAME"},
+		"c4": {Id: "c4", Name: "LAST_NAME"},
+		"c5": {Id: "c5", Name: "BAD$COL"},
+	}
+	tests := []struct {
+		name     string
+		raw      string
+		gsqlStmt string
+		pgStmt   string
+	}{
+		{"arithmetic", `"PRICE"*"QTY"`, "PRICE*QTY", `"PRICE"*"QTY"`},
+		{"outer parens stripped", `("PRICE" + "QTY")`, "PRICE + QTY", `"PRICE" + "QTY"`},
+		{"string concat", `"FIRST_NAME"||' '||"LAST_NAME"`, "FIRST_NAME||' '||LAST_NAME", `"FIRST_NAME"||' '||"LAST_NAME"`},
+		{"function call", `UPPER("FIRST_NAME")`, "UPPER(FIRST_NAME)", `UPPER("FIRST_NAME")`},
+		{"quotes and escapes inside string literal", `"FIRST_NAME"||' "quoted" it''s a\b'`, `FIRST_NAME||' "quoted" it\'s a\\b'`, `"FIRST_NAME"||' "quoted" it''s a\b'`},
+		{"renamed column via FixName", `"BAD$COL"+1`, "BAD_COL+1", `"BAD_COL"+1`},
+		{"empty expression", "   ", "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.gsqlStmt, toSpannerGeneratedExpr(tc.raw, colDefs, constants.DIALECT_GOOGLESQL))
+			assert.Equal(t, tc.pgStmt, toSpannerGeneratedExpr(tc.raw, colDefs, constants.DIALECT_POSTGRESQL))
+		})
 	}
 }
 
@@ -288,4 +435,135 @@ func TestGetForeignKeysBatchComposite(t *testing.T) {
 	assert.Equal(t, "PARENT", fks["CHILD_FK"].ReferTableName)
 	assert.Equal(t, []string{"OTHER_ID"}, fks["CHILD_OTHER_FK"].ColumnNames)
 	assert.Equal(t, []string{"ID"}, fks["CHILD_OTHER_FK"].ReferColumnNames)
+}
+
+func TestGetIndexesBatchExpressions(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta(`SELECT 
+			IC.table_name,
+			IC.index_name,
+			IC.column_name,
+			IC.descend,
+			I.uniqueness,
+			IE.column_expression,
+			I.index_type
+		FROM all_ind_columns IC 
+		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_constraints C
+			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
+			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
+				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
+			AND NOT EXISTS (
+				SELECT 1 FROM all_ind_columns X
+				WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name
+				AND NOT EXISTS (
+					SELECT 1 FROM all_cons_columns CC
+					WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name
+					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
+		ORDER BY IC.table_name, IC.index_name, IC.column_position`),
+			args: []driver.Value{"TESTDB", "VCOLS"},
+			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type"},
+			rows: [][]driver.Value{
+				{"VCOLS", "IDX_NORM", "QTY", "ASC", "NONUNIQUE", nil, "NORMAL"},
+				{"VCOLS", "IDX_DESC", "SYS_NC00012$", "DESC", "NONUNIQUE", `"FIRST_NAME"`, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_DESC", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_VCOL", "TOTAL", "ASC", "NONUNIQUE", `"PRICE"*"QTY"`, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_FUNC", "SYS_NC00014$", "ASC", "NONUNIQUE", `LOWER("LAST_NAME")`, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_ARITH", "SYS_NC00013$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_MIXED", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_MIXED", "SYS_NC00015$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	defer db.Close()
+
+	isi := InfoSchemaImpl{DbName: "testdb", Db: db}
+	colDefs := map[string]common.TableColumns{
+		"VCOLS": {
+			ColDefs: map[string]schema.Column{
+				"c1": {Id: "c1", Name: "FIRST_NAME"},
+				"c2": {Id: "c2", Name: "LAST_NAME"},
+				"c3": {Id: "c3", Name: "PRICE"},
+				"c4": {Id: "c4", Name: "QTY"},
+				"c5": {Id: "c5", Name: "TOTAL"},
+				"c6": {Id: "c6", Name: "SYS_NC00012$"},
+				"c7": {Id: "c7", Name: "SYS_NC00013$"},
+			},
+		},
+	}
+	result, err := isi.GetIndexesBatch(internal.MakeConv(), []common.SchemaAndName{{Schema: "TESTDB", Name: "VCOLS"}}, colDefs)
+	assert.Nil(t, err)
+
+	byName := map[string]schema.Index{}
+	for _, idx := range result["VCOLS"] {
+		byName[idx.Name] = idx
+	}
+	assert.Equal(t, 3, len(byName))
+	assert.Equal(t, []schema.Key{{ColId: "c4", Desc: false}}, byName["IDX_NORM"].Keys)
+	assert.Equal(t, []schema.Key{{ColId: "c1", Desc: true}, {ColId: "c4", Desc: false}}, byName["IDX_DESC"].Keys)
+	assert.Equal(t, []schema.Key{{ColId: "c5", Desc: false}}, byName["IDX_VCOL"].Keys)
+}
+
+func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
+	query := regexp.QuoteMeta(`SELECT 
+			k.table_name,
+			k.column_name,
+			t.constraint_type,
+			t.search_condition,
+			t.constraint_name
+		FROM all_constraints t
+		INNER JOIN all_cons_columns k
+		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		WHERE t.owner = :1 AND k.table_name IN (:2)
+		ORDER BY k.table_name, k.position`)
+	rows := [][]driver.Value{
+		{"ORDERS", "QTY", "C", `"QTY" > 0`, "CK_QTY"},
+		{"ORDERS", "STATUS", "C", `"STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s'`, "CK_STATUS"},
+	}
+
+	for _, tc := range []struct {
+		dialect      string
+		expectedQty  string
+		expectedStat string
+	}{
+		{
+			dialect:      constants.DIALECT_GOOGLESQL,
+			expectedQty:  "(QTY > 0)",
+			expectedStat: `(STATUS IN ('A', 'B') AND NOTE <> 'it\'s')`,
+		},
+		{
+			dialect:      constants.DIALECT_POSTGRESQL,
+			expectedQty:  `("QTY" > 0)`,
+			expectedStat: `("STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s')`,
+		},
+	} {
+		t.Run(tc.dialect, func(t *testing.T) {
+			db := mkMockDB(t, []mockSpec{{
+				query: query,
+				args:  []driver.Value{"TESTDB", "ORDERS"},
+				cols:  []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name"},
+				rows:  rows,
+			}})
+			defer db.Close()
+
+			conv := internal.MakeConv()
+			conv.SpDialect = tc.dialect
+			isi := InfoSchemaImpl{DbName: "testdb", Db: db}
+			res, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "TESTDB", Name: "ORDERS"}})
+			assert.Nil(t, err)
+
+			byName := map[string]string{}
+			for _, ck := range res["ORDERS"].CheckConstraints {
+				byName[ck.Name] = ck.Expr
+			}
+			assert.Equal(t, tc.expectedQty, byName["CK_QTY"])
+			assert.Equal(t, tc.expectedStat, byName["CK_STATUS"])
+		})
+	}
 }

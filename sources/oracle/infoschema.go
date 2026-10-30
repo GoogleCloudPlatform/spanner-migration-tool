@@ -202,12 +202,12 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
 	// used instead, mapping it to Spanner BYTES(n).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
@@ -223,11 +223,11 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	colIds := make(map[string][]string)
 
 	for rows.Next() {
-		var tableName, colName, dataType, isNullable, identityCol string
+		var tableName, colName, dataType, isNullable, identityCol, virtualCol string
 		var colDefault sql.NullString
 		var colLength, numericPrecision, numericScale sql.NullInt64
 
-		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &colLength, &numericPrecision, &numericScale, &identityCol)
+		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &colLength, &numericPrecision, &numericScale, &identityCol, &virtualCol)
 		if err != nil {
 			continue
 		}
@@ -250,6 +250,33 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 			AutoGen: colAutoGen,
 		}
 
+		// DATA_DEFAULT holds the sequence nextval for identity columns and the
+		// generation expression for virtual columns; only populate DefaultValue for
+		// regular column defaults.
+		if colDefault.Valid && identityCol != "YES" && virtualCol != "YES" {
+			stmt, ok := toSpannerDefault(colDefault.String, dataType, conv.SpDialect)
+			if !ok {
+				c.Ignored.Default = true
+			} else if stmt != "" {
+				c.DefaultValue = ddl.DefaultValue{
+					IsPresent: true,
+					Value: ddl.Expression{
+						ExpressionId: internal.GenerateExpressionId(),
+						Statement:    stmt,
+					},
+				}
+			}
+		} else if colDefault.Valid && virtualCol == "YES" && !strings.HasPrefix(colName, "SYS_") {
+			c.GeneratedColumn = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      ddl.GeneratedColVirtual,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    colDefault.String,
+				},
+			}
+		}
+
 		if _, ok := colDefs[tableName]; !ok {
 			colDefs[tableName] = make(map[string]schema.Column)
 		}
@@ -259,6 +286,17 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 	result := make(map[string]common.TableColumns)
 	for _, t := range tables {
+		for id, cd := range colDefs[t.Name] {
+			if cd.GeneratedColumn.IsPresent {
+				stmt := toSpannerGeneratedExpr(cd.GeneratedColumn.Value.Statement, colDefs[t.Name], conv.SpDialect)
+				if stmt == "" {
+					cd.GeneratedColumn = ddl.GeneratedColumn{}
+				} else {
+					cd.GeneratedColumn.Value.Statement = stmt
+				}
+				colDefs[t.Name][id] = cd
+			}
+		}
 		result[t.Name] = common.TableColumns{
 			ColDefs: colDefs[t.Name],
 			ColIds:  colIds[t.Name],
@@ -371,7 +409,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 					checkKeys[tableName][constraintName] = schema.CheckConstraint{
 						Id:     internal.GenerateCheckConstrainstId(),
 						Name:   constraintName,
-						Expr:   "(" + condition.String + ")",
+						Expr:   "(" + toSpannerGeneratedExpr(condition.String, nil, conv.SpDialect) + ")",
 						ExprId: internal.GenerateExpressionId(),
 					}
 				}
@@ -580,12 +618,29 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 			ignoredIndexes[tableName] = make(map[string]bool)
 		}
 
-		if indexType != "NORMAL" && strings.Contains(colexpression.String, "(") && strings.Contains(colexpression.String, ")") {
-			ignoredIndexes[tableName][name] = true
+		// Resolve the index key column:
+		// 1. Regular ASC column: IE.column_expression is NULL and IC.column_name is the column.
+		// 2. DESC on a regular column: IC.column_name is a hidden SYS_NC...$ column and
+		//    IE.column_expression is the quoted column name ("COL").
+		// 3. Index on a user-defined virtual column: IC.column_name is the virtual column
+		//    name (not SYS_...) and IE.column_expression is its generation expression.
+		// 4. Function-based index (e.g. LOWER("NAME") or "PRICE"+"QTY"): IC.column_name is
+		//    SYS_NC...$ and IE.column_expression is an expression; skip the index.
+		var colId string
+		if !colexpression.Valid {
+			colId = colNameIdMap[tableName][column]
+		} else {
+			expr := strings.TrimSpace(colexpression.String)
+			if len(expr) >= 2 && expr[0] == '"' && expr[len(expr)-1] == '"' {
+				colId = colNameIdMap[tableName][expr[1:len(expr)-1]]
+			}
+			if colId == "" && !strings.HasPrefix(column, "SYS_") {
+				colId = colNameIdMap[tableName][column]
+			}
 		}
-
-		if colexpression.Valid && !strings.Contains(colexpression.String, "(") && !strings.Contains(colexpression.String, ")") {
-			column = colexpression.String[1 : len(colexpression.String)-1]
+		if colId == "" {
+			ignoredIndexes[tableName][name] = true
+			continue
 		}
 
 		if _, found := indexMap[tableName][name]; !found {
@@ -598,7 +653,7 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 
 		idx := indexMap[tableName][name]
 		idx.Keys = append(idx.Keys, schema.Key{
-			ColId: colNameIdMap[tableName][column],
+			ColId: colId,
 			Desc:  (collation.Valid && collation.String == "DESC"),
 		})
 		indexMap[tableName][name] = idx
@@ -650,3 +705,190 @@ func valsToStrings(vals []sql.RawBytes) []string {
 
 var TimestampReg = regexp.MustCompile(`^TIMESTAMP(\(\d+\))?(\s+WITH(\s+LOCAL)?\s+TIME\s+ZONE)?$`)
 var IntervalReg = regexp.MustCompile(`^INTERVAL\s+(YEAR(\(\d+\))?\s+TO\s+MONTH|DAY(\(\d+\))?\s+TO\s+SECOND(\(\d+\))?)$`)
+var currentTimeDefaultReg = regexp.MustCompile(`(?i)^(sysdate|current_date|systimestamp(\(\s*\d*\s*\))?|current_timestamp(\(\s*\d*\s*\))?|localtimestamp(\(\s*\d*\s*\))?)$`)
+var sequenceNextvalReg = regexp.MustCompile(`(?i)\.\s*"?nextval"?$`)
+var dateLiteralDefaultReg = regexp.MustCompile(`(?i)^date\s+'(\d{4}-\d{2}-\d{2})'$`)
+var toDateDefaultReg = regexp.MustCompile(`(?i)^to_date\s*\(`)
+
+// toSpannerDefault translates an Oracle DATA_DEFAULT expression into a Spanner
+// default expression. It returns ("", true) when the expression represents no
+// default (empty, NULL, or '' which is NULL in Oracle), ("", false) when the
+// default cannot be migrated and should be marked Ignored.Default (e.g. a
+// sequence .NEXTVAL reference or an Oracle DATE expression whose Spanner type
+// does not match TIMESTAMP), and (stmt, true) for candidate expressions that
+// Spanner's DDLVerifier will validate against the staging database.
+func toSpannerDefault(raw string, dataType string, dialect string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", true
+	}
+	unwrapped := stripOuterParens(s)
+	if strings.EqualFold(unwrapped, "NULL") || unwrapped == "''" {
+		return "", true
+	}
+	if sequenceNextvalReg.MatchString(unwrapped) {
+		return "", false
+	}
+	if currentTimeDefaultReg.MatchString(unwrapped) {
+		if dialect == constants.DIALECT_POSTGRESQL {
+			return "CURRENT_TIMESTAMP", true
+		}
+		return "CURRENT_TIMESTAMP()", true
+	}
+	// Oracle DATE maps to Spanner TIMESTAMP/TIMESTAMPTZ by default.
+	// - DATE 'YYYY-MM-DD' has type DATE in GoogleSQL (which passes SELECT CAST(DATE '...' AS TIMESTAMP)
+	//   in the verifier yet is rejected by Spanner DDL on a TIMESTAMP column), so rewrite it to a
+	//   TIMESTAMP/timestamptz literal.
+	// - TO_DATE(...) returns DATE in Spanner PostgreSQL (which passes SELECT CAST(to_date(...) AS TIMESTAMPTZ)
+	//   in the verifier yet is rejected by Spanner DDL on a TIMESTAMPTZ column) and uses Oracle format
+	//   masks, so mark it unsupported.
+	if m := dateLiteralDefaultReg.FindStringSubmatch(unwrapped); m != nil && dataType == "DATE" {
+		if dialect == constants.DIALECT_POSTGRESQL {
+			return fmt.Sprintf("'%s 00:00:00'::timestamptz", m[1]), true
+		}
+		return fmt.Sprintf("TIMESTAMP '%s 00:00:00'", m[1]), true
+	}
+	if toDateDefaultReg.MatchString(unwrapped) {
+		return "", false
+	}
+	if dialect != constants.DIALECT_POSTGRESQL {
+		s = normalizeGSQLStringLiterals(s)
+	}
+	return s, true
+}
+
+func stripOuterParens(s string) string {
+	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		depth := 0
+		inSingle := false
+		balanced := true
+		for i := 0; i < len(s)-1; i++ {
+			ch := s[i]
+			if ch == '\'' {
+				inSingle = !inSingle
+				continue
+			}
+			if inSingle {
+				continue
+			}
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					balanced = false
+					break
+				}
+			}
+		}
+		if !balanced {
+			break
+		}
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	return s
+}
+
+// normalizeGSQLStringLiterals rewrites SQL doubled single quotes ('') and raw
+// backslashes inside single-quoted string literals to GoogleSQL escapes (\' and \\).
+func normalizeGSQLStringLiterals(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inSingle := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if !inSingle {
+			if ch == '\'' {
+				inSingle = true
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\'' {
+			if i+1 < len(s) && s[i+1] == '\'' {
+				b.WriteString(`\'`)
+				i++
+				continue
+			}
+			inSingle = false
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\\' {
+			b.WriteString(`\\`)
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
+}
+
+// toSpannerGeneratedExpr normalizes an Oracle virtual column expression from
+// ALL_TAB_COLS.DATA_DEFAULT for the target Spanner dialect. Oracle canonicalizes
+// column references in virtual column expressions as double-quoted identifiers
+// (e.g. "PRICE"*"QTY"), which GoogleSQL would parse as STRING literals.
+func toSpannerGeneratedExpr(raw string, colDefs map[string]schema.Column, dialect string) string {
+	s := stripOuterParens(strings.TrimSpace(raw))
+	if s == "" {
+		return ""
+	}
+	fixedColNames := make(map[string]string, len(colDefs))
+	for _, col := range colDefs {
+		fixed, _ := internal.FixName(col.Name)
+		fixedColNames[col.Name] = fixed
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	inSingle := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if inSingle {
+			if ch == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					if dialect == constants.DIALECT_POSTGRESQL {
+						b.WriteString("''")
+					} else {
+						b.WriteString(`\'`)
+					}
+					i++
+					continue
+				}
+				inSingle = false
+				b.WriteByte(ch)
+				continue
+			}
+			if ch == '\\' && dialect != constants.DIALECT_POSTGRESQL {
+				b.WriteString(`\\`)
+				continue
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\'' {
+			inSingle = true
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '"' {
+			end := strings.IndexByte(s[i+1:], '"')
+			if end >= 0 {
+				ident := s[i+1 : i+1+end]
+				colName, ok := fixedColNames[ident]
+				if !ok {
+					colName, _ = internal.FixName(ident)
+				}
+				if dialect == constants.DIALECT_POSTGRESQL {
+					b.WriteByte('"')
+					b.WriteString(colName)
+					b.WriteByte('"')
+				} else {
+					b.WriteString(colName)
+				}
+				i += end + 1
+				continue
+			}
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
+}
