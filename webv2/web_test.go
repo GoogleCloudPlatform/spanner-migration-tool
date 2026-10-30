@@ -296,3 +296,60 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSourceAndTargetProfiles_DatabaseOptionsSync(t *testing.T) {
+	t.Run("clears extracted DefaultTransactionIsolation when UI clears TargetDetails", func(t *testing.T) {
+		sessionState := &session.SessionState{
+			Conv:              internal.MakeConv(),
+			Driver:            constants.MYSQL,
+			SpannerProjectId:  "test-proj",
+			SpannerInstanceID: "test-inst",
+			Dialect:           constants.DIALECT_GOOGLESQL,
+			SourceDBConnDetails: session.SourceDBConnDetails{
+				ConnectionType: helpers.SESSION_FILE_MODE,
+			},
+		}
+		sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
+
+		details := types.MigrationDetails{
+			TargetDetails: types.TargetDetails{
+				TargetDB:                    "target-db",
+				DefaultTimezone:             "",
+				DefaultTransactionIsolation: "",
+			},
+		}
+
+		_, targetProfile, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+		assert.NoError(t, err)
+		assert.Equal(t, "", targetProfile.Conn.Sp.DefaultTransactionIsolation)
+		assert.Equal(t, "", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+		assert.Equal(t, "target-db", sessionState.Conv.DatabaseOptions.DbName)
+	})
+
+	t.Run("applies UI DefaultTransactionIsolation to Conv and TargetProfile", func(t *testing.T) {
+		sessionState := &session.SessionState{
+			Conv:              internal.MakeConv(),
+			Driver:            constants.MYSQL,
+			SpannerProjectId:  "test-proj",
+			SpannerInstanceID: "test-inst",
+			Dialect:           constants.DIALECT_GOOGLESQL,
+			SourceDBConnDetails: session.SourceDBConnDetails{
+				ConnectionType: helpers.SESSION_FILE_MODE,
+			},
+		}
+
+		details := types.MigrationDetails{
+			TargetDetails: types.TargetDetails{
+				TargetDB:                    "target-db",
+				DefaultTimezone:             "America/New_York",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+		}
+
+		_, targetProfile, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+		assert.NoError(t, err)
+		assert.Equal(t, "repeatable read", targetProfile.Conn.Sp.DefaultTransactionIsolation)
+		assert.Equal(t, "repeatable read", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+		assert.Equal(t, "America/New_York", sessionState.Conv.DatabaseOptions.DefaultTimezone)
+	})
+}

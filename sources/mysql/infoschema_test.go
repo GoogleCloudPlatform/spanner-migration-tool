@@ -822,3 +822,19 @@ func TestBuildColumn(t *testing.T) {
 	c = buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "auto_increment"}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
 	assert.Equal(t, constants.AUTO_INCREMENT, c.AutoGen.Name)
 }
+
+func TestGetDefaultTransactionIsolation(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta("SELECT @@global.transaction_isolation;"),
+			cols:  []string{"@@global.transaction_isolation"},
+			rows:  [][]driver.Value{{"REPEATABLE-READ"}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	got, err := isi.GetDefaultTransactionIsolation()
+	assert.NoError(t, err)
+	assert.Equal(t, "REPEATABLE-READ", got)
+}
+

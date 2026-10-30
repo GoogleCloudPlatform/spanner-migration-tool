@@ -1655,6 +1655,21 @@ func TestPrintDatabaseOptions(t *testing.T) {
 			},
 			expected: "ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York')",
 		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName:                      "test-db",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expected: "ALTER DATABASE `test-db` SET OPTIONS (default_transaction_isolation = 'repeatable read')",
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName:                      "test-db",
+				DefaultTimezone:             "America/New_York",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expected: "ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York', default_transaction_isolation = 'repeatable read')",
+		},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.dbOptions.PrintDatabaseOptions())
@@ -1690,6 +1705,24 @@ func TestPGPrintDatabaseOptions(t *testing.T) {
 				DefaultTimezone: "America/New_York",
 			},
 			expected: []string{"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'"},
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName:                      "test-db",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expected: []string{"ALTER DATABASE \"test-db\" SET default_transaction_isolation = 'repeatable read'"},
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName:                      "test-db",
+				DefaultTimezone:             "America/New_York",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expected: []string{
+				"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'",
+				"ALTER DATABASE \"test-db\" SET default_transaction_isolation = 'repeatable read'",
+			},
 		},
 	}
 	for _, tc := range tests {

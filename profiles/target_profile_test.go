@@ -45,6 +45,30 @@ func TestNewTargetProfile(t *testing.T) {
 			expectedErr: false,
 		},
 		{
+			targetProfileString: "instance=test-instance,defaultTransactionIsolation=repeatable read",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance:                    "test-instance",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expectedErr: false,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTransactionIsolation=REPEATABLE READ",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance:                    "test-instance",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+			expectedErr: false,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTransactionIsolation=SERIALIZABLE",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance:                    "test-instance",
+				DefaultTransactionIsolation: "serializable",
+			},
+			expectedErr: false,
+		},
+		{
 			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=10-50",
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Instance: "test-instance",
@@ -87,6 +111,14 @@ func TestNewTargetProfile(t *testing.T) {
 		},
 		{
 			targetProfileString: "instance=test-instance,defaultTimezone=not_a_real_timezone",
+			expectedErr: true,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTransactionIsolation=not_a_real_isolation",
+			expectedErr: true,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTransactionIsolation=",
 			expectedErr: true,
 		},
 		{

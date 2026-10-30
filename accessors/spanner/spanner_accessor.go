@@ -343,7 +343,7 @@ func (sp *SpannerAccessorImpl) TableExists(ctx context.Context, tableName string
 }
 
 func (sp *SpannerAccessorImpl) VerifyCreateTableDDL(ctx context.Context, dbURI string, conv *internal.Conv, tableId string, driver string) error {
-	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver, TableIds: []string{tableId}}, conv.SpSchema, make(map[string]ddl.Sequence), conv.DatabaseOptions)
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver, TableIds: []string{tableId}}, conv.SpSchema, make(map[string]ddl.Sequence), ddl.DatabaseOptions{})
 	if len(schema) == 0 {
 		return nil
 	}

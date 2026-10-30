@@ -27,6 +27,15 @@
                bindValue="timezone">
     </ng-select>
     <br>
+    <ng-select appearance="outline"
+               [items]="isolationLevels"
+               placeholder="Default Transaction Isolation"
+               [clearable]="true"
+               formControlName="defaultTransactionIsolation"
+               bindLabel="label"
+               bindValue="value">
+    </ng-select>
+    <br>
     <b>Region:</b>
     {{region}}
     <br>

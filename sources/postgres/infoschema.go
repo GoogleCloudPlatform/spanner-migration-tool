@@ -274,6 +274,17 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
+// GetDefaultTransactionIsolation returns the default transaction isolation level
+// configured on the PostgreSQL database.
+func (isi InfoSchemaImpl) GetDefaultTransactionIsolation() (string, error) {
+	var isolationLevel string
+	err := isi.Db.QueryRow("SHOW default_transaction_isolation;").Scan(&isolationLevel)
+	if err != nil {
+		return "", fmt.Errorf("couldn't get default_transaction_isolation: %w", err)
+	}
+	return isolationLevel, nil
+}
+
 // GetNonPublicTables returns the skipped non-public tables, excluding partitions of public partitioned tables.
 func (isi InfoSchemaImpl) GetNonPublicTables() ([]common.SchemaAndName, error) {
 	q := `SELECT t.table_schema, t.table_name FROM information_schema.tables t

@@ -69,6 +69,7 @@ type TargetDetails struct {
 	Publication                 string          `json:"Publication"`
 	GcsMetadataPath             GcsMetadataPath `json:"GcsMetadataPath"`
 	DefaultTimezone             string          `json:"DefaultTimezone"`
+	DefaultTransactionIsolation string          `json:"DefaultTransactionIsolation"`
 }
 
 type GcsMetadataPath struct {

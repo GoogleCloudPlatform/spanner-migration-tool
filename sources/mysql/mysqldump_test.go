@@ -1027,3 +1027,48 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 func bitReverse(i int64) int64 {
 	return int64(bits.Reverse64(uint64(i)))
 }
+
+func TestProcessMySQLDump_DefaultTransactionIsolation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "SET GLOBAL transaction_isolation REPEATABLE-READ",
+			input:    "SET @@GLOBAL.transaction_isolation = 'REPEATABLE-READ';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "SET tx_isolation SERIALIZABLE",
+			input:    "SET tx_isolation = 'SERIALIZABLE';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET transaction_isolation READ-COMMITTED ignored",
+			input:    "SET transaction_isolation = 'READ-COMMITTED';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "subsequent unsupported SET resets earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'SERIALIZABLE';\nSET @@GLOBAL.transaction_isolation = 'READ-COMMITTED';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "SET DEFAULT resets earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'SERIALIZABLE';\nSET @@GLOBAL.transaction_isolation = DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "variable restore preserves earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'REPEATABLE-READ';\nSET @@GLOBAL.transaction_isolation = @OLD_TX_ISOLATION;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(tc.input)
+			assert.Equal(t, tc.expected, conv.DatabaseOptions.DefaultTransactionIsolation)
+		})
+	}
+}

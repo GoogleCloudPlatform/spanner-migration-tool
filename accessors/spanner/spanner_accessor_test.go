@@ -1269,6 +1269,9 @@ func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
 			name: "Update Database successful",
 			acm: spanneradmin.AdminClientMock{
 				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					for _, stmt := range req.Statements {
+						assert.NotContains(t, stmt, "ALTER DATABASE")
+					}
 					return &spanneradmin.UpdateDatabaseDdlOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
 					}, nil
@@ -1305,7 +1308,8 @@ func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 			spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-            conv := internal.MakeConv()
+			conv := internal.MakeConv()
+			conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
 			err := spA.VerifyCreateTableDDL(ctx, dbURI, conv, "CREATE TABLE T1 (A INT64) PRIMARY KEY (A)", "bulk")
 			assert.Equal(t, tc.expectError, err != nil, tc.name)
 			if tc.expectError {
