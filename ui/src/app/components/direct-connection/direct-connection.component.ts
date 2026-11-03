@@ -16,6 +16,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
   selector: 'app-direct-connection',
   templateUrl: './direct-connection.component.html',
   styleUrls: ['./direct-connection.component.scss'],
+  standalone: false,
 })
 export class DirectConnectionComponent implements OnInit {
   connectForm = new FormGroup({
