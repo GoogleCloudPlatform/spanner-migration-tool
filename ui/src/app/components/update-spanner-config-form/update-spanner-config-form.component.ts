@@ -10,6 +10,7 @@ import { DataService } from 'src/app/services/data/data.service'
   selector: 'app-update-spanner-config-form',
   templateUrl: './update-spanner-config-form.component.html',
   styleUrls: ['./update-spanner-config-form.component.scss'],
+  standalone: false,
 })
 export class UpdateSpannerConfigFormComponent implements OnInit {
   errMessage: string = ''

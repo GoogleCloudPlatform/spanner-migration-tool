@@ -1,4 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -9,50 +10,52 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { Dialect, SourceDbNames } from 'src/app/app.constants';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
-import { of } from 'rxjs'; 
+import { of } from 'rxjs';
 
 import { AddNewColumnComponent } from './add-new-column.component';
 
 describe('AddNewColumnComponent', () => {
   let component: AddNewColumnComponent;
   let fixture: ComponentFixture<AddNewColumnComponent>;
-  let mockDataService: jasmine.SpyObj<DataService>;
-  let mockFetchService: jasmine.SpyObj<FetchService>;
-
+  let mockDataService: { addColumn: ReturnType<typeof vi.fn> };
+  let mockFetchService: { getAutoGenMap: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    mockDataService = jasmine.createSpyObj('DataService', ['addColumn']);
-    mockFetchService = jasmine.createSpyObj('FetchService', ['getAutoGenMap']);
-    mockFetchService.getAutoGenMap.and.returnValue(of({}));
+    mockDataService = {
+      addColumn: vi.fn(),
+    };
+    mockFetchService = {
+      getAutoGenMap: vi.fn().mockReturnValue(of({})),
+    };
 
     await TestBed.configureTestingModule({
-    declarations: [AddNewColumnComponent],
-    imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
-    providers: [
+      declarations: [AddNewColumnComponent],
+      imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
+      providers: [
         {
-            provide: MatDialogRef,
-            useValue: {
-                close: () => { },
-            },
+          provide: MatDialogRef,
+          useValue: {
+            close: () => { },
+          },
         },
         {
-            provide: MAT_DIALOG_DATA,
-            useValue: {
-              dialect: Dialect.GoogleStandardSQLDialect,
-              tableId: 't1',
-            }
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            dialect: Dialect.GoogleStandardSQLDialect,
+            tableId: 't1',
+          }
         },
         {
-            provide: DataService,
-            useValue: mockDataService
+          provide: DataService,
+          useValue: mockDataService
         },
         {
-            provide: FetchService,
-            useValue: mockFetchService
+          provide: FetchService,
+          useValue: mockFetchService
         },
-        provideHttpClient(withInterceptorsFromDi())
-    ]
-})
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
+      ]
+    })
       .compileComponents();
   });
 
@@ -60,8 +63,11 @@ describe('AddNewColumnComponent', () => {
     fixture = TestBed.createComponent(AddNewColumnComponent);
     component = fixture.componentInstance;
     component.dialect = Dialect.GoogleStandardSQLDialect;
-    console.log(component.datatypes)
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should create', () => {
@@ -69,7 +75,7 @@ describe('AddNewColumnComponent', () => {
   });
 
   it('should filter out JSON datatype for Cassandra source', () => {
-    spyOn(localStorage, 'getItem').and.returnValue(SourceDbNames.Cassandra);
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(SourceDbNames.Cassandra);
     fixture = TestBed.createComponent(AddNewColumnComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

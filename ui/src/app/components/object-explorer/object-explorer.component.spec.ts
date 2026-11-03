@@ -1,3 +1,4 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatTreeModule } from '@angular/material/tree'
 import { MatIconModule } from '@angular/material/icon'
@@ -6,6 +7,7 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { MatTableModule } from '@angular/material/table'
 import { FormsModule } from '@angular/forms'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { FlatNode } from 'src/app/model/schema-object-node'
@@ -19,9 +21,10 @@ describe('ObjectExplorerComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
     declarations: [ObjectExplorerComponent],
     imports: [MatTreeModule, MatIconModule, MatTableModule, FormsModule, MatDialogModule, MatSnackBarModule, MatDialogModule],
-    providers: [ConversionService, provideHttpClient(withInterceptorsFromDi())]
+    providers: [ConversionService, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 }).compileComponents()
   })
 

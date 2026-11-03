@@ -3,7 +3,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IConv, { ITableIdAndName, IType } from '../../model/conv'
-import { Subscription } from 'rxjs/internal/Subscription'
+import { Subscription } from 'rxjs'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
@@ -19,13 +19,14 @@ import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import IStructuredReport from '../../model/structured-report'
-import * as JSZip from 'jszip'
+import JSZip from 'jszip'
 import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Component({
   selector: 'app-workspace',
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
+  standalone: false,
 })
 export class WorkspaceComponent implements OnInit, OnDestroy {
   conv!: IConv
