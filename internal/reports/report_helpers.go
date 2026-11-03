@@ -414,7 +414,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.IdentityPrimaryKeyAdded:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': Column '%s' was added as the INT64 identity primary key, because Spanner identity columns must be INT64 and the source identity primary key column is not. The source primary key columns are kept, with a unique index. To use the source column as the identity primary key instead, change its type to INT64, set Auto-Generation to IDENTITY, make it the primary key and drop '%s'", conv.SpSchema[tableId].Name, spColName, spColName),
+						Description: fmt.Sprintf("Table '%s': Column '%s' is an identity primary key of type %s (mapped to %s), while Spanner identity columns must be INT64. An INT64 identity column was added as the primary key, and the source primary key columns are kept with a unique index. To use '%s' as the identity primary key instead, change its type to INT64, set Auto-Generation to IDENTITY, make it the primary key and drop the added primary key column", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, spColName),
 					}
 					l = append(l, toAppend)
 				case internal.SequenceCreated:

@@ -551,7 +551,8 @@ func addIdentityPrimaryKey(conv *internal.Conv, tableId, spTableName, identityCo
 		},
 	}
 	spColIds = append(spColIds, colId)
-	columnLevelIssues[colId] = []internal.SchemaIssue{internal.IdentityPrimaryKeyAdded, internal.IdentitySkipRange}
+	columnLevelIssues[identityColId] = append(columnLevelIssues[identityColId], internal.IdentityPrimaryKeyAdded)
+	columnLevelIssues[colId] = []internal.SchemaIssue{internal.IdentitySkipRange}
 
 	var uniqueKeys, newPrimaryKeys []ddl.IndexKey
 	for _, pk := range primaryKeys {

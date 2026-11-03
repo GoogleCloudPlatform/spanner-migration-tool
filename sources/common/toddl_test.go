@@ -1119,7 +1119,7 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 			mappedIssues:   []internal.SchemaIssue{internal.Numeric},
 			autoGen:        identity,
 			expectedAuto:   ddl.AutoGenCol{},
-			expectedIssues: []internal.SchemaIssue{internal.Numeric},
+			expectedIssues: []internal.SchemaIssue{internal.Numeric, internal.IdentityPrimaryKeyAdded},
 			expectNewPk:    true,
 		},
 		{
@@ -1128,7 +1128,7 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 			mappedType:     ddl.Type{Name: ddl.Numeric},
 			autoGen:        identity,
 			expectedAuto:   ddl.AutoGenCol{},
-			expectedIssues: nil,
+			expectedIssues: []internal.SchemaIssue{internal.IdentityPrimaryKeyAdded},
 			expectNewPk:    true,
 		},
 		{
@@ -1189,7 +1189,7 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 			assert.Equal(t, ddl.Type{Name: ddl.Int64}, newCol.T)
 			assert.True(t, newCol.NotNull)
 			assert.Equal(t, constants.IDENTITY, newCol.AutoGen.GenerationType)
-			assert.Equal(t, []internal.SchemaIssue{internal.IdentityPrimaryKeyAdded, internal.IdentitySkipRange}, conv.SchemaIssues["t1"].ColumnLevelIssues[newColId])
+			assert.Equal(t, []internal.SchemaIssue{internal.IdentitySkipRange}, conv.SchemaIssues["t1"].ColumnLevelIssues[newColId])
 
 			var expectedPk, expectedUniqueKeys []ddl.IndexKey
 			for _, k := range tc.primaryKeys {
