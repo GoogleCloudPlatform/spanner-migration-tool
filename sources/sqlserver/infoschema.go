@@ -23,6 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -572,6 +573,10 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
+	// Indexes that reference a column not present in colNameIdMap (e.g. a HIDDEN
+	// temporal period column filtered out by GetColumns) cannot be expressed in
+	// Spanner and are skipped as a whole.
+	skipped := make(map[string]bool)
 	for rows.Next() {
 		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
@@ -585,18 +590,26 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 				Name:   name,
 				Unique: (isUnique == "true" || isUnique == "1")}
 		}
+		colId, ok := colNameIdMap[column]
+		if !ok || colId == "" {
+			if !skipped[name] {
+				skipped[name] = true
+				logger.Log.Warn(fmt.Sprintf("Skipping index %s on table %s.%s: column %s is not part of the migrated schema (hidden or unsupported)", name, table.Schema, table.Name, column))
+			}
+			continue
+		}
 		index := indexMap[name]
 		if isStored == "false" || isStored == "0" {
 			index.Keys = append(index.Keys, schema.Key{
-				ColId: colNameIdMap[column],
+				ColId: colId,
 				Desc:  (collation == "true" || collation == "1" || collation == "DESC")})
 		} else {
-			index.StoredColumnIds = append(index.StoredColumnIds, colNameIdMap[column])
+			index.StoredColumnIds = append(index.StoredColumnIds, colId)
 		}
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
-		if len(indexMap[k].Keys) == 0 {
+		if skipped[k] || len(indexMap[k].Keys) == 0 {
 			continue
 		}
 		indexes = append(indexes, indexMap[k])

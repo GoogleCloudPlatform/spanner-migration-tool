@@ -115,6 +115,7 @@ CREATE TABLE [dbo].[ConstraintsAndDefaults](
 	[Status] [varchar](20) NOT NULL DEFAULT ('pending'),
 	[Quantity] [int] NOT NULL DEFAULT ((1)),
 	[DoubleQty] AS ([Quantity]*(2)) PERSISTED,
+	[IntDec] [decimal](10, 0) NULL,
  CONSTRAINT [PK_ConstraintsAndDefaults] PRIMARY KEY CLUSTERED 
 (
 	[Id] ASC

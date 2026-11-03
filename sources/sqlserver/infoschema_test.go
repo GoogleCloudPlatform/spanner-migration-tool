@@ -593,6 +593,13 @@ func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
 				{"ix_composite", "extra_info", "false", "false", "1"}, // stored column
 				// Index with only stored columns and 0 key columns (should be skipped)
 				{"ix_stored_only", "extra_info", "false", "false", "1"},
+				// Indexes referencing a column absent from colNameIdMap (e.g. a HIDDEN
+				// temporal period column) are skipped as a whole, whether the missing
+				// column is a key or a stored column.
+				{"ix_hidden_key", "cust_id", "false", "false", "0"},
+				{"ix_hidden_key", "SysStartTime", "false", "false", "0"},
+				{"ix_hidden_stored", "amount", "false", "false", "0"},
+				{"ix_hidden_stored", "SysEndTime", "false", "false", "1"},
 			},
 		},
 	}
@@ -608,6 +615,12 @@ func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
 	indexes, err := isi.GetIndexes(conv, common.SchemaAndName{Schema: "dbo", Name: "order_table"}, colNameIdMap)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(indexes))
+	for _, idx := range indexes {
+		assert.NotContains(t, []string{"ix_hidden_key", "ix_hidden_stored"}, idx.Name)
+		for _, k := range idx.Keys {
+			assert.NotEmpty(t, k.ColId, idx.Name)
+		}
+	}
 
 	// Index 1: ix_desc_numeric (unique = true, desc = true)
 	assert.Equal(t, "ix_desc_numeric", indexes[0].Name)

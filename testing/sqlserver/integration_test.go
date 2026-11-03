@@ -609,6 +609,23 @@ func checkConstraintsDefaultsAndIndexes(ctx context.Context, t *testing.T, clien
 	if !reflect.DeepEqual(gotIdxCols, wantIdxCols) {
 		t.Fatalf("IX_ConstraintsAndDefaults_Status_QtyDesc ordering mismatch: got %+v, want %+v", gotIdxCols, wantIdxCols)
 	}
+
+	// 4. decimal(10,0) fits INT64 and is migrated as such.
+	iterCol := client.Single().Query(ctx, spanner.Statement{
+		SQL: "SELECT SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ConstraintsAndDefaults' AND COLUMN_NAME = 'IntDec'",
+	})
+	defer iterCol.Stop()
+	rCol, err := iterCol.Next()
+	if err != nil {
+		t.Fatalf("Failed to read ConstraintsAndDefaults.IntDec: %v", err)
+	}
+	var intDecType string
+	if err := rCol.Columns(&intDecType); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := intDecType, "INT64"; got != want {
+		t.Fatalf("ConstraintsAndDefaults.IntDec type: got %s, want %s", got, want)
+	}
 }
 
 // checkCompositeFK verifies that multi-column foreign keys preserve column order and data.

@@ -41,7 +41,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	cleanName = strings.ToLower(cleanName)
 	srcType.Name = cleanName
 
-	ty, issues := toSpannerTypeInternal(srcType, spType, isPk)
+	ty, issues := toSpannerTypeInternal(conv.SpDialect, srcType, spType, isPk)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		var pg_issues []internal.SchemaIssue
 		ty, pg_issues = common.ToPGDialectType(ty, isPk)
@@ -66,6 +66,55 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 	}
 }
 
+// Spanner's GoogleSQL NUMERIC holds 29 integer digits and 9 fractional digits;
+// INT64 safely holds 18 decimal digits.
+const (
+	maxInt64SafeDigits  = 18
+	maxNumericIntDigits = 29
+	maxNumericScale     = 9
+)
+
+type numberFit int
+
+const (
+	numberFitsInt64 numberFit = iota
+	numberFitsNumeric
+	numberExceedsNumeric
+	numberUnknown // precision/scale not available
+)
+
+// classifyNumeric classifies a SQL Server numeric/decimal column by its
+// precision and scale. SQL Server infoschema reports Mods as [precision] when
+// the scale is 0 and [precision, scale] otherwise.
+func classifyNumeric(mods []int64) numberFit {
+	if len(mods) == 0 {
+		return numberUnknown
+	}
+	precision, scale := mods[0], int64(0)
+	if len(mods) > 1 {
+		scale = mods[1]
+	}
+	intDigits := precision - scale
+	switch {
+	case scale <= 0 && intDigits <= maxInt64SafeDigits:
+		return numberFitsInt64
+	case scale <= maxNumericScale && intDigits <= maxNumericIntDigits:
+		return numberFitsNumeric
+	default:
+		return numberExceedsNumeric
+	}
+}
+
+// numericOverflowIssues reports the Numeric issue only for the GoogleSQL
+// dialect: PostgreSQL-dialect NUMERIC is arbitrary precision, so any SQL Server
+// decimal(p,s) (p <= 38) fits.
+func numericOverflowIssues(spDialect string, fit numberFit) []internal.SchemaIssue {
+	if fit == numberExceedsNumeric && spDialect != constants.DIALECT_POSTGRESQL {
+		return []internal.SchemaIssue{internal.Numeric}
+	}
+	return nil
+}
+
 // toSpannerTypeInternal defines the mapping of source types into Spanner
 // types. Each source type has a default Spanner type, as well as other potential
 // Spanner types it could map to. When calling toSpannerTypeInternal, you specify
@@ -74,7 +123,7 @@ func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGe
 // Spanner type name is specified and is a potential mapping for this source type,
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
-func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case "bigint", "tinyint", "smallint", "int":
 		switch spType {
@@ -112,26 +161,37 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 		default:
 			return ddl.Type{Name: ddl.Float64}, nil
 		}
-	case "numeric", "decimal", "money", "smallmoney":
+	case "numeric", "decimal":
+		// NUMERIC is a valid key column in GoogleSQL. The PostgreSQL dialect
+		// restriction is handled by common.ToPGDialectType in ToSpannerType.
+		fit := classifyNumeric(srcType.Mods)
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Int64:
+			if fit == numberFitsInt64 {
+				return ddl.Type{Name: ddl.Int64}, nil
+			}
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, numericOverflowIssues(spDialect, fit)
+		default:
+			// Integers with at most 18 digits (scale 0) map to INT64.
+			if fit == numberFitsInt64 {
+				return ddl.Type{Name: ddl.Int64}, nil
+			}
+			return ddl.Type{Name: ddl.Numeric}, numericOverflowIssues(spDialect, fit)
+		}
+	case "money", "smallmoney":
+		// money is decimal(19,4) and smallmoney is decimal(10,4): both fit NUMERIC.
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Float64:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
-			// NUMERIC is a valid key column in GoogleSQL. The PostgreSQL dialect
-			// restriction is handled by common.ToPGDialectType in ToSpannerType.
-			if (srcType.Name == "numeric" || srcType.Name == "decimal") && len(srcType.Mods) >= 2 {
-				precision := srcType.Mods[0]
-				scale := srcType.Mods[1]
-				if scale > 9 || precision-scale > 29 {
-					return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
-				}
-			} else if (srcType.Name == "numeric" || srcType.Name == "decimal") && len(srcType.Mods) == 1 {
-				if srcType.Mods[0] > 29 {
-					return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Numeric}
-				}
-			}
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 	case "date":
@@ -163,6 +223,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 && srcType.Mods[0] <= ddl.BytesMaxLength {
 				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
+			// (max) is reported as -1 and can exceed Spanner's BYTES(MAX).
+			if len(srcType.Mods) > 0 && (srcType.Mods[0] > ddl.BytesMaxLength || srcType.Mods[0] < 0) {
+				return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
+			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			// Sets the source length only if it falls within the allowed length range in Spanner.
@@ -179,15 +243,21 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
 		}
 	case "ntext", "text", "xml":
+		// These hold up to 2^31-1 bytes (ntext: 2^30-1 characters), which exceeds
+		// Spanner's STRING(MAX)/BYTES(MAX) limits, whichever target is chosen.
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 		}
 	case "binary", "varbinary":
 		switch spType {
 		case ddl.String:
+			// (max) is reported as -1 and can exceed Spanner's STRING(MAX).
+			if len(srcType.Mods) > 0 && (srcType.Mods[0] > ddl.StringMaxLength || srcType.Mods[0] < 0) {
+				return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, []internal.SchemaIssue{internal.StringOverflow}
+			}
 			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
 		default:
 			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 && srcType.Mods[0] <= ddl.BytesMaxLength {
@@ -199,9 +269,11 @@ func toSpannerTypeInternal(srcType schema.Type, spType string, isPk bool) (ddl.T
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, nil
 		}
 	case "image":
+		// image holds up to 2^31-1 bytes, which exceeds Spanner's BYTES(MAX) and
+		// STRING(MAX) limits, whichever target is chosen.
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
 		}
