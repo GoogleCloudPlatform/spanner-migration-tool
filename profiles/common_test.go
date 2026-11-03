@@ -146,6 +146,20 @@ func TestGetSQLConnectionStr(t *testing.T) {
 			expectedOutput:         "sqlserver://user:password@0.0.0.0:3306?database=database",
 		},
 		{
+			name: "source profile connection type sql server with special characters and spaces",
+			inputSourceProfileConn: SourceProfileConnection{
+				Ty: SourceProfileConnectionTypeSqlServer,
+				SqlServer: SourceProfileConnectionSqlServer{
+					Host: "localhost",
+					Port: "1433",
+					User: "user#1",
+					Pwd:  "passw\\`~ord#1",
+					Db:   "test db#1",
+				},
+			},
+			expectedOutput: "sqlserver://user%231:passw%5C%60~ord%231@localhost:1433?database=test+db%231",
+		},
+		{
 			name:                   "source profile connection type oracle",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeOracle, Oracle: SourceProfileConnectionOracle{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
 			expectedOutput:         "oracle://user:password@0.0.0.0:3306/database",
