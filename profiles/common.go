@@ -151,7 +151,15 @@ func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
 }
 
 func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbName)
+	u := url.URL{
+		Scheme: "sqlserver",
+		User:   url.UserPassword(user, password),
+		Host:   fmt.Sprintf("%s:%s", server, port),
+	}
+	q := u.Query()
+	q.Set("database", dbName)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
