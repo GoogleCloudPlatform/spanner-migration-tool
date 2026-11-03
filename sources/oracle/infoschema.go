@@ -204,12 +204,12 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	if hasIdentityColumn > 0 {
 		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
 		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND HIDDEN_COLUMN = 'NO' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	}
 
@@ -639,7 +639,10 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 			}
 		}
 		if colId == "" {
-			ignoredIndexes[tableName][name] = true
+			if !ignoredIndexes[tableName][name] {
+				conv.Unexpected(fmt.Sprintf("Skipping function-based index %s on table %s", name, tableName))
+				ignoredIndexes[tableName][name] = true
+			}
 			continue
 		}
 

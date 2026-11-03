@@ -127,7 +127,7 @@ func TestGenerateSrcSchema(t *testing.T) {
 		{
 			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
 			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "COL_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN", "VIRTUAL_COLUMN"},
@@ -315,7 +315,7 @@ func TestGetColumnsBatchDefaults(t *testing.T) {
 		{
 			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (:2) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
 			args: []driver.Value{"TESTDB", "DEFS"},
 			cols: []string{"TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "NULLABLE", "DATA_DEFAULT", "COL_LENGTH", "DATA_PRECISION", "DATA_SCALE", "IDENTITY_COLUMN", "VIRTUAL_COLUMN"},
@@ -497,7 +497,8 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 			},
 		},
 	}
-	result, err := isi.GetIndexesBatch(internal.MakeConv(), []common.SchemaAndName{{Schema: "TESTDB", Name: "VCOLS"}}, colDefs)
+	conv := internal.MakeConv()
+	result, err := isi.GetIndexesBatch(conv, []common.SchemaAndName{{Schema: "TESTDB", Name: "VCOLS"}}, colDefs)
 	assert.Nil(t, err)
 
 	byName := map[string]schema.Index{}
@@ -508,6 +509,9 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 	assert.Equal(t, []schema.Key{{ColId: "c4", Desc: false}}, byName["IDX_NORM"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c1", Desc: true}, {ColId: "c4", Desc: false}}, byName["IDX_DESC"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c5", Desc: false}}, byName["IDX_VCOL"].Keys)
+	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_FUNC on table VCOLS"])
+	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_ARITH on table VCOLS"])
+	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_MIXED on table VCOLS"])
 }
 
 func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
