@@ -1098,7 +1098,9 @@ func TestParseMySQLDecimal_EdgeCases(t *testing.T) {
 
 func TestProcessMySQLDump_DecimalAndNumericEdgeCases(t *testing.T) {
 	pos38 := "12345678901234567890123456789.123456789"
+	neg38 := "-12345678901234567890123456789.123456789"
 	pos65 := strings.Repeat("1", 35) + "." + strings.Repeat("2", 30)
+	neg65 := "-" + pos65
 	over81Frac := "1." + strings.Repeat("5", 85)
 	over81FracTruncated := "1." + strings.Repeat("5", 72)
 
@@ -1113,8 +1115,9 @@ CREATE TABLE dec_edge (
 );
 INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci) VALUES
 	(1, 0.00, -0.00, %s, %s, 1.25e4),
+	(-9223372036854775808, 0.0000, -.5, %s, %s, -1.25e4),
 	(2, .25, -0.25, 0.000000001, %s, 0.0);
-`, pos38, pos65, over81Frac)
+`, pos38, pos65, neg38, neg65, over81Frac)
 
 	conv, rows := runProcessMySQLDump(sqlDump)
 	noIssues(conv, t, "Decimal and numeric edge cases")
@@ -1130,6 +1133,18 @@ INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci) VALUES
 				mustRat(t, pos38),
 				mustRat(t, pos65),
 				float64(12500),
+			},
+		},
+		{
+			table: "dec_edge",
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci"},
+			vals: []interface{}{
+				int64(-9223372036854775808),
+				mustRat(t, "0"),
+				mustRat(t, "-0.5"),
+				mustRat(t, neg38),
+				mustRat(t, neg65),
+				float64(-12500),
 			},
 		},
 		{
