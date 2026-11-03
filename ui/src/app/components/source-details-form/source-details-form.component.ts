@@ -11,7 +11,8 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 @Component({
   selector: 'app-source-details-form',
   templateUrl: './source-details-form.component.html',
-  styleUrls: ['./source-details-form.component.scss']
+  styleUrls: ['./source-details-form.component.scss'],
+  standalone: false,
 })
 export class SourceDetailsFormComponent implements OnInit {
   inputOptions = [

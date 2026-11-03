@@ -9,6 +9,7 @@ interface IDialogProps {
   selector: 'app-infodialog',
   templateUrl: './infodialog.component.html',
   styleUrls: ['./infodialog.component.scss'],
+  standalone: false,
 })
 export class InfodialogComponent implements OnInit {
   constructor(
