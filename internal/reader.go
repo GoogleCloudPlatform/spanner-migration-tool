@@ -47,6 +47,10 @@ func (r *Reader) ReadLine() []byte {
 		r.EOF = true
 	} else if err != nil {
 		logger.Log.Info(fmt.Sprintf("Error reading input data: %v\n", err))
+		// Treat any read error as end-of-input (per this type's contract).
+		// Without this, callers looping until r.EOF spin forever on a
+		// persistent non-EOF error, appending empty lines (CPU spin / OOM).
+		r.EOF = true
 		return []byte{}
 	}
 	r.Offset += len(b)
