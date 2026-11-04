@@ -307,8 +307,11 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
-		req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
-
+		dbOptions := conv.DatabaseOptions
+		if dbName != "" {
+			dbOptions.DbName = dbName
+		}
+		req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, dbOptions)
 	}
 
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
@@ -343,7 +346,7 @@ func (sp *SpannerAccessorImpl) TableExists(ctx context.Context, tableName string
 }
 
 func (sp *SpannerAccessorImpl) VerifyCreateTableDDL(ctx context.Context, dbURI string, conv *internal.Conv, tableId string, driver string) error {
-	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver, TableIds: []string{tableId}}, conv.SpSchema, make(map[string]ddl.Sequence), conv.DatabaseOptions)
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver, TableIds: []string{tableId}}, conv.SpSchema, make(map[string]ddl.Sequence), ddl.DatabaseOptions{})
 	if len(schema) == 0 {
 		return nil
 	}
@@ -371,7 +374,13 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
+	dbOptions := conv.DatabaseOptions
+	if idx := strings.LastIndex(dbURI, "/databases/"); idx != -1 {
+		if dbName := dbURI[idx+len("/databases/"):]; dbName != "" {
+			dbOptions.DbName = dbName
+		}
+	}
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, dbOptions)
 	if len(schema) == 0 {
 		return nil
 	}

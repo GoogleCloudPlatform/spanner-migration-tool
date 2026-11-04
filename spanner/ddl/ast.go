@@ -891,8 +891,9 @@ func (seq Sequence) PGPrintSequence(c Config) string {
 }
 
 type DatabaseOptions struct {
-	DbName          string
-	DefaultTimezone string
+	DbName                      string
+	DefaultTimezone             string
+	DefaultTransactionIsolation string
 }
 
 func (dbOptions DatabaseOptions) PrintDatabaseOptions() string {
@@ -904,6 +905,9 @@ func (dbOptions DatabaseOptions) PrintDatabaseOptions() string {
 	var options []string
 	if dbOptions.DefaultTimezone != "" {
 		options = append(options, fmt.Sprintf("default_time_zone = '%s'", dbOptions.DefaultTimezone))
+	}
+	if dbOptions.DefaultTransactionIsolation != "" {
+		options = append(options, fmt.Sprintf("default_transaction_isolation = '%s'", dbOptions.DefaultTransactionIsolation))
 	}
 
 	dbOptionsDdl := ""
@@ -922,6 +926,9 @@ func (dbOptions DatabaseOptions) PGPrintDatabaseOptions() []string {
 	var options []string
 	if dbOptions.DefaultTimezone != "" {
 		options = append(options, fmt.Sprintf("spanner.default_time_zone = '%s'", dbOptions.DefaultTimezone))
+	}
+	if dbOptions.DefaultTransactionIsolation != "" {
+		options = append(options, fmt.Sprintf("default_transaction_isolation = '%s'", dbOptions.DefaultTransactionIsolation))
 	}
 
 	var dbOptionsDdls []string

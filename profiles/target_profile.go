@@ -46,12 +46,13 @@ const (
 )
 
 type TargetProfileConnectionSpanner struct {
-	Endpoint string // Same as SPANNER_API_ENDPOINT environment variable
-	Project  string // Same as GCLOUD_PROJECT environment variable
-	Instance string
-	Dbname   string
-	Dialect  string
-	DefaultTimezone string
+	Endpoint                    string // Same as SPANNER_API_ENDPOINT environment variable
+	Project                     string // Same as GCLOUD_PROJECT environment variable
+	Instance                    string
+	Dbname                      string
+	Dialect                     string
+	DefaultTimezone             string
+	DefaultTransactionIsolation string
 }
 
 type TargetProfileConnection struct {
@@ -202,6 +203,13 @@ func NewTargetProfile(s string, isDryRun bool) (TargetProfile, error) {
 	if defaultTimezone, ok := params["defaultTimezone"]; ok {
 		sp.DefaultTimezone = defaultTimezone
 	}
+	if defaultTransactionIsolation, ok := params["defaultTransactionIsolation"]; ok {
+		normalizedIsolation, err := parseDefaultTransactionIsolation(defaultTransactionIsolation)
+		if err != nil {
+			return TargetProfile{}, err
+		}
+		sp.DefaultTransactionIsolation = normalizedIsolation
+	}
 
 	if sp.Dialect == "" && isDryRun {
 		sp.Dialect = constants.DIALECT_GOOGLESQL
@@ -230,6 +238,16 @@ func NewTargetProfile(s string, isDryRun bool) (TargetProfile, error) {
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
 	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn, DefaultIdentityOptions: defaultIdentityOptions}, nil
+}
+
+func parseDefaultTransactionIsolation(val string) (string, error) {
+	normalized := strings.Join(strings.Fields(strings.ToLower(val)), " ")
+	switch normalized {
+	case constants.ISOLATION_LEVEL_REPEATABLE_READ, constants.ISOLATION_LEVEL_SERIALIZABLE:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("invalid value for defaultTransactionIsolation: %s, expected 'repeatable read' or 'serializable'", val)
+	}
 }
 
 func extractDefaultIdentityOptions(params map[string]string) (DefaultIdentityOptions, error) {

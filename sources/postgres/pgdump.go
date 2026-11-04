@@ -327,6 +327,10 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt, state 
 			if conv.SchemaMode() {
 				processVariableSetStmt(conv, n.VariableSetStmt)
 			}
+		case *pg_query.Node_AlterDatabaseSetStmt:
+			if conv.SchemaMode() && n.AlterDatabaseSetStmt != nil && n.AlterDatabaseSetStmt.Setstmt != nil {
+				processVariableSetStmt(conv, n.AlterDatabaseSetStmt.Setstmt)
+			}
 		case *pg_query.Node_IndexStmt:
 			if conv.SchemaMode() {
 				processIndexStmt(conv, n.IndexStmt)
@@ -697,7 +701,12 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 }
 
 func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
-	if n.Name == "timezone" {
+	if n.Kind == pg_query.VariableSetKind_VAR_RESET_ALL {
+		conv.DatabaseOptions.DefaultTransactionIsolation = ""
+		return
+	}
+	switch strings.ToLower(n.Name) {
+	case "timezone":
 		if len(n.Args) == 1 {
 			arg := n.Args[0]
 			switch c := arg.GetNode().(type) {
@@ -716,6 +725,20 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 			default:
 				logStmtError(conv, arg, fmt.Errorf("found %s node in Arg", printNodeType(c)))
 				return
+			}
+		}
+	case "default_transaction_isolation":
+		switch n.Kind {
+		case pg_query.VariableSetKind_VAR_SET_DEFAULT, pg_query.VariableSetKind_VAR_RESET:
+			conv.DatabaseOptions.DefaultTransactionIsolation = ""
+		case pg_query.VariableSetKind_VAR_SET_VALUE:
+			if len(n.Args) == 1 {
+				arg := n.Args[0]
+				if c, ok := arg.GetNode().(*pg_query.Node_AConst); ok {
+					if sval := c.AConst.GetSval(); sval != nil {
+						conv.DatabaseOptions.DefaultTransactionIsolation = common.NormalizeSupportedIsolationLevel(sval.Sval)
+					}
+				}
 			}
 		}
 	}

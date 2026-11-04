@@ -22,6 +22,13 @@ export default interface IConv {
   IsSharded: boolean
   SpSequences: Record<string, ICreateSequence>
   SrcSequences: Record<string, ICreateSequence>
+  DatabaseOptions?: IDatabaseOptions
+}
+
+export interface IDatabaseOptions {
+  DbName: string
+  DefaultTimezone: string
+  DefaultTransactionIsolation: string
 }
 
 export interface IDefaultValue {

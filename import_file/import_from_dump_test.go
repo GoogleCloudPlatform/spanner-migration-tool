@@ -190,6 +190,7 @@ func TestCreateSchema(t *testing.T) {
 				assert.Equal(t, tc.expectedConv.Source, conv.Source)
 				assert.Equal(t, tc.expectedConv.SpProjectId, conv.SpProjectId)
 				assert.Equal(t, tc.expectedConv.SpInstanceId, conv.SpInstanceId)
+				assert.Equal(t, "test-db", conv.DatabaseOptions.DbName)
 				assert.True(t, conv.SchemaMode())
 			}
 		})

@@ -1269,6 +1269,9 @@ func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
 			name: "Update Database successful",
 			acm: spanneradmin.AdminClientMock{
 				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					for _, stmt := range req.Statements {
+						assert.NotContains(t, stmt, "ALTER DATABASE")
+					}
 					return &spanneradmin.UpdateDatabaseDdlOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
 					}, nil
@@ -1305,7 +1308,8 @@ func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 			spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-            conv := internal.MakeConv()
+			conv := internal.MakeConv()
+			conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
 			err := spA.VerifyCreateTableDDL(ctx, dbURI, conv, "CREATE TABLE T1 (A INT64) PRIMARY KEY (A)", "bulk")
 			assert.Equal(t, tc.expectError, err != nil, tc.name)
 			if tc.expectError {
@@ -1313,4 +1317,81 @@ func TestSpannerAccessorImpl_VerifyCreateTableDDL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSpannerAccessorImpl_DatabaseOptionsUsesTargetDbURI(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateDatabase GoogleSQL uses dbURI database name without mutating conv", func(t *testing.T) {
+		var capturedExtra []string
+		acm := spanneradmin.AdminClientMock{
+			CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
+				capturedExtra = req.ExtraStatements
+				return &spanneradmin.CreateDatabaseOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
+				}, nil
+			},
+		}
+		conv := internal.MakeConv()
+		conv.SpDialect = constants.DIALECT_GOOGLESQL
+		conv.DatabaseOptions = ddl.DatabaseOptions{
+			DbName:                      "", // Unset during staging DB expression verification
+			DefaultTransactionIsolation: constants.ISOLATION_LEVEL_REPEATABLE_READ,
+		}
+		spA := SpannerAccessorImpl{AdminClient: &acm}
+		err := spA.CreateDatabase(ctx, "projects/p/instances/i/databases/smt_staging_db_123", conv, constants.MYSQL, "bulk")
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"ALTER DATABASE `smt_staging_db_123` SET OPTIONS (default_transaction_isolation = 'repeatable read')"}, capturedExtra)
+		assert.Equal(t, "", conv.DatabaseOptions.DbName)
+	})
+
+	t.Run("CreateDatabase PostgreSQL forwards dbURI database name via UpdateDatabase", func(t *testing.T) {
+		var capturedStmts []string
+		acm := spanneradmin.AdminClientMock{
+			CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
+				return &spanneradmin.CreateDatabaseOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
+				}, nil
+			},
+			UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+				capturedStmts = req.Statements
+				return &spanneradmin.UpdateDatabaseDdlOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+				}, nil
+			},
+		}
+		conv := internal.MakeConv()
+		conv.SpDialect = constants.DIALECT_POSTGRESQL
+		conv.DatabaseOptions = ddl.DatabaseOptions{
+			DbName:                      "other-db",
+			DefaultTransactionIsolation: constants.ISOLATION_LEVEL_REPEATABLE_READ,
+		}
+		spA := SpannerAccessorImpl{AdminClient: &acm}
+		err := spA.CreateDatabase(ctx, "projects/p/instances/i/databases/smt_staging_pg_db", conv, constants.POSTGRES, "bulk")
+		assert.NoError(t, err)
+		assert.Equal(t, []string{`ALTER DATABASE "smt_staging_pg_db" SET default_transaction_isolation = 'repeatable read'`}, capturedStmts)
+		assert.Equal(t, "other-db", conv.DatabaseOptions.DbName)
+	})
+
+	t.Run("UpdateDatabase uses dbURI database name when conv DbName is empty", func(t *testing.T) {
+		var capturedStmts []string
+		acm := spanneradmin.AdminClientMock{
+			UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+				capturedStmts = req.Statements
+				return &spanneradmin.UpdateDatabaseDdlOperationMock{
+					WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+				}, nil
+			},
+		}
+		conv := internal.MakeConv()
+		conv.SpDialect = constants.DIALECT_GOOGLESQL
+		conv.DatabaseOptions = ddl.DatabaseOptions{
+			DefaultTransactionIsolation: constants.ISOLATION_LEVEL_SERIALIZABLE,
+		}
+		spA := SpannerAccessorImpl{AdminClient: &acm}
+		err := spA.UpdateDatabase(ctx, "projects/p/instances/i/databases/imported-db", conv, constants.MYSQL)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"ALTER DATABASE `imported-db` SET OPTIONS (default_transaction_isolation = 'serializable')"}, capturedStmts)
+		assert.Equal(t, "", conv.DatabaseOptions.DbName)
+	})
 }

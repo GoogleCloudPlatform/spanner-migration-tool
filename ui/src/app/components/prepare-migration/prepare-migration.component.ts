@@ -101,6 +101,7 @@ export class PrepareMigrationComponent implements OnInit {
       GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) || '',
     },
     DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+    DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) as string,
   }
 
   gcsConfig: IGcsConfig = {
@@ -159,6 +160,18 @@ export class PrepareMigrationComponent implements OnInit {
     })
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
+      if (
+        !this.isTargetDetailSet &&
+        localStorage.getItem(TargetDetails.DefaultTransactionIsolation) == null &&
+        data?.DatabaseOptions?.DefaultTransactionIsolation
+      ) {
+        localStorage.setItem(
+          TargetDetails.DefaultTransactionIsolation,
+          data.DatabaseOptions.DefaultTransactionIsolation
+        )
+        this.targetDetails.DefaultTransactionIsolation =
+          data.DatabaseOptions.DefaultTransactionIsolation
+      }
     })
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
@@ -334,6 +347,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.GeneratingResources)
     localStorage.removeItem(MigrationDetails.NumberOfShards)
     localStorage.removeItem(MigrationDetails.NumberOfInstances)
+    localStorage.removeItem(TargetDetails.DefaultTransactionIsolation)
   }
   
 
@@ -398,6 +412,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
         DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+        DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) as string,
       }
       this.isTargetDetailSet =
         (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string) === 'true'
@@ -439,6 +454,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
         DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+        DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) as string,
       }
     })
   }

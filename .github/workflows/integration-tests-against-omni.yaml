@@ -56,8 +56,8 @@ jobs:
 
     services:
       spanner_omni:
-        image: us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta
-        command: start-single-server
+        image: us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r4-lts.1
+        command: start-single-server --listen-addresses=0.0.0.0,[::]
         options: --tmpfs /spanner
         ports:
           - 9010:15000
