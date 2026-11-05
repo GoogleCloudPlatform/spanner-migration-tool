@@ -117,7 +117,7 @@ func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourcePr
 	}
 	err = nil
 	if errString != "" {
-		err = fmt.Errorf(errString, "")
+		err = fmt.Errorf("%s", errString)
 	}
 	return InfoSchemaCollector{
 		tables:           tb,
