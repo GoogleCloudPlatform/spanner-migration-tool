@@ -478,7 +478,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					// Convert unique column constraint in mysql to a corresponding unique index in schema
 					// Note that schema represents all unique constraints as indexes.
 					ctable := conv.SrcSchema[tbl.Id]
-					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: colname, Desc: false}}})
+					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: col.Id, Desc: false}}})
 					conv.SrcSchema[tbl.Id] = ctable
 				}
 				conv.SchemaStatement(NodeType(stmt))
