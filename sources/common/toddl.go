@@ -385,8 +385,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	)
 
 	columnLevelIssues := make(map[string][]internal.SchemaIssue)
-	// Id of the identity primary key column whose type is not INT64, if any.
-	var identityPkColId string
+	primaryKeys := cvtPrimaryKeys(srcTable.PrimaryKeys)
+	var identityPkIndexes []ddl.CreateIndex
 
 	// Initialize ToSpanner mapping for this table
 	if conv.ToSpanner == nil {
@@ -460,7 +460,10 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 					// primary key by a new INT64 identity column (see addIdentityPrimaryKey).
 					autoGenCol = &ddl.AutoGenCol{}
 					if isPk {
-						identityPkColId = srcColId
+						var uniqueIndex ddl.CreateIndex
+						spColIds, primaryKeys, uniqueIndex = addIdentityPrimaryKey(conv, srcTable, spTableName, srcColId, spColIds, spColDef, columnLevelIssues, primaryKeys)
+						identityPkIndexes = append(identityPkIndexes, uniqueIndex)
+						issues = append(issues, internal.IdentityPrimaryKeyAdded)
 					} else {
 						issues = append(issues, internal.IdentityTypeNotSupported)
 					}
@@ -492,17 +495,11 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			}
 			spColDef[srcColId] = colDef
 		}
-		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) || srcColId == identityPkColId {
+		if !checkIfColumnIsPartOfSpSchemaPK(srcColId, primaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
 		}
 	}
-	primaryKeys := cvtPrimaryKeys(srcTable.PrimaryKeys)
-	indexes := cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef)
-	if identityPkColId != "" {
-		var uniqueIndex ddl.CreateIndex
-		spColIds, primaryKeys, uniqueIndex = addIdentityPrimaryKey(conv, srcTable.Id, spTableName, identityPkColId, spColIds, spColDef, columnLevelIssues, primaryKeys)
-		indexes = append(indexes, uniqueIndex)
-	}
+	indexes := append(cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef), identityPkIndexes...)
 	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
 		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
 	}
@@ -537,10 +534,18 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 // the primary key. A unique index on the source primary key columns keeps their
 // uniqueness, so that foreign keys referencing them still work. It returns the
 // updated column ids and primary key, and the unique index.
-func addIdentityPrimaryKey(conv *internal.Conv, tableId, spTableName, identityColId string, spColIds []string, spColDef map[string]ddl.ColumnDef, columnLevelIssues map[string][]internal.SchemaIssue, primaryKeys []ddl.IndexKey) ([]string, []ddl.IndexKey, ddl.CreateIndex) {
+func addIdentityPrimaryKey(conv *internal.Conv, srcTable schema.Table, spTableName, identityColId string, spColIds []string, spColDef map[string]ddl.ColumnDef, columnLevelIssues map[string][]internal.SchemaIssue, primaryKeys []ddl.IndexKey) ([]string, []ddl.IndexKey, ddl.CreateIndex) {
+	existingCols := make(map[string]ddl.ColumnDef, len(srcTable.ColDefs)+len(spColDef))
+	for id, col := range srcTable.ColDefs {
+		fixedName, _ := internal.FixName(col.Name)
+		existingCols[id] = ddl.ColumnDef{Name: fixedName}
+	}
+	for id, col := range spColDef {
+		existingCols[id] = col
+	}
 	colId := internal.GenerateColumnId()
 	spColDef[colId] = ddl.ColumnDef{
-		Name:    uniqueColumnName(spColDef, internal.SyntheticPrimaryKey),
+		Name:    internal.UniqueColumnName(existingCols, internal.SyntheticPrimaryKey),
 		Id:      colId,
 		T:       ddl.Type{Name: ddl.Int64},
 		NotNull: true,
@@ -551,7 +556,6 @@ func addIdentityPrimaryKey(conv *internal.Conv, tableId, spTableName, identityCo
 		},
 	}
 	spColIds = append(spColIds, colId)
-	columnLevelIssues[identityColId] = append(columnLevelIssues[identityColId], internal.IdentityPrimaryKeyAdded)
 	columnLevelIssues[colId] = []internal.SchemaIssue{internal.IdentitySkipRange}
 
 	var uniqueKeys, newPrimaryKeys []ddl.IndexKey
@@ -564,31 +568,12 @@ func addIdentityPrimaryKey(conv *internal.Conv, tableId, spTableName, identityCo
 	}
 	uniqueIndex := ddl.CreateIndex{
 		Name:    internal.ToSpannerIndexName(conv, spTableName+"_original_pk"),
-		TableId: tableId,
+		TableId: srcTable.Id,
 		Unique:  true,
 		Keys:    uniqueKeys,
 		Id:      internal.GenerateIndexesId(),
 	}
 	return spColIds, newPrimaryKeys, uniqueIndex
-}
-
-// uniqueColumnName returns base, or base followed by a number, so that it is not
-// the name of any column in colDefs.
-func uniqueColumnName(colDefs map[string]ddl.ColumnDef, base string) string {
-	name := base
-	for i := 0; ; i++ {
-		used := false
-		for _, col := range colDefs {
-			if strings.EqualFold(col.Name, name) {
-				used = true
-				break
-			}
-		}
-		if !used {
-			return name
-		}
-		name = fmt.Sprintf("%s%d", base, i)
-	}
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error {

@@ -1183,7 +1183,7 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 			}
 			// A new INT64 identity column replaces the source column in the primary key.
 			assert.Equal(t, 3, len(spTable.ColIds))
-			newColId := spTable.ColIds[2]
+			newColId := spTable.ColIds[1]
 			newCol := spTable.ColDefs[newColId]
 			assert.Equal(t, "synth_id0", newCol.Name) // "synth_id" is already a column name.
 			assert.Equal(t, ddl.Type{Name: ddl.Int64}, newCol.T)
@@ -1213,8 +1213,8 @@ func TestSchemaToSpannerDDLHelper_IdentityColumnType(t *testing.T) {
 
 func TestUniqueColumnName(t *testing.T) {
 	colDefs := map[string]ddl.ColumnDef{"c1": {Name: "ID"}}
-	assert.Equal(t, "synth_id", uniqueColumnName(colDefs, "synth_id"))
+	assert.Equal(t, "synth_id", internal.UniqueColumnName(colDefs, "synth_id"))
 	colDefs["c2"] = ddl.ColumnDef{Name: "SYNTH_ID"}
 	colDefs["c3"] = ddl.ColumnDef{Name: "synth_id0"}
-	assert.Equal(t, "synth_id1", uniqueColumnName(colDefs, "synth_id"))
+	assert.Equal(t, "synth_id1", internal.UniqueColumnName(colDefs, "synth_id"))
 }

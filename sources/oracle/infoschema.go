@@ -372,7 +372,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
-		LEFT JOIN all_tab_columns c
+		LEFT JOIN all_tab_cols c
 		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (%s)
 		ORDER BY k.table_name, k.position`, strings.Join(placeholders, ","))
