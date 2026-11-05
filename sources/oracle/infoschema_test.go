@@ -60,6 +60,45 @@ func TestGetTableName(t *testing.T) {
 	assert.Equal(t, "test_table", isi.GetTableName("test_db", "test_table"))
 }
 
+func TestGetTables(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME FROM ALL_TABLES T
+		WHERE OWNER = UPPER(:1)
+		AND TEMPORARY = 'N'
+		AND SECONDARY = 'N'
+		AND NESTED = 'NO'
+		AND DROPPED = 'NO'
+		AND (IOT_TYPE IS NULL OR IOT_TYPE = 'IOT')
+		AND TABLE_NAME NOT LIKE 'MLOG$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'RUPD$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'AQ$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'SYS_FBA\_%' ESCAPE '\'
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_MVIEWS MV
+			WHERE MV.OWNER = T.OWNER AND MV.CONTAINER_NAME = T.TABLE_NAME
+		)
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_EXTERNAL_TABLES ET
+			WHERE ET.OWNER = T.OWNER AND ET.TABLE_NAME = T.TABLE_NAME
+		)`),
+			args: []driver.Value{"testdb"},
+			cols: []string{"TABLE_NAME"},
+			rows: [][]driver.Value{{"ITEMS"}, {"IOT_TBL"}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	defer db.Close()
+
+	isi := InfoSchemaImpl{DbName: "testdb", Db: db}
+	tables, err := isi.GetTables()
+	assert.Nil(t, err)
+	assert.Equal(t, []common.SchemaAndName{
+		{Schema: "testdb", Name: "ITEMS"},
+		{Schema: "testdb", Name: "IOT_TBL"},
+	}, tables)
+}
+
 func TestToType(t *testing.T) {
 	ty := toType("VARCHAR2", sql.NullInt64{Int64: 255, Valid: true}, sql.NullInt64{}, sql.NullInt64{})
 	assert.Equal(t, "VARCHAR2", ty.Name)
@@ -113,10 +152,28 @@ func TestGetSelectQueryNumbersAsText(t *testing.T) {
 func TestGenerateSrcSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER[(]:1[)]",
-			args:  []driver.Value{"testdb"},
-			cols:  []string{"TABLE_NAME"},
-			rows:  [][]driver.Value{{"TEST_TABLE"}},
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME FROM ALL_TABLES T
+		WHERE OWNER = UPPER(:1)
+		AND TEMPORARY = 'N'
+		AND SECONDARY = 'N'
+		AND NESTED = 'NO'
+		AND DROPPED = 'NO'
+		AND (IOT_TYPE IS NULL OR IOT_TYPE = 'IOT')
+		AND TABLE_NAME NOT LIKE 'MLOG$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'RUPD$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'AQ$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'SYS_FBA\_%' ESCAPE '\'
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_MVIEWS MV
+			WHERE MV.OWNER = T.OWNER AND MV.CONTAINER_NAME = T.TABLE_NAME
+		)
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_EXTERNAL_TABLES ET
+			WHERE ET.OWNER = T.OWNER AND ET.TABLE_NAME = T.TABLE_NAME
+		)`),
+			args: []driver.Value{"testdb"},
+			cols: []string{"TABLE_NAME"},
+			rows: [][]driver.Value{{"TEST_TABLE"}},
 		},
 		{
 			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM all_tab_cols WHERE table_name = 'ALL_TAB_COLS' AND column_name = 'IDENTITY_COLUMN'`),
@@ -188,9 +245,13 @@ func TestGenerateSrcSchema(t *testing.T) {
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
 		AND NOT EXISTS (
+			SELECT 1 FROM all_nested_tables NT
+			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
+			AND NT.parent_table_column = IC.column_name)
+		AND NOT EXISTS (
 			SELECT 1 FROM all_constraints C
 			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
-			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND NVL(C.index_owner, C.owner) = IC.index_owner AND C.index_name = IC.index_name
 			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
 				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
 			AND NOT EXISTS (
@@ -535,9 +596,13 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
 		AND NOT EXISTS (
+			SELECT 1 FROM all_nested_tables NT
+			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
+			AND NT.parent_table_column = IC.column_name)
+		AND NOT EXISTS (
 			SELECT 1 FROM all_constraints C
 			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
-			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND NVL(C.index_owner, C.owner) = IC.index_owner AND C.index_name = IC.index_name
 			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
 				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
 			AND NOT EXISTS (
