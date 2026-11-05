@@ -1,9 +1,11 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 
 import { SummaryComponent } from './summary.component'
 import { MatMenuModule } from '@angular/material/menu'
 import { By } from '@angular/platform-browser'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 import { MatAutocompleteModule } from '@angular/material/autocomplete'
@@ -14,9 +16,10 @@ describe('SummaryComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
     declarations: [SummaryComponent],
     imports: [MatMenuModule, MatAutocompleteModule],
-    providers: [MatSnackBar, provideHttpClient(withInterceptorsFromDi())]
+    providers: [MatSnackBar, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 }).compileComponents()
   })
 

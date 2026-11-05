@@ -5,6 +5,7 @@ import { MatTableModule } from '@angular/material/table'
 import { MatIconModule } from '@angular/material/icon'
 import { By } from '@angular/platform-browser'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatSnackBar } from '@angular/material/snack-bar'
 import { Overlay } from '@angular/cdk/overlay'
@@ -17,7 +18,7 @@ describe('RuleComponent', () => {
     await TestBed.configureTestingModule({
     declarations: [RuleComponent],
     imports: [MatTableModule, MatIconModule],
-    providers: [DataService, MatSnackBar, Overlay, provideHttpClient(withInterceptorsFromDi())]
+    providers: [DataService, MatSnackBar, Overlay, provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 }).compileComponents()
   })
 
@@ -67,11 +68,11 @@ describe('RuleComponent', () => {
     expect(tableRows.length).toBe(2)
 
     let row1 = tableRows[1]
-    expect(row1.cells[0].innerText).toBe('1')
-    expect(row1.cells[1].innerText).toBe('varchar')
-    expect(row1.cells[2].innerText).toBe('Global Datatype Change')
-    expect(row1.cells[3].innerText).toBe('column')
-    expect(row1.cells[4].innerText).toBe('all tables')
-    expect(row1.cells[5].innerText).toBe('Yes')
+    expect(row1.cells[0].textContent?.trim()).toBe('1')
+    expect(row1.cells[1].textContent?.trim()).toBe('varchar')
+    expect(row1.cells[2].textContent?.trim()).toBe('Global Datatype Change')
+    expect(row1.cells[3].textContent?.trim()).toBe('column')
+    expect(row1.cells[4].textContent?.trim()).toBe('all tables')
+    expect(row1.cells[5].textContent?.trim()).toBe('Yes')
   })
 })

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { DirectConnectionComponent } from './direct-connection.component'
 import { By } from '@angular/platform-browser'
 import { ReactiveFormsModule } from '@angular/forms'
@@ -36,7 +37,7 @@ describe('DirectConnectionComponent', () => {
     providers: [
         SnackbarService,
         { provide: MatDialog, useValue: {} },
-        provideHttpClient(withInterceptorsFromDi())
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
     ]
 }).compileComponents()
   })
