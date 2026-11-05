@@ -25,10 +25,11 @@ import (
 func TestParseMap(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name           string
-		inputString    string
-		expectedParams map[string]string
-		errorExpected  bool
+		name              string
+		inputString       string
+		expectedParams    map[string]string
+		errorExpected     bool
+		notContainedInErr string
 	}{
 		{
 			name:           "empty params",
@@ -55,10 +56,25 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  false,
 		},
 		{
-			name:           "invalid params incorrect format",
-			inputString:    "uuwy",
-			expectedParams: map[string]string{},
-			errorExpected:  true,
+			name:              "invalid params incorrect format does not leak value",
+			inputString:       "uuwy",
+			expectedParams:    map[string]string{},
+			errorExpected:     true,
+			notContainedInErr: "uuwy",
+		},
+		{
+			name:              "invalid params unquoted comma in password does not leak secret",
+			inputString:       "user=admin,password=part1,secret_part2",
+			expectedParams:    map[string]string{"user": "admin", "password": "part1"},
+			errorExpected:     true,
+			notContainedInErr: "secret_part2",
+		},
+		{
+			name:              "invalid params empty key does not leak value",
+			inputString:       "=secret_value",
+			expectedParams:    map[string]string{},
+			errorExpected:     true,
+			notContainedInErr: "secret_value",
 		},
 		{
 			name:           "invalid params new line char",
@@ -78,6 +94,9 @@ func TestParseMap(t *testing.T) {
 		res, err := ParseMap(tc.inputString)
 		assert.Equal(t, tc.expectedParams, res, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
+		if err != nil && tc.notContainedInErr != "" {
+			assert.NotContains(t, err.Error(), tc.notContainedInErr, tc.name)
+		}
 	}
 }
 
