@@ -888,3 +888,31 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 		})
 	}
 }
+
+// TestParseNonDaoFileChanges_MalformedJSON is a regression test: valid JSON that
+// omits "file_modifications", or carries "general_warnings" as a single string
+// rather than an array, must not panic on an unguarded type assertion.
+func TestParseNonDaoFileChanges_MalformedJSON(t *testing.T) {
+	cases := []struct {
+		name         string
+		input        string
+		wantWarnings []string
+	}{
+		{"missing file_modifications key", `{"general_warnings":["w1"]}`, []string{"w1"}},
+		{"general_warnings as a string", `{"file_modifications":[],"general_warnings":"oops"}`, []string{"oops"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotSnippets, gotWarnings, err := ParseNonDaoFileChanges(tc.input, "proj", "file", 0)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(gotSnippets) != 0 {
+				t.Errorf("got %d snippets, want 0", len(gotSnippets))
+			}
+			if !reflect.DeepEqual(gotWarnings, tc.wantWarnings) {
+				t.Errorf("warnings = %v, want %v", gotWarnings, tc.wantWarnings)
+			}
+		})
+	}
+}
