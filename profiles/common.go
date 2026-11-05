@@ -52,14 +52,14 @@ func ParseMap(s string) (map[string]string, error) {
 	for _, kv := range records[0] {
 		equalSignIndex := strings.Index(kv, "=")
 		if equalSignIndex == -1 {
-			return params, fmt.Errorf("invalid key=value pair (expected format: key1=value1): %v", kv)
+			return params, fmt.Errorf("invalid key=value pair (expected format: key1=value1)")
 		}
 
 		key := strings.TrimSpace(kv[:equalSignIndex])
 		value := kv[equalSignIndex+1:]
 
 		if len(key) == 0 {
-			return params, fmt.Errorf("empty key found in pair: %v", kv)
+			return params, fmt.Errorf("empty key found in pair")
 		}
 
 		if _, ok := params[key]; ok {
