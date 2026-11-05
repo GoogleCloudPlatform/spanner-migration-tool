@@ -15,6 +15,7 @@
 package oracle
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -37,14 +38,20 @@ func (td ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType sc
 	return ty, issues
 }
 
+// GetColumnAutoGen maps Oracle IDENTITY columns (reported as AUTO_INCREMENT by the
+// schema reader) to Spanner bit-reversed IDENTITY columns, consistent with the MySQL,
+// PostgreSQL and SQL Server sources.
 func (td ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
-	if autoGenCol.GenerationType == "AUTO_INCREMENT" {
-		autoGen := &ddl.AutoGenCol{
-			GenerationType: "SEQUENCE",
-		}
-		return autoGen, nil
+	switch autoGenCol.GenerationType {
+	case constants.AUTO_INCREMENT:
+		return &ddl.AutoGenCol{
+			Name:            constants.IDENTITY,
+			GenerationType:  constants.IDENTITY,
+			IdentityOptions: conv.DefaultIdentityOptions,
+		}, nil
+	default:
+		return &ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
 	}
-	return nil, nil
 }
 
 func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
