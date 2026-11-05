@@ -31,9 +31,79 @@ import (
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
 	"github.com/pingcap/tidb/pkg/parser/opcode"
-	"github.com/pingcap/tidb/pkg/types"
-	driver "github.com/pingcap/tidb/pkg/types/parser_driver"
+	driver "github.com/pingcap/tidb/pkg/parser/test_driver"
 )
+
+const (
+	myDecimalMaxWordBufLen = 9
+	myDecimalDigitsPerWord = 9
+)
+
+func init() {
+	// test_driver's init() registers ast.NewDecimal using test_driver.MyDecimal.FromString,
+	// which panics when wordsInt+wordsFrac > 9 instead of truncating fractional digits or
+	// returning an overflow error like tidb/pkg/types.MyDecimal. Wrap ast.NewDecimal so
+	// high-precision or malformed decimal literals never panic during dump parsing.
+	ast.NewDecimal = parseMySQLDecimal
+}
+
+func parseMySQLDecimal(str string) (dec interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			dec = new(driver.MyDecimal)
+			err = fmt.Errorf("invalid decimal literal %q: %v", str, r)
+		}
+	}()
+	trimmed := strings.Trim(str, " \t\n\r\f\v")
+	if trimmed == "" {
+		return new(driver.MyDecimal), fmt.Errorf("empty decimal literal")
+	}
+	sign := ""
+	if trimmed[0] == '-' || trimmed[0] == '+' {
+		sign = trimmed[:1]
+		trimmed = trimmed[1:]
+	}
+	intDigits := 0
+	for intDigits < len(trimmed) && trimmed[intDigits] >= '0' && trimmed[intDigits] <= '9' {
+		intDigits++
+	}
+	fracDigits := 0
+	endIdx := intDigits
+	if intDigits < len(trimmed) && trimmed[intDigits] == '.' {
+		endIdx = intDigits + 1
+		for endIdx < len(trimmed) && trimmed[endIdx] >= '0' && trimmed[endIdx] <= '9' {
+			endIdx++
+		}
+		fracDigits = endIdx - intDigits - 1
+	}
+	if intDigits+fracDigits == 0 {
+		return new(driver.MyDecimal), fmt.Errorf("invalid decimal literal %q", str)
+	}
+	if endIdx < len(trimmed) && (trimmed[endIdx] == 'e' || trimmed[endIdx] == 'E') {
+		return new(driver.MyDecimal), fmt.Errorf("scientific notation decimal literal %q is not supported", str)
+	}
+	wordsInt := (intDigits + myDecimalDigitsPerWord - 1) / myDecimalDigitsPerWord
+	wordsFrac := (fracDigits + myDecimalDigitsPerWord - 1) / myDecimalDigitsPerWord
+	if wordsInt > myDecimalMaxWordBufLen {
+		return new(driver.MyDecimal), fmt.Errorf("decimal literal %q exceeds maximum integer precision", str)
+	}
+	normalized := sign + trimmed[:endIdx]
+	if wordsInt+wordsFrac > myDecimalMaxWordBufLen {
+		maxFracDigits := (myDecimalMaxWordBufLen - wordsInt) * myDecimalDigitsPerWord
+		intPart := trimmed[:intDigits]
+		if maxFracDigits > 0 {
+			fracPart := trimmed[intDigits+1 : intDigits+1+maxFracDigits]
+			normalized = sign + intPart + "." + fracPart
+		} else {
+			normalized = sign + intPart
+		}
+	}
+	d := new(driver.MyDecimal)
+	if err := d.FromString([]byte(normalized)); err != nil {
+		return d, err
+	}
+	return d, nil
+}
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
@@ -360,7 +430,7 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 // converts an AST expression node to its string representation.
 func expressionToString(expr ast.Node) string {
 	var sb strings.Builder
-	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase, &sb)
+	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase|format.RestoreStringEscapeBackslash, &sb)
 	if err := expr.Restore(restoreCtx); err != nil {
 		logger.Log.Warn(fmt.Sprintf("Error restoring expression: %v\n", err))
 		return ""
@@ -884,8 +954,8 @@ func getNegativeUnaryVals(valExpr *driver.ValueExpr) (string, error) {
 	switch val := valExpr.GetValue().(type) {
 	case int64:
 		return fmt.Sprintf("%v", -1*val), nil
-	case *types.MyDecimal:
-		floatVal, err := val.ToFloat64()
+	case *driver.MyDecimal:
+		floatVal, err := strconv.ParseFloat(val.String(), 64)
 		if err != nil {
 			return "", fmt.Errorf("unexpected UnaryOperationExpr with value %v", val)
 		}
