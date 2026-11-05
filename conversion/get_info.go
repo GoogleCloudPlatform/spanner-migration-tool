@@ -127,12 +127,12 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		var opts []cloudsqlconn.DialOption
 
 		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
-		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
-			dsn = fmt.Sprintf("user=%s password=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Pwd, sourceProfile.ConnCloudSQL.Pg.Db)
-		}
 		config, err := pgx.ParseConfig(dsn)
 		if err != nil {
 			return nil, err
+		}
+		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
+			config.Password = sourceProfile.ConnCloudSQL.Pg.Pwd
 		}
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
 		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {

@@ -75,3 +75,27 @@ func TestGetDbNameFromSQLConnectionStrSqlServer(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDbNameFromSQLConnectionStrPostgres(t *testing.T) {
+	tests := []struct {
+		name     string
+		connStr  string
+		expected string
+	}{
+		{
+			name:     "url format",
+			connStr:  "postgres://user:password@localhost:5432/testdb?sslmode=disable",
+			expected: "testdb",
+		},
+		{
+			name:     "keyword value format",
+			connStr:  "host=localhost port=5432 user=user password=password dbname=testdb sslmode=disable",
+			expected: "testdb",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, getDbNameFromSQLConnectionStr(constants.POSTGRES, tc.connStr))
+		})
+	}
+}

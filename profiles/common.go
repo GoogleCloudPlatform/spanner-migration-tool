@@ -126,7 +126,18 @@ func GeneratePGSQLConnectionStr() (string, error) {
 }
 
 func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbName)
+	host := server
+	if port != "" {
+		host = fmt.Sprintf("%s:%s", server, port)
+	}
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     host,
+		Path:     dbName,
+		RawQuery: "sslmode=disable",
+	}
+	return u.String()
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {

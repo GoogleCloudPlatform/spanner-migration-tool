@@ -157,7 +157,21 @@ func TestGetSQLConnectionStr(t *testing.T) {
 		{
 			name:                   "source profile connection type postgres",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypePostgreSQL, Pg: SourceProfileConnectionPostgreSQL{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:         "host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
+			expectedOutput:         "postgres://user:password@0.0.0.0:3306/database?sslmode=disable",
+		},
+		{
+			name: "source profile connection type postgres with special characters and spaces",
+			inputSourceProfileConn: SourceProfileConnection{
+				Ty: SourceProfileConnectionTypePostgreSQL,
+				Pg: SourceProfileConnectionPostgreSQL{
+					Host: "localhost",
+					Port: "5432",
+					User: "user#1",
+					Pwd:  "passw\\`~ord#1",
+					Db:   "test db#1",
+				},
+			},
+			expectedOutput: "postgres://user%231:passw%5C%60~ord%231@localhost:5432/test%20db%231?sslmode=disable",
 		},
 		{
 			name:                   "source profile connection type sql server",
@@ -208,7 +222,7 @@ func TestGenerateConnectionStr(t *testing.T) {
 	}{
 		{
 			name:                "valid get mysql and postgres conn string",
-			expectedOutputPg:    "host=0.0.0.0 port=3306 user=user password=password dbname=db sslmode=disable",
+			expectedOutputPg:    "postgres://user:password@0.0.0.0:3306/db?sslmode=disable",
 			expectedOutputMysql: "user:password@tcp(0.0.0.0:3306)/db",
 			errorExpected:       false,
 		},

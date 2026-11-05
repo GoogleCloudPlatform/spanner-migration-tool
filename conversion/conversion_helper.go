@@ -160,7 +160,7 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	case constants.ORACLE:
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
-	// Returns an empty string as Cassandra connections are managed directly by the gocql session.	
+	// Returns an empty string as Cassandra connections are managed directly by the gocql session.
 	case constants.CASSANDRA:
 		return "", nil
 	default:
@@ -171,6 +171,11 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	switch driver {
 	case constants.POSTGRES:
+		if strings.HasPrefix(sqlConnectionStr, "postgres://") || strings.HasPrefix(sqlConnectionStr, "postgresql://") {
+			if u, err := url.Parse(sqlConnectionStr); err == nil {
+				return strings.TrimPrefix(u.Path, "/")
+			}
+		}
 		dbParam := strings.Split(sqlConnectionStr, " ")[4]
 		return strings.Split(dbParam, "=")[1]
 	case constants.MYSQL:
@@ -196,5 +201,3 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	}
 	return ""
 }
-
-

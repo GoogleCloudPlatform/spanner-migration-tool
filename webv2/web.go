@@ -62,7 +62,6 @@ import (
 
 	index "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
 	primarykey "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
-
 )
 
 func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
@@ -229,8 +228,6 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
-
-
 func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -302,22 +299,6 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 
 	var dataSourceName string
 	switch config.Driver {
-	case constants.POSTGRES:
-		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
-	case constants.MYSQL:
-		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
-	case constants.SQLSERVER:
-		u := url.URL{
-			Scheme: "sqlserver",
-			User:   url.UserPassword(config.User, config.Password),
-			Host:   fmt.Sprintf("%s:%s", config.Host, config.Port),
-		}
-		q := u.Query()
-		q.Set("database", config.Database)
-		u.RawQuery = q.Encode()
-		dataSourceName = u.String()
-	case constants.ORACLE:
-		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.CASSANDRA:
 		keyspaceMetadata, err := validateCassandraConnection(config)
 		if err != nil {
@@ -339,8 +320,11 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusOK)
 		return
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
-		return
+		dataSourceName, err = createDatabaseConnectionString(config)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
@@ -737,30 +721,30 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 	if details.TargetDetails.DefaultTimezone != "" {
 		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
 	}
-		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
-		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
-		if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
-			if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath == "" {
-				sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
-				if !strings.HasSuffix(sessionState.Bucket, "/") {
-					sessionState.RootPath = "/"
-				} else {
-					sessionState.RootPath = ""
-				}
+	sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
+	if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
+		if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath == "" {
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			if !strings.HasSuffix(sessionState.Bucket, "/") {
+				sessionState.RootPath = "/"
 			} else {
-				sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
-				if !strings.HasSuffix(sessionState.Bucket, "/") {
-					sessionState.Bucket = sessionState.Bucket + "/"
-				}
-				sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
-				if !strings.HasSuffix(sessionState.RootPath, "/") {
-					sessionState.RootPath = sessionState.RootPath + "/"
-				}
+				sessionState.RootPath = ""
 			}
 		} else {
-			sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
-			sessionState.RootPath = "/"
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			if !strings.HasSuffix(sessionState.Bucket, "/") {
+				sessionState.Bucket = sessionState.Bucket + "/"
+			}
+			sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
+			if !strings.HasSuffix(sessionState.RootPath, "/") {
+				sessionState.RootPath = sessionState.RootPath + "/"
+			}
 		}
+	} else {
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+		sessionState.RootPath = "/"
+	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
@@ -786,7 +770,6 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 	return "", fmt.Errorf("low downtime migration is no longer supported")
 
 }
-
 
 func createConfigFileForShardedBulkMigration(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
 	sourceProfileConfig := profiles.SourceProfileConfig{
@@ -841,7 +824,6 @@ func writeSessionFile(ctx context.Context, sessionState *session.SessionState) e
 	}
 	return nil
 }
-
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
