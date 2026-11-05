@@ -528,6 +528,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 		return "", schema.Column{}, columnConstraint{}, fmt.Errorf("can't get column type for %s: %w", name, fmt.Errorf("found nil *ast.ColumnDef.Tp"))
 	}
 	tid, mods := getTypeModsAndID(conv, col.Tp.String())
+	mods = addBlobLength(tid, mods, col.Tp)
 	ty := schema.Type{
 		Name:        tid,
 		Mods:        mods,
@@ -642,6 +643,30 @@ func getTypeModsAndID(conv *internal.Conv, columnType string) (string, []int64) 
 		id = "bigint unsigned"
 	}
 	return id, mods
+}
+
+// blobTypes is the set of MySQL blob datatypes.
+var blobTypes = map[string]bool{
+	"tinyblob":   true,
+	"blob":       true,
+	"mediumblob": true,
+	"longblob":   true,
+}
+
+// addBlobLength returns mods with the length declared for a blob column added to
+// it. The pingcap parser drops the length from the type string of blob columns
+// (eg: 'BLOB(500)' is printed as 'blob BINARY'), so getTypeModsAndID can't
+// retrieve it. We read it from the parsed field type instead to avoid losing the
+// length specified by the user. Note that a length is only returned by the
+// parser when it was explicitly declared, it is -1 otherwise.
+func addBlobLength(id string, mods []int64, fieldType *types.FieldType) []int64 {
+	if len(mods) > 0 || fieldType == nil || !blobTypes[id] {
+		return mods
+	}
+	if length := int64(fieldType.GetFlen()); length > 0 {
+		return []int64{length}
+	}
+	return mods
 }
 
 // handleParseError handles error while parsing mysqldump
