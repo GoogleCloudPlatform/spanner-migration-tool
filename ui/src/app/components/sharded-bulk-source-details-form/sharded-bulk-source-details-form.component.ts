@@ -56,6 +56,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     if (inputType == InputType.DirectConnect && localStorage.getItem(StorageKeys.Config) != null) {
       schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
+      schemaSourceConfig.password = this.dataService.getDirectConnectPassword()
     }
     this.directConnectForm = new FormGroup({
       inputType: new FormControl('form', [Validators.required]),

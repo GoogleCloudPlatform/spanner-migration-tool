@@ -39,6 +39,7 @@ export class DataService {
   private isConfigSetSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
   private treeUpdatedSub = new Subject<void>();
+  private directConnectPassword: string = ''
 
   rule = this.ruleMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -81,6 +82,15 @@ export class DataService {
     this.summarySub.next(new Map<string, ISummary>())
     this.ddlSub.next({})
     this.tableInterleaveStatusSub.next({} as ITableInterleaveStatus)
+    this.directConnectPassword = ''
+  }
+
+  setDirectConnectPassword(password: string) {
+    this.directConnectPassword = password
+  }
+
+  getDirectConnectPassword(): string {
+    return this.directConnectPassword
   }
 
   getDdl() {

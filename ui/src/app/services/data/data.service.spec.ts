@@ -37,4 +37,12 @@ describe('DataService', () => {
     it('should be created', () => {
         expect(service).toBeTruthy()
     })
+
+    it('should store directConnectPassword in memory and clear it on resetStore', () => {
+        expect(service.getDirectConnectPassword()).toEqual('')
+        service.setDirectConnectPassword('secret-pass')
+        expect(service.getDirectConnectPassword()).toEqual('secret-pass')
+        service.resetStore()
+        expect(service.getDirectConnectPassword()).toEqual('')
+    })
 })
