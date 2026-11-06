@@ -385,6 +385,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	)
 
 	columnLevelIssues := make(map[string][]internal.SchemaIssue)
+	primaryKeys := cvtPrimaryKeys(srcTable.PrimaryKeys)
+	var identityPkIndexes []ddl.CreateIndex
 
 	// Initialize ToSpanner mapping for this table
 	if conv.ToSpanner == nil {
@@ -440,13 +442,32 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		var autoGenCol *ddl.AutoGenCol = &ddl.AutoGenCol{}
 		if srcAutoGen.Name != "" {
 			autoGenCol, err = toddl.GetColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
-			if autoGenCol != nil {
-				if err != nil {
-					srcCol.Ignored.AutoIncrement = true
-					issues = append(issues, internal.AutoIncrement)
-				} else if autoGenCol.GenerationType == constants.SEQUENCE {
-					issues = append(issues, internal.SequenceCreated)
-				} else if autoGenCol.GenerationType == constants.IDENTITY {
+			if autoGenCol == nil {
+				// The source returned no auto generation (e.g. an unsupported type):
+				// migrate the column without it instead of dereferencing nil.
+				autoGenCol = &ddl.AutoGenCol{}
+			} else if err != nil {
+				srcCol.Ignored.AutoIncrement = true
+				issues = append(issues, internal.AutoIncrement)
+			} else if autoGenCol.GenerationType == constants.SEQUENCE {
+				issues = append(issues, internal.SequenceCreated)
+			} else if autoGenCol.GenerationType == constants.IDENTITY {
+				if ty.Name != ddl.Int64 {
+					// Spanner identity columns must be INT64, while some sources allow
+					// identity columns of other types (e.g. Oracle NUMBER maps to NUMERIC).
+					// The column keeps its type (narrowing it to INT64 could overflow) and
+					// loses the identity. An identity primary key column is replaced in the
+					// primary key by a new INT64 identity column (see addIdentityPrimaryKey).
+					autoGenCol = &ddl.AutoGenCol{}
+					if isPk {
+						var uniqueIndex ddl.CreateIndex
+						spColIds, primaryKeys, uniqueIndex = addIdentityPrimaryKey(conv, srcTable, spTableName, srcColId, spColIds, spColDef, columnLevelIssues, primaryKeys)
+						identityPkIndexes = append(identityPkIndexes, uniqueIndex)
+						issues = append(issues, internal.IdentityPrimaryKeyAdded)
+					} else {
+						issues = append(issues, internal.IdentityTypeNotSupported)
+					}
+				} else {
 					issues = append(issues, internal.IdentitySkipRange)
 				}
 			}
@@ -474,10 +495,11 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			}
 			spColDef[srcColId] = colDef
 		}
-		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
+		if !checkIfColumnIsPartOfSpSchemaPK(srcColId, primaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
 		}
 	}
+	indexes := append(cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef), identityPkIndexes...)
 	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
 		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
 	}
@@ -496,14 +518,62 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		Name:             spTableName,
 		ColIds:           spColIds,
 		ColDefs:          spColDef,
-		PrimaryKeys:      cvtPrimaryKeys(srcTable.PrimaryKeys),
+		PrimaryKeys:      primaryKeys,
 		ForeignKeys:      cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
 		CheckConstraints: cvtCheckConstraint(conv, srcTable.CheckConstraints),
-		Indexes:          cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
+		Indexes:          indexes,
 		Comment:          comment,
 		Id:               srcTable.Id,
 	}
 	return nil
+}
+
+// addIdentityPrimaryKey handles an identity column that is part of the primary key
+// but whose Spanner type is not INT64 (Spanner identity columns must be INT64). The
+// column keeps its type and values, and a new INT64 identity column replaces it in
+// the primary key. A unique index on the source primary key columns keeps their
+// uniqueness, so that foreign keys referencing them still work. It returns the
+// updated column ids and primary key, and the unique index.
+func addIdentityPrimaryKey(conv *internal.Conv, srcTable schema.Table, spTableName, identityColId string, spColIds []string, spColDef map[string]ddl.ColumnDef, columnLevelIssues map[string][]internal.SchemaIssue, primaryKeys []ddl.IndexKey) ([]string, []ddl.IndexKey, ddl.CreateIndex) {
+	existingCols := make(map[string]ddl.ColumnDef, len(srcTable.ColDefs)+len(spColDef))
+	for id, col := range srcTable.ColDefs {
+		fixedName, _ := internal.FixName(col.Name)
+		existingCols[id] = ddl.ColumnDef{Name: fixedName}
+	}
+	for id, col := range spColDef {
+		existingCols[id] = col
+	}
+	colId := internal.GenerateColumnId()
+	spColDef[colId] = ddl.ColumnDef{
+		Name:    internal.UniqueColumnName(existingCols, internal.SyntheticPrimaryKey),
+		Id:      colId,
+		T:       ddl.Type{Name: ddl.Int64},
+		NotNull: true,
+		AutoGen: ddl.AutoGenCol{
+			Name:            constants.IDENTITY,
+			GenerationType:  constants.IDENTITY,
+			IdentityOptions: conv.DefaultIdentityOptions,
+		},
+	}
+	spColIds = append(spColIds, colId)
+	columnLevelIssues[colId] = []internal.SchemaIssue{internal.IdentitySkipRange}
+
+	var uniqueKeys, newPrimaryKeys []ddl.IndexKey
+	for _, pk := range primaryKeys {
+		uniqueKeys = append(uniqueKeys, ddl.IndexKey{ColId: pk.ColId, Desc: pk.Desc, Order: pk.Order})
+		if pk.ColId == identityColId {
+			pk.ColId = colId
+		}
+		newPrimaryKeys = append(newPrimaryKeys, pk)
+	}
+	uniqueIndex := ddl.CreateIndex{
+		Name:    internal.ToSpannerIndexName(conv, spTableName+"_original_pk"),
+		TableId: srcTable.Id,
+		Unique:  true,
+		Keys:    uniqueKeys,
+		Id:      internal.GenerateIndexesId(),
+	}
+	return spColIds, newPrimaryKeys, uniqueIndex
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error {
