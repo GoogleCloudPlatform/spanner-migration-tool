@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -253,5 +254,74 @@ func TestWriteOverridesFile(t *testing.T) {
 				t.Errorf("WriteOverridesFile() did not create file %s", tt.fileName)
 			}
 		})
+	}
+}
+
+func TestWriteFilesMissingDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	out, err := os.Create(filepath.Join(tempDir, "out.txt"))
+	if err != nil {
+		t.Fatalf("Failed to create output file: %v", err)
+	}
+	defer out.Close()
+	missingDir := filepath.Join(tempDir, "does-not-exist")
+	conv := internal.MakeConv()
+
+	tests := []struct {
+		name     string
+		fileName string
+		write    func(name string) error
+	}{
+		{
+			name:     "schema file",
+			fileName: filepath.Join(missingDir, "db.schema.txt"),
+			write: func(name string) error {
+				return WriteSchemaFile(conv, time.Now(), name, out, "mysql")
+			},
+		},
+		{
+			name:     "session file",
+			fileName: filepath.Join(missingDir, "db.session.json"),
+			write: func(name string) error {
+				return WriteSessionFile(conv, name, out)
+			},
+		},
+		{
+			name:     "overrides file",
+			fileName: filepath.Join(missingDir, "db.overrides.json"),
+			write: func(name string) error {
+				return WriteOverridesFile(conv, name, out)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.write(tt.fileName)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, os.ErrNotExist)
+			assert.Contains(t, err.Error(), tt.fileName)
+		})
+	}
+	if _, err := os.Stat(missingDir); !os.IsNotExist(err) {
+		t.Errorf("expected %s to not be created, got err=%v", missingDir, err)
+	}
+}
+
+func TestWriteFilesSuccess(t *testing.T) {
+	tempDir := t.TempDir()
+	out, err := os.Create(filepath.Join(tempDir, "out.txt"))
+	if err != nil {
+		t.Fatalf("Failed to create output file: %v", err)
+	}
+	defer out.Close()
+	conv := internal.MakeConv()
+
+	assert.NoError(t, WriteSchemaFile(conv, time.Now(), filepath.Join(tempDir, "db.schema.txt"), out, "mysql"))
+	assert.NoError(t, WriteSessionFile(conv, filepath.Join(tempDir, "db.session.json"), out))
+	assert.NoError(t, WriteOverridesFile(conv, filepath.Join(tempDir, "db.overrides.json"), out))
+	for _, f := range []string{"db.schema.txt", "db.schema.ddl.txt", "db.session.json", "db.overrides.json"} {
+		if _, err := os.Stat(filepath.Join(tempDir, f)); err != nil {
+			t.Errorf("expected file %s to be written: %v", f, err)
+		}
 	}
 }

@@ -175,14 +175,25 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		logger.Log.Error("Could not initialize conversion context from")
 		return subcommands.ExitFailure
 	}
-	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
+	// Fail before migrating the database if any of the requested output files
+	// can't be written (e.g. the --prefix directory does not exist).
+	err = conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
+	if err != nil {
+		return subcommands.ExitFailure
+	}
 
 	// We always write the session file to accommodate for a re-run that might change anything.
 	sessionFileName := GetSessionFileName(cmd.sessionFileName, cmd.filePrefix)
-	conversion.WriteSessionFile(conv, sessionFileName, ioHelper.Out)
+	err = conversion.WriteSessionFile(conv, sessionFileName, ioHelper.Out)
+	if err != nil {
+		return subcommands.ExitFailure
+	}
 
 	// Generate overrides file for schema mapping information
-	conversion.WriteOverridesFile(conv, cmd.filePrefix+overridesFile, ioHelper.Out)
+	err = conversion.WriteOverridesFile(conv, cmd.filePrefix+overridesFile, ioHelper.Out)
+	if err != nil {
+		return subcommands.ExitFailure
+	}
 
 	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
