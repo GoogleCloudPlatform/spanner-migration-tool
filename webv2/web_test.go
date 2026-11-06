@@ -325,3 +325,24 @@ func TestGetSourceAndTargetProfiles_SpecialCharPassword(t *testing.T) {
 	assert.Equal(t, pwd, sourceProfile.Conn.Pg.Pwd)
 	assert.Equal(t, `my"db,1`, sourceProfile.Conn.Pg.Db)
 }
+
+func TestSetSourceDBDetailsForDirectConnectUnsupportedDriver(t *testing.T) {
+	configJSON, err := json.Marshal(types.DriverConfig{
+		Driver:   "unsupported_driver",
+		Host:     "127.0.0.1",
+		Port:     "5432",
+		User:     "user",
+		Password: "secret_password",
+		Database: "testdb",
+	})
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "/SetSourceDBDetailsForDirectConnect", bytes.NewBuffer(configJSON))
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(setSourceDBDetailsForDirectConnect).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "unsupported_driver")
+	assert.NotContains(t, rr.Body.String(), "secret_password")
+}

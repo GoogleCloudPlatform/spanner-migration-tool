@@ -126,13 +126,10 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		}
 		var opts []cloudsqlconn.DialOption
 
-		config, err := pgx.ParseConfig("")
+		config, err := newCloudSQLPostgresConnConfig(sourceProfile.ConnCloudSQL.Pg)
 		if err != nil {
 			return nil, err
 		}
-		config.User = sourceProfile.ConnCloudSQL.Pg.User
-		config.Database = sourceProfile.ConnCloudSQL.Pg.Db
-		config.Password = sourceProfile.ConnCloudSQL.Pg.Pwd
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
 		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
 			return d.Dial(ctx, instanceName, opts...)
@@ -154,6 +151,17 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
+}
+
+func newCloudSQLPostgresConnConfig(pg profiles.SourceProfileConnectionCloudSQLPostgreSQL) (*pgx.ConnConfig, error) {
+	config, err := pgx.ParseConfig("")
+	if err != nil {
+		return nil, err
+	}
+	config.User = pg.User
+	config.Database = pg.Db
+	config.Password = pg.Pwd
+	return config, nil
 }
 
 func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
