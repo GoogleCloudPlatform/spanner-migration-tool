@@ -224,10 +224,10 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 				Host:     "localhost",
 				Port:     "5432",
 				User:     "user",
-				Password: "passw\\`~ord",
+				Password: "passw\\'`~ord",
 				Database: "testdb",
 			},
-			expectedString: "postgres://user:passw%5C%60~ord@localhost:5432/testdb?sslmode=disable",
+			expectedString: "host='localhost' port='5432' user='user' password='passw\\\\\\'`~ord' dbname='testdb' sslmode=disable",
 			expectError:    false,
 		},
 		{
@@ -295,4 +295,54 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetSourceAndTargetProfiles_SpecialCharPassword(t *testing.T) {
+	pwd := `my"sec,ret=1\2'3 s p a c e`
+	sessionState := session.GetSessionState()
+	sessionState.Conv = internal.MakeConv()
+	sessionState.Driver = constants.POSTGRES
+	sessionState.DbName = `my"db,1`
+	sessionState.Dialect = constants.DIALECT_GOOGLESQL
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           "127.0.0.1",
+		Port:           "5432",
+		User:           `ad"min,1`,
+		Password:       pwd,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
+	}
+	sessionState.SpannerProjectId = "test-project"
+	sessionState.SpannerInstanceID = "test-instance"
+
+	details := types.MigrationDetails{
+		TargetDetails: types.TargetDetails{TargetDB: "test-spanner-db"},
+		MigrationMode: helpers.SCHEMA_ONLY,
+	}
+
+	sourceProfile, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+	assert.NoError(t, err)
+	assert.Equal(t, `ad"min,1`, sourceProfile.Conn.Pg.User)
+	assert.Equal(t, pwd, sourceProfile.Conn.Pg.Pwd)
+	assert.Equal(t, `my"db,1`, sourceProfile.Conn.Pg.Db)
+}
+
+func TestSetSourceDBDetailsForDirectConnectUnsupportedDriver(t *testing.T) {
+	configJSON, err := json.Marshal(types.DriverConfig{
+		Driver:   "unsupported_driver",
+		Host:     "127.0.0.1",
+		Port:     "5432",
+		User:     "user",
+		Password: "secret_password",
+		Database: "testdb",
+	})
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "/SetSourceDBDetailsForDirectConnect", bytes.NewBuffer(configJSON))
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(setSourceDBDetailsForDirectConnect).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "unsupported_driver")
+	assert.NotContains(t, rr.Body.String(), "secret_password")
 }

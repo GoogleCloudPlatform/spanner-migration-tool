@@ -18,17 +18,21 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // code for testing parse map
 func TestParseMap(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name           string
-		inputString    string
-		expectedParams map[string]string
-		errorExpected  bool
+		name              string
+		inputString       string
+		expectedParams    map[string]string
+		errorExpected     bool
+		notContainedInErr string
 	}{
 		{
 			name:           "empty params",
@@ -55,10 +59,18 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  false,
 		},
 		{
-			name:           "invalid params incorrect format",
-			inputString:    "uuwy",
-			expectedParams: map[string]string{},
-			errorExpected:  true,
+			name:              "invalid params incorrect format does not leak value",
+			inputString:       "user=admin,password=part1,secret_part2",
+			expectedParams:    map[string]string{"user": "admin", "password": "part1"},
+			errorExpected:     true,
+			notContainedInErr: "secret_part2",
+		},
+		{
+			name:              "invalid params empty key does not leak value",
+			inputString:       "=secret_value",
+			expectedParams:    map[string]string{},
+			errorExpected:     true,
+			notContainedInErr: "secret_value",
 		},
 		{
 			name:           "invalid params new line char",
@@ -67,10 +79,11 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  true,
 		},
 		{
-			name:           "invalid params duplicates",
-			inputString:    "instance=instance, instance=instance",
-			expectedParams: map[string]string{"instance": "instance"},
-			errorExpected:  true,
+			name:              "invalid params duplicates does not leak key",
+			inputString:       "instance=instance, instance=instance",
+			expectedParams:    map[string]string{"instance": "instance"},
+			errorExpected:     true,
+			notContainedInErr: "instance",
 		},
 	}
 
@@ -78,7 +91,20 @@ func TestParseMap(t *testing.T) {
 		res, err := ParseMap(tc.inputString)
 		assert.Equal(t, tc.expectedParams, res, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
+		if err != nil && tc.notContainedInErr != "" {
+			assert.NotContains(t, err.Error(), tc.notContainedInErr, tc.name)
+		}
 	}
+}
+
+func TestFormatProfileParamsRoundTrip(t *testing.T) {
+	pwd := `my"sec,ret=1\2'3` + "\n" + `x",dup=1,dup=2,"y`
+	encoded, err := FormatProfileParams("host=127.0.0.1", "password="+pwd, `dbName=my"db,1`)
+	require.NoError(t, err)
+	parsed, err := ParseMap(encoded)
+	require.NoError(t, err)
+	assert.Equal(t, pwd, parsed["password"])
+	assert.Equal(t, `my"db,1`, parsed["dbName"])
 }
 
 // code for testing parse list
@@ -138,7 +164,7 @@ func TestGetSQLConnectionStr(t *testing.T) {
 		{
 			name:                   "source profile connection type postgres",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypePostgreSQL, Pg: SourceProfileConnectionPostgreSQL{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:         "host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
+			expectedOutput:         "host='0.0.0.0' port='3306' user='user' password='password' dbname='database' sslmode=disable",
 		},
 		{
 			name:                   "source profile connection type sql server",
@@ -172,6 +198,23 @@ func TestGetSQLConnectionStr(t *testing.T) {
 	}
 }
 
+func TestGetPGSQLConnectionStrDriverRoundTrip(t *testing.T) {
+	user := "user '1\\2"
+	pwd := "myPass 's3cretTail\\end\" \t\n/db?sslmode=require\\"
+	dbName := "my/db 'name\\1"
+	dsn := GetPGSQLConnectionStr("::1", "5432", user, pwd, dbName)
+
+	_, err := pq.NewConnector(dsn)
+	require.NoError(t, err)
+
+	cfg, err := pgx.ParseConfig(dsn)
+	require.NoError(t, err)
+	assert.Equal(t, "::1", cfg.Host)
+	assert.Equal(t, user, cfg.User)
+	assert.Equal(t, pwd, cfg.Password)
+	assert.Equal(t, dbName, cfg.Database)
+}
+
 func TestGenerateConnectionStr(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	before := func() {
@@ -189,7 +232,7 @@ func TestGenerateConnectionStr(t *testing.T) {
 	}{
 		{
 			name:                "valid get mysql and postgres conn string",
-			expectedOutputPg:    "host=0.0.0.0 port=3306 user=user password=password dbname=db sslmode=disable",
+			expectedOutputPg:    "host='0.0.0.0' port='3306' user='user' password='password' dbname='db' sslmode=disable",
 			expectedOutputMysql: "user:password@tcp(0.0.0.0:3306)/db",
 			errorExpected:       false,
 		},
