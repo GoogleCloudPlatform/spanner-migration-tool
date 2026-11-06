@@ -38,7 +38,7 @@ This quickstart shows you how to get started with Spanner migration tool using G
 3. Once the terminal is loaded, run the following command:
 
     ```sh
-    sudo apt-get install google-cloud-sdk-spanner-migration-tool
+    sudo apt-get install google-cloud-cli-spanner-migration-tool
     ```
 
 4. Wait for the installation to complete. Spanner migration tool can be accessed using the following gCloud CLI command:
