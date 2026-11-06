@@ -18,8 +18,11 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	mysqldriver "github.com/go-sql-driver/mysql"
 	go_ora "github.com/sijms/go-ora/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetDbNameFromSQLConnectionStrOracle(t *testing.T) {
@@ -88,9 +91,29 @@ func TestGetDbNameFromSQLConnectionStrPostgres(t *testing.T) {
 			expected: "testdb",
 		},
 		{
+			name:     "malformed url does not panic",
+			connStr:  "postgres://user:password@localhost:5432a/testdb",
+			expected: "",
+		},
+		{
 			name:     "keyword value format",
 			connStr:  "host=localhost port=5432 user=user password=password dbname=testdb sslmode=disable",
 			expected: "testdb",
+		},
+		{
+			name:     "single quoted keyword value format with spaces quotes backslashes and embedded dbname",
+			connStr:  profiles.GetPGSQLConnectionStr("localhost", "5432", "u 1", "pass 'dbname=fake\\1", "real 'db\\name"),
+			expected: "real 'db\\name",
+		},
+		{
+			name:     "short or malformed keyword value does not panic",
+			connStr:  "host=localhost",
+			expected: "",
+		},
+		{
+			name:     "empty string does not panic",
+			connStr:  "",
+			expected: "",
 		},
 	}
 	for _, tc := range tests {
@@ -98,4 +121,55 @@ func TestGetDbNameFromSQLConnectionStrPostgres(t *testing.T) {
 			assert.Equal(t, tc.expected, getDbNameFromSQLConnectionStr(constants.POSTGRES, tc.connStr))
 		})
 	}
+}
+
+func TestGetDbNameFromSQLConnectionStrMySQL(t *testing.T) {
+	connStr := profiles.GetMYSQLConnectionStr("localhost", "3306", "user", "p@ss)/tricky", "my/test db")
+	assert.Equal(t, "my/test db", getDbNameFromSQLConnectionStr(constants.MYSQL, connStr))
+	assert.Equal(t, "", getDbNameFromSQLConnectionStr(constants.MYSQL, "malformed"))
+}
+
+func TestNewCloudSQLConfigs(t *testing.T) {
+	t.Run("postgres config assigns user database and password directly without DSN interpolation", func(t *testing.T) {
+		pg := profiles.SourceProfileConnectionCloudSQLPostgreSQL{
+			User: "admin '1\\2",
+			Db:   "test db options='-c log_statement=all'\\",
+			Pwd:  "myPass '1\\2 s3cretTail",
+		}
+		cfg, err := newCloudSQLPostgresConnConfig(pg)
+		require.NoError(t, err)
+		assert.Equal(t, pg.User, cfg.User)
+		assert.Equal(t, pg.Db, cfg.Database)
+		assert.Equal(t, pg.Pwd, cfg.Password)
+		assert.NotContains(t, cfg.RuntimeParams, "options")
+	})
+
+	t.Run("postgres IAM auth clears PGPASSWORD inherited from environment", func(t *testing.T) {
+		t.Setenv("PGPASSWORD", "stale_env_secret")
+		pg := profiles.SourceProfileConnectionCloudSQLPostgreSQL{
+			User: "iam-user@example.com",
+			Db:   "mydb",
+			Pwd:  "",
+		}
+		cfg, err := newCloudSQLPostgresConnConfig(pg)
+		require.NoError(t, err)
+		assert.Equal(t, "", cfg.Password)
+	})
+
+	t.Run("mysql config builds valid connector with special characters", func(t *testing.T) {
+		m := profiles.SourceProfileConnectionCloudSQLMySQL{
+			User: "user:1@host",
+			Db:   "my/db?foo=bar",
+			Pwd:  "p@ss:w/rd?1#2",
+		}
+		cfg := newCloudSQLMySQLConfig(m)
+		assert.Equal(t, m.User, cfg.User)
+		assert.Equal(t, m.Db, cfg.DBName)
+		assert.Equal(t, m.Pwd, cfg.Passwd)
+		assert.True(t, cfg.ParseTime)
+
+		mysqldriver.RegisterDialContext("cloudsqlconn", nil)
+		_, err := mysqldriver.NewConnector(cfg)
+		require.NoError(t, err)
+	})
 }

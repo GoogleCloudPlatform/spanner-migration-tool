@@ -15,15 +15,24 @@
 package profiles
 
 import (
+	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/go-sql-driver/mysql"
+)
+
+var (
+	libpqEscaper          = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+	dsnCredentialsPattern = regexp.MustCompile(`(?i)\b(postgres|postgresql|sqlserver|oracle|mysql)://[^\s"']+@`)
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -63,11 +72,52 @@ func ParseMap(s string) (map[string]string, error) {
 		}
 
 		if _, ok := params[key]; ok {
-			return params, fmt.Errorf("duplicate key found: %v", key)
+			return params, fmt.Errorf("duplicate key found")
 		}
 		params[key] = value
 	}
 	return params, nil
+}
+
+// FormatProfileParams encodes key=value entries as a single CSV record
+// compatible with ParseMap, properly quoting values containing commas, quotes,
+// or newlines.
+func FormatProfileParams(pairs ...string) (string, error) {
+	if len(pairs) == 0 {
+		return "", nil
+	}
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	if err := w.Write(pairs); err != nil {
+		return "", err
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
+// SanitizeConnectionError redacts embedded URLs or credentials from connection
+// and DSN parse errors (such as *url.Error on invalid host/port) so secrets are
+// never echoed to logs or HTTP responses.
+func SanitizeConnectionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return &url.Error{
+			Op:  urlErr.Op,
+			URL: "<redacted>",
+			Err: SanitizeConnectionError(urlErr.Err),
+		}
+	}
+	msg := err.Error()
+	if dsnCredentialsPattern.MatchString(msg) {
+		return errors.New(dsnCredentialsPattern.ReplaceAllString(msg, "$1://<redacted>@"))
+	}
+	return err
 }
 
 func ParseList(s string) ([]string, error) {
@@ -93,13 +143,13 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 		switch sourceProfile.Conn.Ty {
 		case SourceProfileConnectionTypeMySQL:
 			connParams := sourceProfile.Conn.Mysql
-			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
-			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypeSqlServer:
 			connParams := sourceProfile.Conn.SqlServer
-			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypeOracle:
 			connParams := sourceProfile.Conn.Oracle
 			return GetORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
@@ -122,22 +172,46 @@ func GeneratePGSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
+	return GetPGSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
-	host := server
+func quoteLibpqValue(v string) string {
+	return "'" + libpqEscaper.Replace(v) + "'"
+}
+
+func formatURLHost(server, port string) string {
 	if port != "" {
-		host = fmt.Sprintf("%s:%s", server, port)
+		return net.JoinHostPort(server, port)
 	}
-	u := url.URL{
-		Scheme:   "postgres",
-		User:     url.UserPassword(user, password),
-		Host:     host,
-		Path:     dbName,
-		RawQuery: "sslmode=disable",
+	if strings.Contains(server, ":") && !strings.HasPrefix(server, "[") {
+		return "[" + server + "]"
 	}
-	return u.String()
+	return server
+}
+
+// GetPGSQLConnectionStr builds a libpq keyword/value connection string using
+// single-quoted, backslash-escaped values. Avoiding postgres:// URLs prevents
+// net/url.Parse from echoing raw credentials in *url.Error on invalid host/port
+// and preserves IPv6 hosts, Unix domain socket paths, and special characters.
+func GetPGSQLConnectionStr(server, port, user, password, dbName string) string {
+	var parts []string
+	if server != "" {
+		parts = append(parts, "host="+quoteLibpqValue(server))
+	}
+	if port != "" {
+		parts = append(parts, "port="+quoteLibpqValue(port))
+	}
+	if user != "" {
+		parts = append(parts, "user="+quoteLibpqValue(user))
+	}
+	if password != "" {
+		parts = append(parts, "password="+quoteLibpqValue(password))
+	}
+	if dbName != "" {
+		parts = append(parts, "dbname="+quoteLibpqValue(dbName))
+	}
+	parts = append(parts, "sslmode=disable")
+	return strings.Join(parts, " ")
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {
@@ -154,18 +228,26 @@ func GenerateMYSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getMYSQLConnectionStr(server, port, user, password, dbName), nil
+	return GetMYSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
+// GetMYSQLConnectionStr builds a go-sql-driver/mysql DSN using mysql.Config.
+func GetMYSQLConnectionStr(server, port, user, password, dbName string) string {
+	cfg := mysql.NewConfig()
+	cfg.User = user
+	cfg.Passwd = password
+	cfg.Net = "tcp"
+	cfg.Addr = formatURLHost(server, port)
+	cfg.DBName = dbName
+	return cfg.FormatDSN()
 }
 
-func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
+// GetSQLSERVERConnectionStr builds a go-mssqldb connection URL.
+func GetSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
 	u := url.URL{
 		Scheme: "sqlserver",
 		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", server, port),
+		Host:   formatURLHost(server, port),
 	}
 	q := u.Query()
 	q.Set("database", dbName)
@@ -184,10 +266,11 @@ func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 // with url.QueryEscape, which turns a space into '+' that url.Parse keeps as '+'.
 func GetORACLEConnectionStr(server, port, user, password, dbName string) string {
 	u := url.URL{
-		Scheme: "oracle",
-		User:   url.UserPassword(user, password),
-		Host:   net.JoinHostPort(server, port),
-		Path:   "/" + dbName,
+		Scheme:  "oracle",
+		User:    url.UserPassword(user, password),
+		Host:    formatURLHost(server, port),
+		Path:    "/" + dbName,
+		RawPath: "/" + url.PathEscape(dbName),
 	}
 	return u.String()
 }
