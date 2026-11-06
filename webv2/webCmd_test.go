@@ -15,10 +15,13 @@
 package webv2
 
 import (
+	"context"
 	"flag"
 	"testing"
 
+	"github.com/google/subcommands"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestWebCmdSetFlags(t *testing.T) {
@@ -35,4 +38,19 @@ func TestWebCmdSetFlags(t *testing.T) {
 	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
 	webCmd.SetFlags(fs)
 	assert.Equal(t, expectedValues, webCmd, testName)
+}
+
+// An invalid log level makes the webapp fail to start, which must be reported
+// as a failure rather than exiting 0. See issue #1314.
+func TestWebCmdExecuteInvalidLogLevel(t *testing.T) {
+	// Guard the premise: if "verbose" ever became a valid level, Execute would
+	// start a server and block forever.
+	var level zapcore.Level
+	if err := level.Set("verbose"); err == nil {
+		t.Skip("\"verbose\" is no longer an invalid log level")
+	}
+
+	webCmd := WebCmd{logLevel: "verbose", port: 8080}
+	f := flag.NewFlagSet("web", flag.ContinueOnError)
+	assert.Equal(t, subcommands.ExitFailure, webCmd.Execute(context.Background(), f))
 }
