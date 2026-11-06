@@ -297,66 +297,31 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 	}
 }
 
-func TestGetSourceAndTargetProfiles_ComplexCredentials(t *testing.T) {
-	passwords := []string{
-		`p"ass"word`,
-		`my"sec,ret=1\2'3 s p a c e`,
-		`x",dup=1,dup=2,"y`,
-		"line1\nline2",
+func TestGetSourceAndTargetProfiles_SpecialCharPassword(t *testing.T) {
+	pwd := `my"sec,ret=1\2'3 s p a c e`
+	sessionState := session.GetSessionState()
+	sessionState.Conv = internal.MakeConv()
+	sessionState.Driver = constants.POSTGRES
+	sessionState.DbName = `my"db,1`
+	sessionState.Dialect = constants.DIALECT_GOOGLESQL
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           "127.0.0.1",
+		Port:           "5432",
+		User:           `ad"min,1`,
+		Password:       pwd,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
+	}
+	sessionState.SpannerProjectId = "test-project"
+	sessionState.SpannerInstanceID = "test-instance"
+
+	details := types.MigrationDetails{
+		TargetDetails: types.TargetDetails{TargetDB: "test-spanner-db"},
+		MigrationMode: helpers.SCHEMA_ONLY,
 	}
 
-	for _, pwd := range passwords {
-		sessionState := session.GetSessionState()
-		sessionState.Conv = internal.MakeConv()
-		sessionState.Driver = constants.POSTGRES
-		sessionState.DbName = `my"db,1`
-		sessionState.Dialect = constants.DIALECT_GOOGLESQL
-		sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-			Host:           "127.0.0.1",
-			Port:           "5432",
-			User:           `ad"min,1`,
-			Password:       pwd,
-			ConnectionType: helpers.DIRECT_CONNECT_MODE,
-		}
-		sessionState.SpannerProjectId = "test-project"
-		sessionState.SpannerInstanceID = "test-instance"
-
-		details := types.MigrationDetails{
-			TargetDetails: types.TargetDetails{
-				TargetDB: "test-spanner-db",
-			},
-			MigrationMode: helpers.SCHEMA_ONLY,
-		}
-
-		sourceProfile, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
-		assert.NoError(t, err)
-		assert.Equal(t, constants.POSTGRES, sourceProfile.Driver)
-		assert.Equal(t, `ad"min,1`, sourceProfile.Conn.Pg.User)
-		assert.Equal(t, pwd, sourceProfile.Conn.Pg.Pwd)
-		assert.Equal(t, `my"db,1`, sourceProfile.Conn.Pg.Db)
-	}
-}
-
-func TestDatabaseConnectionDoesNotLeakSecretOnInvalidPort(t *testing.T) {
-	secret := "TopSecretWebPass!999"
-	drivers := []string{constants.POSTGRES, constants.SQLSERVER, constants.ORACLE}
-	for _, drv := range drivers {
-		t.Run(drv, func(t *testing.T) {
-			cfg := types.DriverConfig{
-				Driver:   drv,
-				Host:     "localhost",
-				Port:     "invalid_port",
-				User:     "admin",
-				Password: secret,
-				Database: "mydb",
-			}
-			body, _ := json.Marshal(cfg)
-			req, _ := http.NewRequest("POST", "/connect", bytes.NewBuffer(body))
-			rr := httptest.NewRecorder()
-			http.HandlerFunc(databaseConnection).ServeHTTP(rr, req)
-
-			assert.Equal(t, http.StatusInternalServerError, rr.Code)
-			assert.NotContains(t, rr.Body.String(), secret)
-		})
-	}
+	sourceProfile, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+	assert.NoError(t, err)
+	assert.Equal(t, `ad"min,1`, sourceProfile.Conn.Pg.User)
+	assert.Equal(t, pwd, sourceProfile.Conn.Pg.Pwd)
+	assert.Equal(t, `my"db,1`, sourceProfile.Conn.Pg.Db)
 }

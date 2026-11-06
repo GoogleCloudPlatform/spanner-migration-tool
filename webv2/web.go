@@ -22,10 +22,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -64,18 +66,35 @@ import (
 )
 
 func createDatabaseConnectionString(config types.DriverConfig) (string, error) {
+
+	var dataSourceName string
 	switch config.Driver {
 	case constants.MYSQL:
-		return profiles.GetMYSQLConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database), nil
+		cfg := mysql.NewConfig()
+		cfg.User = config.User
+		cfg.Passwd = config.Password
+		cfg.Net = "tcp"
+		cfg.Addr = fmt.Sprintf("%s:%s", config.Host, config.Port)
+		cfg.DBName = config.Database
+		dataSourceName = cfg.FormatDSN()
 	case constants.POSTGRES:
-		return profiles.GetPGSQLConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database), nil
+		dataSourceName = profiles.GetPGSQLConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.SQLSERVER:
-		return profiles.GetSQLSERVERConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database), nil
+		u := url.URL{
+			Scheme: "sqlserver",
+			User:   url.UserPassword(config.User, config.Password),
+			Host:   fmt.Sprintf("%s:%s", config.Host, config.Port),
+		}
+		q := u.Query()
+		q.Set("database", config.Database)
+		u.RawQuery = q.Encode()
+		dataSourceName = u.String()
 	case constants.ORACLE:
-		return profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database), nil
+		dataSourceName = profiles.GetORACLEConnectionStr(config.Host, config.Port, config.User, config.Password, config.Database)
 	default:
 		return "", fmt.Errorf("driver : '%s' is not supported", config.Driver)
 	}
+	return dataSourceName, nil
 }
 
 // TODO:(searce):
@@ -137,14 +156,13 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", profiles.SanitizeConnectionError(err)), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
 		return
 	}
 	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
-		sourceDB.Close()
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", profiles.SanitizeConnectionError(err)), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -221,11 +239,7 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 	}
 	var connDetailsList []profiles.DirectConnectionConfig
 	for i, config := range shardConfigs.DbConfigs {
-		dataSourceName, err := createDatabaseConnectionString(config)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 		sourceDB, err := sql.Open(config.Driver, dataSourceName)
 		if err != nil {
 			http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
@@ -233,7 +247,6 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 		}
 		// Open doesn't open a connection. Validate database connection.
 		err = sourceDB.Ping()
-		sourceDB.Close()
 		if err != nil {
 			http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
 			return
@@ -314,7 +327,6 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
 		return
 	}
-	defer sourceDB.Close()
 	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
@@ -680,13 +692,7 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
 	if sourceDBConnectionDetails.ConnectionType == helpers.DUMP_MODE {
-		sourceProfileString, err = profiles.FormatProfileParams(
-			"file="+sourceDBConnectionDetails.Path,
-			"format=dump",
-		)
-		if err != nil {
-			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while encoding dump source profile: %v", err)
-		}
+		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
 	} else if details.IsSharded {
 		sourceProfileString, err = getSourceProfileStringForShardedMigrations(sessionState, details)
 		if err != nil {
@@ -718,18 +724,9 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
-	targetPairs := []string{
-		"project=" + sessionState.SpannerProjectId,
-		"instance=" + sessionState.SpannerInstanceID,
-		"dbName=" + details.TargetDetails.TargetDB,
-		"dialect=" + sessionState.Dialect,
-	}
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
 	if details.TargetDetails.DefaultTimezone != "" {
-		targetPairs = append(targetPairs, "defaultTimezone="+details.TargetDetails.DefaultTimezone)
-	}
-	targetProfileString, err := profiles.FormatProfileParams(targetPairs...)
-	if err != nil {
-		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while encoding target profile: %v", err)
+		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
 	}
 		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
 		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
@@ -775,7 +772,7 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 		if err != nil {
 			return "", err
 		}
-		return profiles.FormatProfileParams("config=" + fileName)
+		return fmt.Sprintf("config=%v", fileName), nil
 	}
 	return "", fmt.Errorf("low downtime migration is no longer supported")
 

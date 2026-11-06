@@ -25,7 +25,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"syscall"
-	"unicode"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -39,7 +38,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
-	mysqldriver "github.com/go-sql-driver/mysql"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
@@ -170,124 +168,27 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 	}
 }
 
-func extractLibpqParam(dsn, targetKey string) string {
-	runes := []rune(dsn)
-	n := len(runes)
-	i := 0
-	var result string
-	for i < n {
-		for i < n && unicode.IsSpace(runes[i]) {
-			i++
-		}
-		if i >= n {
-			break
-		}
-		keyStart := i
-		for i < n && !unicode.IsSpace(runes[i]) && runes[i] != '=' {
-			i++
-		}
-		key := string(runes[keyStart:i])
-		for i < n && unicode.IsSpace(runes[i]) {
-			i++
-		}
-		if i >= n || runes[i] != '=' {
-			return result
-		}
-		i++
-		for i < n && unicode.IsSpace(runes[i]) {
-			i++
-		}
-		if i >= n {
-			if key == targetKey {
-				result = ""
-			}
-			break
-		}
-		var val []rune
-		if runes[i] == '\'' {
-			i++
-			closed := false
-			for i < n {
-				if runes[i] == '\'' {
-					i++
-					closed = true
-					break
-				}
-				if runes[i] == '\\' {
-					i++
-					if i >= n {
-						return result
-					}
-				}
-				val = append(val, runes[i])
-				i++
-			}
-			if !closed {
-				return result
-			}
-		} else {
-			for i < n && !unicode.IsSpace(runes[i]) {
-				if runes[i] == '\\' {
-					i++
-					if i >= n {
-						return result
-					}
-				}
-				val = append(val, runes[i])
-				i++
-			}
-		}
-		if key == targetKey {
-			result = string(val)
-		}
-	}
-	return result
-}
-
 func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	switch driver {
 	case constants.POSTGRES:
-		if strings.HasPrefix(sqlConnectionStr, "postgres://") || strings.HasPrefix(sqlConnectionStr, "postgresql://") {
-			u, err := url.Parse(sqlConnectionStr)
-			if err != nil {
-				return ""
-			}
-			return strings.TrimPrefix(u.Path, "/")
-		}
-		return extractLibpqParam(sqlConnectionStr, "dbname")
+		dbParam := strings.Split(sqlConnectionStr, " ")[4]
+		return strings.Split(dbParam, "=")[1]
 	case constants.MYSQL:
-		if cfg, err := mysqldriver.ParseDSN(sqlConnectionStr); err == nil {
-			return cfg.DBName
-		}
-		if parts := strings.SplitN(sqlConnectionStr, ")/", 2); len(parts) == 2 {
-			return strings.SplitN(parts[1], "?", 2)[0]
-		}
-		return ""
+		return strings.Split(sqlConnectionStr, ")/")[1]
 	case constants.SQLSERVER:
-		if u, err := url.Parse(sqlConnectionStr); err == nil {
-			return u.Query().Get("database")
-		}
-		idx := strings.Index(sqlConnectionStr, "?database=")
-		if idx == -1 {
-			return ""
-		}
-		dbParam := sqlConnectionStr[idx+len("?database="):]
-		dbName := strings.SplitN(dbParam, "&", 2)[0]
+		splts := strings.Split(sqlConnectionStr, "?database=")
+		dbParam := splts[len(splts)-1]
+		dbName := strings.Split(dbParam, "&")[0] // Handle case where additional parameters exist
 		if unescaped, err := url.QueryUnescape(dbName); err == nil {
 			dbName = unescaped
 		}
 		return dbName
 	case constants.ORACLE:
-		// connection string format: "oracle://user:password@104.108.154.85:1521/XE"
-		// User name is used as the schema owner in Oracle.
-		if u, err := url.Parse(sqlConnectionStr); err == nil && u.User != nil {
-			return u.User.Username()
-		}
-		if !strings.HasPrefix(sqlConnectionStr, "oracle://") {
-			return ""
-		}
-		substr := sqlConnectionStr[len("oracle://"):]
-		dbName := strings.SplitN(substr, ":", 2)[0]
+		// connection string formate : "oracle://user:password@104.108.154.85:1521/XE"
+		// The user is url.QueryEscape'd by go_ora.BuildUrl (e.g. APP#1 -> APP%231), so it
+		// is unescaped to get the actual user name, which is used as the schema owner.
+		substr := sqlConnectionStr[9:]
+		dbName := strings.Split(substr, ":")[0]
 		if unescaped, err := url.QueryUnescape(dbName); err == nil {
 			dbName = unescaped
 		}

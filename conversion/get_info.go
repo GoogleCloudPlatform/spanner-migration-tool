@@ -71,32 +71,6 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(migrationProjectId string, shardCon
 	return infoSchema, nil
 }
 
-func newCloudSQLMySQLConfig(m profiles.SourceProfileConnectionCloudSQLMySQL) *mysqldriver.Config {
-	password := "empty"
-	if m.Pwd != "" {
-		password = m.Pwd
-	}
-	cfg := mysqldriver.NewConfig()
-	cfg.User = m.User
-	cfg.Passwd = password
-	cfg.Net = "cloudsqlconn"
-	cfg.Addr = "localhost:3306"
-	cfg.DBName = m.Db
-	cfg.ParseTime = true
-	return cfg
-}
-
-func newCloudSQLPostgresConnConfig(pg profiles.SourceProfileConnectionCloudSQLPostgreSQL) (*pgx.ConnConfig, error) {
-	config, err := pgx.ParseConfig("")
-	if err != nil {
-		return nil, profiles.SanitizeConnectionError(err)
-	}
-	config.User = pg.User
-	config.Database = pg.Db
-	config.Password = pg.Pwd
-	return config, nil
-}
-
 func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	driver := sourceProfile.Driver
 	switch driver {
@@ -118,15 +92,19 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 				return d.Dial(ctx, instanceName, opts...)
 			})
 
-		cfg := newCloudSQLMySQLConfig(sourceProfile.ConnCloudSQL.Mysql)
-		connector, err := mysqldriver.NewConnector(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("mysql.NewConnector: %w", profiles.SanitizeConnectionError(err))
+		password := "empty"
+		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
+			password = sourceProfile.ConnCloudSQL.Mysql.Pwd
 		}
-		db := sql.OpenDB(connector)
+		dbURI := fmt.Sprintf("%s:%s@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, password, sourceProfile.ConnCloudSQL.Mysql.Db)
+
+		db, err := sql.Open("mysql", dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
 			DbName:             sourceProfile.ConnCloudSQL.Mysql.Db,
@@ -148,10 +126,13 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		}
 		var opts []cloudsqlconn.DialOption
 
-		config, err := newCloudSQLPostgresConnConfig(sourceProfile.ConnCloudSQL.Pg)
+		config, err := pgx.ParseConfig("")
 		if err != nil {
 			return nil, err
 		}
+		config.User = sourceProfile.ConnCloudSQL.Pg.User
+		config.Database = sourceProfile.ConnCloudSQL.Pg.Db
+		config.Password = sourceProfile.ConnCloudSQL.Pg.Pwd
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
 		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
 			return d.Dial(ctx, instanceName, opts...)
@@ -159,11 +140,10 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		dbURI := stdlib.RegisterConnConfig(config)
 		db, err := sql.Open("pgx", dbURI)
 		if err != nil {
-			return nil, fmt.Errorf("sql.Open: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
@@ -179,7 +159,7 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	connectionConfig, err := ConnectionConfig(sourceProfile)
 	if err != nil {
-		return nil, profiles.SanitizeConnectionError(err)
+		return nil, err
 	}
 	driver := sourceProfile.Driver
 	switch driver {
@@ -187,11 +167,10 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, profiles.SanitizeConnectionError(err)
+			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
 			DbName:             dbName,
@@ -203,11 +182,10 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, profiles.SanitizeConnectionError(err)
+			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
@@ -219,22 +197,20 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, profiles.SanitizeConnectionError(err)
+			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.ORACLE:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, profiles.SanitizeConnectionError(err)
+			return nil, err
 		}
 		if err = db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
+			return nil, fmt.Errorf("failed to connect to source database: %w", err)
 		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	case constants.CASSANDRA:
