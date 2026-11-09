@@ -16,6 +16,7 @@ package profiles
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -63,11 +64,29 @@ func ParseMap(s string) (map[string]string, error) {
 		}
 
 		if _, ok := params[key]; ok {
-			return params, fmt.Errorf("duplicate key found: %v", key)
+			return params, fmt.Errorf("duplicate key found")
 		}
 		params[key] = value
 	}
 	return params, nil
+}
+
+// SanitizeConnectionError redacts embedded URLs or credentials from connection
+// errors (such as standard library *url.Error) so secrets are never echoed to
+// logs or HTTP responses.
+func SanitizeConnectionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return &url.Error{
+			Op:  urlErr.Op,
+			URL: "<redacted>",
+			Err: SanitizeConnectionError(urlErr.Err),
+		}
+	}
+	return err
 }
 
 func ParseList(s string) ([]string, error) {

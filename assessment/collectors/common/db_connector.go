@@ -52,13 +52,13 @@ func (d SQLDBConnector) Connect(driver string, connectionConfig interface{}) (*s
 
 	db, err := sql.Open(driver, connectionStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, fmt.Errorf("failed to open database connection: %w", profiles.SanitizeConnectionError(err))
 	}
 
 	// Test the connection
 	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("failed to ping database: %w", profiles.SanitizeConnectionError(err))
 	}
 
 	return db, nil

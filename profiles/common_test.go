@@ -15,6 +15,8 @@
 package profiles
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -83,10 +85,11 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  true,
 		},
 		{
-			name:           "invalid params duplicates",
-			inputString:    "instance=instance, instance=instance",
-			expectedParams: map[string]string{"instance": "instance"},
-			errorExpected:  true,
+			name:              "invalid params duplicates does not leak key",
+			inputString:       "secret_key=v1, secret_key=v2",
+			expectedParams:    map[string]string{"secret_key": "v1"},
+			errorExpected:     true,
+			notContainedInErr: "secret_key",
 		},
 	}
 
@@ -273,3 +276,31 @@ func TestGetORACLEConnectionStrSpecialCharacters(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeConnectionError(t *testing.T) {
+	secret := "SuperSecretPass_9988"
+
+	assert.NoError(t, SanitizeConnectionError(nil))
+
+	// 1. Direct *url.Error (e.g. Oracle / SQL Server invalid port)
+	_, urlErr := url.Parse("oracle://admin:" + secret + "@localhost:bad_port/xe")
+	assert.Error(t, urlErr)
+	sanitized := SanitizeConnectionError(fmt.Errorf("open failed: %w", urlErr))
+	assert.NotContains(t, sanitized.Error(), secret)
+	assert.Contains(t, sanitized.Error(), "invalid port")
+
+	// 2. Nested *url.Error
+	nestedErr := fmt.Errorf("connection wrapper: %w", &url.Error{
+		Op:  "parse",
+		URL: "postgres://user:" + secret + "@localhost:5432/db",
+		Err: errors.New("underlying failure"),
+	})
+	sanitizedNested := SanitizeConnectionError(nestedErr)
+	assert.NotContains(t, sanitizedNested.Error(), secret)
+	assert.Contains(t, sanitizedNested.Error(), "<redacted>")
+
+	// 3. Plain network error preserved as-is
+	plainErr := errors.New("dial tcp 127.0.0.1:5432: connect: connection refused")
+	assert.Equal(t, plainErr, SanitizeConnectionError(plainErr))
+}
+
