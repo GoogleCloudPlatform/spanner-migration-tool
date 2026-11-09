@@ -15,6 +15,7 @@
 package profiles
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"net"
@@ -24,7 +25,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
+
+var libpqEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
 // input string is of the form "key1=value1,key2=value2,..." etc. Return error
@@ -70,6 +74,21 @@ func ParseMap(s string) (map[string]string, error) {
 	return params, nil
 }
 
+// FormatProfileParams encodes key=value entries as a single CSV record
+// compatible with ParseMap, properly quoting values with commas, quotes, or newlines.
+func FormatProfileParams(pairs ...string) (string, error) {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	if err := w.Write(pairs); err != nil {
+		return "", err
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(buf.String(), "\n"), nil
+}
+
 func ParseList(s string) ([]string, error) {
 	if len(s) == 0 {
 		return nil, nil
@@ -93,10 +112,10 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 		switch sourceProfile.Conn.Ty {
 		case SourceProfileConnectionTypeMySQL:
 			connParams := sourceProfile.Conn.Mysql
-			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
-			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return GetPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypeSqlServer:
 			connParams := sourceProfile.Conn.SqlServer
 			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
@@ -122,11 +141,35 @@ func GeneratePGSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
+	return GetPGSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbName)
+func quoteLibpqValue(v string) string {
+	return "'" + libpqEscaper.Replace(v) + "'"
+}
+
+// GetPGSQLConnectionStr builds a libpq keyword/value connection string with
+// single-quoted, backslash-escaped values so spaces, quotes, backslashes, IPv6
+// hosts, and Unix socket paths round-trip without net/url.Parse leaks.
+func GetPGSQLConnectionStr(server, port, user, password, dbName string) string {
+	var parts []string
+	if server != "" {
+		parts = append(parts, "host="+quoteLibpqValue(server))
+	}
+	if port != "" {
+		parts = append(parts, "port="+quoteLibpqValue(port))
+	}
+	if user != "" {
+		parts = append(parts, "user="+quoteLibpqValue(user))
+	}
+	if password != "" {
+		parts = append(parts, "password="+quoteLibpqValue(password))
+	}
+	if dbName != "" {
+		parts = append(parts, "dbname="+quoteLibpqValue(dbName))
+	}
+	parts = append(parts, "sslmode=disable")
+	return strings.Join(parts, " ")
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {
@@ -143,11 +186,19 @@ func GenerateMYSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getMYSQLConnectionStr(server, port, user, password, dbName), nil
+	return GetMYSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
+// GetMYSQLConnectionStr builds a MySQL DSN using the official Go MySQL driver Config
+// to safely handle passwords with special characters (e.g. '@', '/', spaces, quotes).
+func GetMYSQLConnectionStr(server, port, user, password, dbName string) string {
+	cfg := mysqldriver.NewConfig()
+	cfg.User = user
+	cfg.Passwd = password
+	cfg.Net = "tcp"
+	cfg.Addr = fmt.Sprintf("%s:%s", server, port)
+	cfg.DBName = dbName
+	return cfg.FormatDSN()
 }
 
 func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {

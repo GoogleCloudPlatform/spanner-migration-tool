@@ -18,7 +18,11 @@ import (
 	"net/url"
 	"testing"
 
+	mysqldriver "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // code for testing parse map
@@ -81,6 +85,16 @@ func TestParseMap(t *testing.T) {
 	}
 }
 
+func TestFormatProfileParamsRoundTrip(t *testing.T) {
+	pwd := `my"sec,ret=1\2'3` + "\n" + `x",dup=1,dup=2,"y`
+	encoded, err := FormatProfileParams("host=127.0.0.1", "password="+pwd, `dbName=my"db,1`)
+	require.NoError(t, err)
+	parsed, err := ParseMap(encoded)
+	require.NoError(t, err)
+	assert.Equal(t, pwd, parsed["password"])
+	assert.Equal(t, `my"db,1`, parsed["dbName"])
+}
+
 // code for testing parse list
 func TestParseList(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
@@ -138,7 +152,7 @@ func TestGetSQLConnectionStr(t *testing.T) {
 		{
 			name:                   "source profile connection type postgres",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypePostgreSQL, Pg: SourceProfileConnectionPostgreSQL{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:         "host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
+			expectedOutput:         "host='0.0.0.0' port='3306' user='user' password='password' dbname='database' sslmode=disable",
 		},
 		{
 			name:                   "source profile connection type sql server",
@@ -172,6 +186,38 @@ func TestGetSQLConnectionStr(t *testing.T) {
 	}
 }
 
+func TestGetPGSQLConnectionStrDriverRoundTrip(t *testing.T) {
+	user := "user '1\\2"
+	pwd := "myPass 's3cretTail\\end\" \t\n/db?sslmode=require\\"
+	dbName := "my/db 'name\\1"
+	dsn := GetPGSQLConnectionStr("::1", "5432", user, pwd, dbName)
+
+	_, err := pq.NewConnector(dsn)
+	require.NoError(t, err)
+
+	cfg, err := pgx.ParseConfig(dsn)
+	require.NoError(t, err)
+	assert.Equal(t, "::1", cfg.Host)
+	assert.Equal(t, user, cfg.User)
+	assert.Equal(t, pwd, cfg.Password)
+	assert.Equal(t, dbName, cfg.Database)
+}
+
+func TestGetMYSQLConnectionStrDriverRoundTrip(t *testing.T) {
+	user := `admin_user`
+	pwd := `my"sec,ret=1\2'3 @#?/% s p a c e`
+	dbName := `my_db`
+	dsn := GetMYSQLConnectionStr("127.0.0.1", "3306", user, pwd, dbName)
+
+	cfg, err := mysqldriver.ParseDSN(dsn)
+	require.NoError(t, err)
+	assert.Equal(t, user, cfg.User)
+	assert.Equal(t, pwd, cfg.Passwd)
+	assert.Equal(t, dbName, cfg.DBName)
+	assert.Equal(t, "127.0.0.1:3306", cfg.Addr)
+	assert.Equal(t, "tcp", cfg.Net)
+}
+
 func TestGenerateConnectionStr(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	before := func() {
@@ -189,7 +235,7 @@ func TestGenerateConnectionStr(t *testing.T) {
 	}{
 		{
 			name:                "valid get mysql and postgres conn string",
-			expectedOutputPg:    "host=0.0.0.0 port=3306 user=user password=password dbname=db sslmode=disable",
+			expectedOutputPg:    "host='0.0.0.0' port='3306' user='user' password='password' dbname='db' sslmode=disable",
 			expectedOutputMysql: "user:password@tcp(0.0.0.0:3306)/db",
 			errorExpected:       false,
 		},

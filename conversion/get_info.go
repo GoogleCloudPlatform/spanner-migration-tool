@@ -92,12 +92,7 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 				return d.Dial(ctx, instanceName, opts...)
 			})
 
-		password := "empty"
-		if sourceProfile.ConnCloudSQL.Mysql.Pwd != "" {
-			password = sourceProfile.ConnCloudSQL.Mysql.Pwd
-		}
-		dbURI := fmt.Sprintf("%s:%s@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-			sourceProfile.ConnCloudSQL.Mysql.User, password, sourceProfile.ConnCloudSQL.Mysql.Db)
+		dbURI := newCloudSQLMySQLConnConfig(sourceProfile.ConnCloudSQL.Mysql)
 
 		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
@@ -126,11 +121,7 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		}
 		var opts []cloudsqlconn.DialOption
 
-		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
-		if sourceProfile.ConnCloudSQL.Pg.Pwd != "" {
-			dsn = fmt.Sprintf("user=%s password=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Pwd, sourceProfile.ConnCloudSQL.Pg.Db)
-		}
-		config, err := pgx.ParseConfig(dsn)
+		config, err := newCloudSQLPostgresConnConfig(sourceProfile.ConnCloudSQL.Pg)
 		if err != nil {
 			return nil, err
 		}
@@ -155,6 +146,32 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
+}
+
+func newCloudSQLPostgresConnConfig(pg profiles.SourceProfileConnectionCloudSQLPostgreSQL) (*pgx.ConnConfig, error) {
+	config, err := pgx.ParseConfig("")
+	if err != nil {
+		return nil, err
+	}
+	config.User = pg.User
+	config.Database = pg.Db
+	config.Password = pg.Pwd
+	return config, nil
+}
+
+func newCloudSQLMySQLConnConfig(m profiles.SourceProfileConnectionCloudSQLMySQL) string {
+	cfg := mysqldriver.NewConfig()
+	cfg.User = m.User
+	if m.Pwd != "" {
+		cfg.Passwd = m.Pwd
+	} else {
+		cfg.Passwd = "empty"
+	}
+	cfg.Net = "cloudsqlconn"
+	cfg.Addr = "localhost:3306"
+	cfg.DBName = m.Db
+	cfg.ParseTime = true
+	return cfg.FormatDSN()
 }
 
 func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
