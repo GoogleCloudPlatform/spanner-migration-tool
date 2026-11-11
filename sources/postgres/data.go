@@ -84,6 +84,9 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, vals []st
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
+		if spColDef.GeneratedColumn.IsPresent {
+			continue // Spanner will automatically compute generated columns.
+		}
 		var x interface{}
 		var err error
 		if spColDef.T.IsArray {

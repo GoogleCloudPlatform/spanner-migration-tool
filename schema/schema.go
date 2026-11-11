@@ -45,7 +45,8 @@ type Table struct {
 	CheckConstraints []CheckConstraint
 	Indexes          []Index
 	Id               string
-	PartitionParent  string // Parent table name if this is a child partition, empty otherwise.
+	InheritedFrom    []string `json:",omitempty"` // Direct parent table names (PostgreSQL INHERITS).
+	PartitionParent  string   // Parent table name if this is a child partition, empty otherwise.
 }
 
 // Column represents a database column.

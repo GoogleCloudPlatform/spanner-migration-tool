@@ -71,8 +71,16 @@ func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId stri
 	conv.SpSchema[tableId] = sp
 	conv.SpSequences = spSeq
 
-	// Note: ToSpanner mapping is not updated for removed columns
-	// since they don't have corresponding source columns
+	// Remove the column from the ToSpanner mapping, as it is no longer migrated to Spanner.
+	// Columns without a source column (e.g. synthetic PK) have no entry to remove.
+	if conv.ToSpanner != nil {
+		srcTable := conv.SrcSchema[tableId]
+		if srcCol, ok := srcTable.ColDefs[colId]; ok {
+			if nameAndCols, ok := conv.ToSpanner[srcTable.Name]; ok && nameAndCols.Cols != nil {
+				delete(nameAndCols.Cols, srcCol.Name)
+			}
+		}
+	}
 }
 
 // removeColumnFromSpannerColNames remove given column from ColNames.
