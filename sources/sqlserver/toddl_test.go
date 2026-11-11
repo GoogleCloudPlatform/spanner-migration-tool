@@ -30,94 +30,204 @@ import (
 )
 
 func TestToSpannerTypeInternal(t *testing.T) {
-	_, errCheck := toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in bigint of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "bigint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
 	if errCheck != nil {
 		t.Errorf("Error in bigint of sptype int64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in tinyint of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
 	if errCheck != nil {
 		t.Errorf("Error in tinyint of sptype int64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in real of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "FLOAT64", false)
 	if errCheck == nil {
 		t.Errorf("Error in real of sptype float64")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "float", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in float of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "numeric", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in numeric of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "bit", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "bit", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in bit of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "uniqueidentifier", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "uniqueidentifier", Mods: []int64{1}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "uniqueidentifier", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "uniqueidentifier", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in uniqueidentifier of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varchar", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of sptype bytes")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varchar", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "", false)
 	if errCheck != nil {
 		t.Errorf("Error in varchar of default sptype")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "ntext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
-	if errCheck != nil {
-		t.Errorf("Error in ntext of sptype bytes")
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "ntext", Mods: []int64{}, ArrayBounds: []int64{1, 2, 3}}, "BYTES", false)
+	if errCheck == nil {
+		t.Errorf("Error in ntext of sptype bytes: expected overflow warning")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "binary", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck != nil {
 		t.Errorf("Error in binary of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "date", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "date", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck != nil {
 		t.Errorf("Error in date of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "datetime", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "datetime", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in datetime of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "timestamp", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "timestamp", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in timestamp of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "time", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "time", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
 	if errCheck == nil {
 		t.Errorf("Error in time of sptype string")
 	}
-	_, errCheck = toSpannerTypeInternal(schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "", false)
+	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "", false)
 	if errCheck == nil {
 		t.Errorf("Error in default case")
 	}
+
+	// Tests for datetime types: datetime, datetime2, smalldatetime emit Datetime warning; datetimeoffset does not.
+	for _, dt := range []string{"datetime", "datetime2", "smalldatetime"} {
+		spTy, issues := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: dt}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Timestamp}, spTy, dt)
+		assert.Equal(t, []internal.SchemaIssue{internal.Datetime}, issues, dt)
+	}
+	spTy, issues := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "datetimeoffset"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Timestamp}, spTy)
+	assert.Nil(t, issues)
+
+	// Tests for numeric/decimal overflow warning
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{38, 10}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "decimal", Mods: []int64{18, 17}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{38, 0}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Numeric}, issues)
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{18, 4}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Nil(t, issues)
+
+	// PostgreSQL-dialect NUMERIC is arbitrary precision: no overflow warning.
+	for _, mods := range [][]int64{{38, 10}, {18, 17}, {38, 0}} {
+		spTy, issues = toSpannerTypeInternal(constants.DIALECT_POSTGRESQL, schema.Type{Name: "numeric", Mods: mods}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy, mods)
+		assert.Nil(t, issues, mods)
+	}
+
+	// Scale-0 numerics with at most 18 digits map to INT64. SQL Server infoschema
+	// reports scale 0 as a single precision mod.
+	for _, tc := range []struct {
+		src  string
+		mods []int64
+	}{
+		{"numeric", []int64{10}}, {"decimal", []int64{18}}, {"decimal", []int64{18, 0}}, {"numeric", []int64{1, 0}},
+	} {
+		spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: tc.src, Mods: tc.mods}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Int64}, spTy, tc)
+		assert.Nil(t, issues, tc)
+	}
+	// 19 integer digits may not fit INT64: stays NUMERIC.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{19}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Nil(t, issues)
+	// Explicit INT64 target on a non-fitting numeric carries a PossibleOverflow warning.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric", Mods: []int64{19}}, "INT64", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Int64}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "decimal", Mods: []int64{10}}, "INT64", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Int64}, spTy)
+	assert.Nil(t, issues)
+	// Explicit NUMERIC target on a fitting integer is honoured without warning.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "decimal", Mods: []int64{10}}, "NUMERIC", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Nil(t, issues)
+	// Unknown precision (no mods) stays NUMERIC without warning.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "numeric"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy)
+	assert.Nil(t, issues)
+	// money/smallmoney always have scale 4: NUMERIC, never INT64.
+	for _, src := range []string{"money", "smallmoney"} {
+		spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: src, Mods: []int64{19, 4}}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Numeric}, spTy, src)
+		assert.Nil(t, issues, src)
+	}
+
+	// Tests for large object types: the overflow warning applies to both the
+	// default target and the alternative target.
+	for _, lob := range []string{"ntext", "text", "xml"} {
+		spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: lob}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, spTy, lob)
+		assert.Equal(t, []internal.SchemaIssue{internal.StringOverflow}, issues, lob)
+		spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: lob}, "BYTES", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, spTy, lob)
+		assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues, lob)
+	}
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "image"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "image", Mods: []int64{2147483647}}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
+
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "image"}, "STRING", false)
+	assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.StringOverflow}, issues)
+
+	// (max) variants (-1) warn on the alternative target as well as the default.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varchar", Mods: []int64{-1}}, "BYTES", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.PossibleOverflow}, issues)
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varbinary", Mods: []int64{-1}}, "STRING", false)
+	assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, spTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.StringOverflow}, issues)
+	// Bounded lengths do not warn on the alternative target.
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varchar", Mods: []int64{50}}, "BYTES", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: 50}, spTy)
+	assert.Nil(t, issues)
+	spTy, issues = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "varbinary", Mods: []int64{50}}, "STRING", false)
+	assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, spTy)
+	assert.Nil(t, issues)
 }
 
 // NUMERIC is a valid key column in GoogleSQL; only the PostgreSQL dialect
@@ -273,6 +383,8 @@ func TestToSpannerType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c10": {internal.Datetime},
+			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
 		},
 	}
@@ -384,6 +496,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c10": {internal.Datetime},
+			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
 		},
 	}
