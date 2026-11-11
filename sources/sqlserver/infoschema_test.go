@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -65,21 +66,31 @@ func TestProcessSchema(t *testing.T) {
 				{"ref", "FOREIGN KEY"}},
 		},
 		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"dbo", "user"},
+			cols:  []string{"name", "definition"},
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
-			args:  []driver.Value{"dbo.user"},
+			args:  []driver.Value{"dbo", "user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"dbo", "test", "ref", "Id", "fk_test"},
 			},
 		},
 		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "user"},
+			cols:  []string{"name", "definition", "is_persisted"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "user"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"user_id", "text", "NO", nil, nil, nil, nil},
-				{"name", "text", "NO", nil, nil, nil, nil},
-				{"ref", "bigint", "YES", nil, nil, nil, nil}},
+				{"user_id", "text", "NO", nil, nil, nil, nil, 0},
+				{"name", "text", "NO", nil, nil, nil, nil, 0},
+				{"ref", "bigint", "YES", nil, nil, nil, nil, 0}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -94,54 +105,65 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"Id", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"dbo", "test"},
+			cols:  []string{"name", "definition"},
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
-			args:  []driver.Value{"dbo.test"},
+			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4"}},
 		},
 		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "test"},
+			cols:  []string{"name", "definition", "is_persisted"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"Id", "int", "NO", nil, nil, 10, 0},
-				{"BigInt", "bigint", "YES", nil, nil, 19, 0},
-				{"Binary", "binary", "YES", nil, 50, nil, nil},
-				{"Bit", "bit", "YES", nil, nil, nil, nil},
-				{"Char", "char", "YES", nil, 10, nil, nil},
-				{"Date", "date", "YES", nil, nil, nil, nil},
-				{"DateTime", "datetime", "YES", nil, nil, nil, nil},
-				{"DateTime2", "datetime2", "YES", nil, nil, nil, nil},
-				{"DateTimeOffset", "datetimeoffset", "YES", nil, nil, nil, nil},
-				{"Decimal", "decimal", "YES", nil, nil, 18, 9},
-				{"Float", "float", "YES", nil, nil, 53, nil},
-				{"Geography", "geography", "YES", nil, -1, nil, nil},
-				{"Geometry", "geometry", "YES", nil, -1, nil, nil},
-				{"HierarchyId", "hierarchyid", "YES", nil, 892, nil, nil},
-				{"Image", "image", "YES", nil, 2147483647, nil, nil},
-				{"Int", "int", "YES", nil, nil, 10, 0},
-				{"Money", "money", "YES", nil, nil, 19, 4},
-				{"NChar", "nchar", "YES", nil, 10, nil, nil},
-				{"NText", "ntext", "YES", nil, 1073741823, nil, nil},
-				{"Numeric", "numeric", "YES", nil, nil, 18, 17},
-				{"NVarChar", "nvarchar", "YES", nil, 50, nil, nil},
-				{"NVarCharMax", "nvarchar", "YES", nil, -1, nil, nil},
-				{"Real", "real", "YES", nil, nil, 24, nil},
-				{"SmallDateTime", "smalldatetime", "YES", nil, nil, nil, nil},
-				{"SmallInt", "smallint", "YES", nil, nil, 5, 0},
-				{"SmallMoney", "smallmoney", "YES", nil, nil, 10, 4},
-				{"SQLVariant", "sql_variant", "YES", nil, 0, nil, nil},
-				{"Text", "text", "YES", nil, 2147483647, nil, nil},
-				{"Time", "time", "YES", nil, nil, nil, nil},
-				{"TimeStamp", "timestamp", "YES", nil, nil, nil, nil},
-				{"TinyInt", "tinyint", "YES", nil, nil, 3, 0},
-				{"UniqueIdentifier", "uniqueidentifier", "YES", nil, nil, nil, nil},
-				{"VarBinary", "varbinary", "YES", nil, 50, nil, nil},
-				{"VarBinaryMax", "varbinary", "YES", nil, -1, nil, nil},
-				{"VarChar", "varchar", "YES", nil, 50, nil, nil},
-				{"VarCharMax", "varchar", "YES", nil, -1, nil, nil},
-				{"Xml", "xml", "YES", nil, -1, nil, nil},
+				{"Id", "int", "NO", nil, nil, 10, 0, 1},
+				{"BigInt", "bigint", "YES", nil, nil, 19, 0, 0},
+				{"Binary", "binary", "YES", nil, 50, nil, nil, 0},
+				{"Bit", "bit", "YES", nil, nil, nil, nil, 0},
+				{"Char", "char", "YES", nil, 10, nil, nil, 0},
+				{"Date", "date", "YES", nil, nil, nil, nil, 0},
+				{"DateTime", "datetime", "YES", nil, nil, nil, nil, 0},
+				{"DateTime2", "datetime2", "YES", nil, nil, nil, nil, 0},
+				{"DateTimeOffset", "datetimeoffset", "YES", nil, nil, nil, nil, 0},
+				{"Decimal", "decimal", "YES", nil, nil, 18, 9, 0},
+				{"Float", "float", "YES", nil, nil, 53, nil, 0},
+				{"Geography", "geography", "YES", nil, -1, nil, nil, 0},
+				{"Geometry", "geometry", "YES", nil, -1, nil, nil, 0},
+				{"HierarchyId", "hierarchyid", "YES", nil, 892, nil, nil, 0},
+				{"Image", "image", "YES", nil, 2147483647, nil, nil, 0},
+				{"Int", "int", "YES", nil, nil, 10, 0, 0},
+				{"Money", "money", "YES", nil, nil, 19, 4, 0},
+				{"NChar", "nchar", "YES", nil, 10, nil, nil, 0},
+				{"NText", "ntext", "YES", nil, 1073741823, nil, nil, 0},
+				{"Numeric", "numeric", "YES", nil, nil, 18, 17, 0},
+				{"NVarChar", "nvarchar", "YES", nil, 50, nil, nil, 0},
+				{"NVarCharMax", "nvarchar", "YES", nil, -1, nil, nil, 0},
+				{"Real", "real", "YES", nil, nil, 24, nil, 0},
+				{"SmallDateTime", "smalldatetime", "YES", nil, nil, nil, nil, 0},
+				{"SmallInt", "smallint", "YES", nil, nil, 5, 0, 0},
+				{"SmallMoney", "smallmoney", "YES", nil, nil, 10, 4, 0},
+				{"SQLVariant", "sql_variant", "YES", nil, 0, nil, nil, 0},
+				{"Text", "text", "YES", nil, 2147483647, nil, nil, 0},
+				{"Time", "time", "YES", nil, nil, nil, nil, 0},
+				{"TimeStamp", "timestamp", "YES", nil, nil, nil, nil, 0},
+				{"TinyInt", "tinyint", "YES", nil, nil, 3, 0, 0},
+				{"UniqueIdentifier", "uniqueidentifier", "YES", nil, nil, nil, nil, 0},
+				{"VarBinary", "varbinary", "YES", nil, 50, nil, nil, 0},
+				{"VarBinaryMax", "varbinary", "YES", nil, -1, nil, nil, 0},
+				{"VarChar", "varchar", "YES", nil, 50, nil, nil, 0},
+				{"VarCharMax", "varchar", "YES", nil, -1, nil, nil, 0},
+				{"Xml", "xml", "YES", nil, -1, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -161,21 +183,34 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"name", "definition"},
+			rows: [][]driver.Value{
+				{"cart_quantity_check", "([quantity] > 0)"},
+			},
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
-			args:  []driver.Value{"dbo.cart"},
+			args:  []driver.Value{"dbo", "cart"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"production", "product", "productid", "product_id", "fk_test2"},
 				{"dbo", "user", "userid", "user_id", "fk_test3"}},
 		},
 		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"name", "definition", "is_persisted"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "cart"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"productid", "text", "NO", nil, nil, nil, nil},
-				{"userid", "text", "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
+				{"productid", "text", "NO", nil, nil, nil, nil, 0},
+				{"userid", "text", "NO", nil, nil, nil, nil, 0},
+				{"quantity", "bigint", "YES", nil, nil, 64, 0, 0}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -199,17 +234,27 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"production", "product"},
+			cols:  []string{"name", "definition"},
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
-			args:  []driver.Value{"production.product"},
+			args:  []driver.Value{"production", "product"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+		},
+		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"production", "product"},
+			cols:  []string{"name", "definition", "is_persisted"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"production", "product"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"product_id", "text", "NO", nil, nil, nil, nil},
-				{"product_name", "text", "NO", nil, nil, nil, nil},
+				{"product_id", "text", "NO", nil, nil, nil, nil, 0},
+				{"product_name", "text", "NO", nil, nil, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -229,18 +274,28 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"dbo", "test_ref"},
+			cols:  []string{"name", "definition"},
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
-			args:  []driver.Value{"dbo.test_ref"},
+			args:  []driver.Value{"dbo", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+		},
+		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "test_ref"},
+			cols:  []string{"name", "definition", "is_persisted"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
 			rows: [][]driver.Value{
-				{"ref_id", "bigint", "NO", nil, nil, 64, 0},
-				{"ref_txt", "text", "NO", nil, nil, nil, nil},
-				{"abc", "text", "NO", nil, nil, nil, nil},
+				{"ref_id", "bigint", "NO", nil, nil, 64, 0, 0},
+				{"ref_txt", "text", "NO", nil, nil, nil, nil, 0},
+				{"abc", "text", "NO", nil, nil, nil, nil, 0},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -286,9 +341,9 @@ func TestProcessSchema(t *testing.T) {
 				"SmallInt", "SmallMoney", "SQLVariant", "Text", "Time", "TimeStamp",
 				"TinyInt", "UniqueIdentifier", "VarBinary", "VarBinaryMax", "VarChar", "VarCharMax", "Xml"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"Id":               {Name: "Id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"Id":               {Name: "Id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
 				"BigInt":           {Name: "BigInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Binary":           {Name: "Binary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
 				"Bit":              {Name: "Bit", T: ddl.Type{Name: ddl.Bool}, NotNull: false},
 				"Char":             {Name: "Char", T: ddl.Type{Name: ddl.String, Len: 10, IsArray: false}, NotNull: false},
 				"Date":             {Name: "Date", T: ddl.Type{Name: ddl.Date}, NotNull: false},
@@ -300,14 +355,14 @@ func TestProcessSchema(t *testing.T) {
 				"Geography":        {Name: "Geography", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Geometry":         {Name: "Geometry", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"HierarchyId":      {Name: "HierarchyId", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"Image":            {Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"Int":              {Name: "Int", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"Money":            {Name: "Money", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NChar":            {Name: "NChar", T: ddl.Type{Name: ddl.String, Len: 10}, NotNull: false},
 				"NText":            {Name: "NText", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Numeric":          {Name: "Numeric", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NVarChar":         {Name: "NVarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"NVarCharMax":      {Name: "NVarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Real":             {Name: "Real", T: ddl.Type{Name: ddl.Float32}, NotNull: false},
 				"SmallDateTime":    {Name: "SmallDateTime", T: ddl.Type{Name: ddl.Timestamp}, NotNull: false},
 				"SmallInt":         {Name: "SmallInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
@@ -315,13 +370,13 @@ func TestProcessSchema(t *testing.T) {
 				"SQLVariant":       {Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             {Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Time":             {Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
+				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
 				"TinyInt":          {Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
-				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
-				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.UUID}, NotNull: false},
+				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
+				"VarBinaryMax":     {Name: "VarBinaryMax", T: ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, NotNull: false},
 				"VarChar":          {Name: "VarChar", T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false},
-				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
+				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
@@ -340,7 +395,8 @@ func TestProcessSchema(t *testing.T) {
 				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
 			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}},
 				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}, StoredColumnIds: []string{"productid"}},
-				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}}},
+				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}},
+			CheckConstraints: []ddl.CheckConstraint{{Name: "cart_quantity_check", Expr: "(quantity > 0)"}}},
 		"production_product": {
 			Name:   "production_product",
 			ColIds: []string{"product_id", "product_name"},
@@ -365,8 +421,8 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
-	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 15)
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 2)
+	assert.Equal(t, 17, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }
@@ -402,4 +458,184 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 		spSchema[t] = ct
 	}
 	return spSchema
+}
+
+func TestSanitizeSQLServerExpressionAndDefault(t *testing.T) {
+	// Expressions
+	assert.Equal(t, "(col_a + col_b)", sanitizeSQLServerExpression("([col_a] + [col_b])", true))
+	assert.Equal(t, "(quantity > 0)", sanitizeSQLServerExpression("(([quantity] > 0))", true))
+	assert.Equal(t, "(price * 1.1)", sanitizeSQLServerExpression("[price] * 1.1", true))
+	assert.Equal(t, "first_name || ' ' || last_name", sanitizeSQLServerExpression("[first name] || ' ' || [last name]", false))
+
+	// Defaults
+	assert.Equal(t, "'active'", sanitizeSQLServerDefault("('active')", "varchar"))
+	assert.Equal(t, "'active'", sanitizeSQLServerDefault("(N'active')", "nvarchar"))
+	assert.Equal(t, "1", sanitizeSQLServerDefault("((1))", "int"))
+	assert.Equal(t, "getdate()", sanitizeSQLServerDefault("(getdate())", "datetime"))
+}
+
+func TestGetCheckConstraints(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.check_constraints (.+)",
+			args:  []driver.Value{"dbo", "items"},
+			cols:  []string{"name", "definition"},
+			rows: [][]driver.Value{
+				{"ck_items_price", "(([price] > 0))"},
+				{"ck_items_status", "([status] IN ('a', 'b'))"},
+				{"ck_items_not_null", "([unit$price] IS NOT NULL AND [unit$price] > 0)"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	cks, err := isi.getCheckConstraints(conv, common.SchemaAndName{Schema: "dbo", Name: "items"})
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(cks))
+	assert.Equal(t, "ck_items_price", cks[0].Name)
+	assert.Equal(t, "(price > 0)", cks[0].Expr)
+	assert.Equal(t, "ck_items_status", cks[1].Name)
+	assert.Equal(t, "(status IN ('a', 'b'))", cks[1].Expr)
+	assert.Equal(t, "ck_items_not_null", cks[2].Name)
+	assert.Equal(t, "(unit_price IS NOT NULL AND unit_price > 0)", cks[2].Expr)
+}
+
+func TestGetColumns_DefaultsAndComputed(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "computed_test"},
+			cols:  []string{"name", "definition", "is_persisted"},
+			rows: [][]driver.Value{
+				{"virtual_col", "([col1] + [col2])", "0"},
+				{"stored_col", "([col1] * 2)", "1"},
+			},
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"dbo", "computed_test"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
+			rows: [][]driver.Value{
+				{"col1", "int", "NO", "((10))", nil, 10, 0, 0},
+				{"col2", "int", "YES", nil, nil, 10, 0, 0},
+				{"status", "varchar", "YES", "('pending')", 20, nil, nil, 0},
+				{"virtual_col", "int", "YES", nil, nil, 10, 0, 0},
+				{"stored_col", "int", "YES", nil, nil, 10, 0, 0},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "dbo", Name: "computed_test"}, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 5, len(colIds))
+
+	// col1: Default = 10
+	c1 := colDefs[colIds[0]]
+	assert.True(t, c1.DefaultValue.IsPresent)
+	assert.Equal(t, "10", c1.DefaultValue.Value.Statement)
+
+	// status: Default = 'pending'
+	cStatus := colDefs[colIds[2]]
+	assert.True(t, cStatus.DefaultValue.IsPresent)
+	assert.Equal(t, "'pending'", cStatus.DefaultValue.Value.Statement)
+
+	// virtual_col: GeneratedColumn virtual
+	cVirt := colDefs[colIds[3]]
+	assert.True(t, cVirt.GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColVirtual, cVirt.GeneratedColumn.Type)
+	assert.Equal(t, "col1 + col2", cVirt.GeneratedColumn.Value.Statement)
+
+	// stored_col: GeneratedColumn stored
+	cStored := colDefs[colIds[4]]
+	assert.True(t, cStored.GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColStored, cStored.GeneratedColumn.Type)
+	assert.Equal(t, "col1 * 2", cStored.GeneratedColumn.Value.Statement)
+}
+
+func TestGetForeignKeys_CompositeOrder(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"dbo", "child"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			rows: [][]driver.Value{
+				{"dbo", "parent", "col_a", "ref_a", "fk_composite"},
+				{"dbo", "parent", "col_b", "ref_b", "fk_composite"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	fks, err := isi.GetForeignKeys(conv, common.SchemaAndName{Schema: "dbo", Name: "child"})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(fks))
+	assert.Equal(t, "fk_composite", fks[0].Name)
+	assert.Equal(t, []string{"col_a", "col_b"}, fks[0].ColumnNames)
+	assert.Equal(t, []string{"ref_a", "ref_b"}, fks[0].ReferColumnNames)
+}
+
+func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"order_table", "dbo"},
+			cols:  []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column"},
+			rows: [][]driver.Value{
+				// Index with bit "1" for unique and "1" for desc
+				{"ix_desc_numeric", "amount", "1", "1", "0"},
+				// Index with boolean strings "true" and "false"
+				{"ix_composite", "cust_id", "false", "false", "0"},
+				{"ix_composite", "order_date", "false", "true", "0"},
+				{"ix_composite", "extra_info", "false", "false", "1"}, // stored column
+				// Index with only stored columns and 0 key columns (should be skipped)
+				{"ix_stored_only", "extra_info", "false", "false", "1"},
+				// Indexes referencing a column absent from colNameIdMap (e.g. a HIDDEN
+				// temporal period column) are skipped as a whole, whether the missing
+				// column is a key or a stored column.
+				{"ix_hidden_key", "cust_id", "false", "false", "0"},
+				{"ix_hidden_key", "SysStartTime", "false", "false", "0"},
+				{"ix_hidden_stored", "amount", "false", "false", "0"},
+				{"ix_hidden_stored", "SysEndTime", "false", "false", "1"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	colNameIdMap := map[string]string{
+		"amount":     "c_amount",
+		"cust_id":    "c_cust_id",
+		"order_date": "c_order_date",
+		"extra_info": "c_extra_info",
+	}
+	indexes, err := isi.GetIndexes(conv, common.SchemaAndName{Schema: "dbo", Name: "order_table"}, colNameIdMap)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(indexes))
+	for _, idx := range indexes {
+		assert.NotContains(t, []string{"ix_hidden_key", "ix_hidden_stored"}, idx.Name)
+		for _, k := range idx.Keys {
+			assert.NotEmpty(t, k.ColId, idx.Name)
+		}
+	}
+
+	// Index 1: ix_desc_numeric (unique = true, desc = true)
+	assert.Equal(t, "ix_desc_numeric", indexes[0].Name)
+	assert.True(t, indexes[0].Unique)
+	assert.Equal(t, 1, len(indexes[0].Keys))
+	assert.Equal(t, "c_amount", indexes[0].Keys[0].ColId)
+	assert.True(t, indexes[0].Keys[0].Desc)
+
+	// Index 2: ix_composite (unique = false, key 1 ASC, key 2 DESC, 1 stored col)
+	assert.Equal(t, "ix_composite", indexes[1].Name)
+	assert.False(t, indexes[1].Unique)
+	assert.Equal(t, 2, len(indexes[1].Keys))
+	assert.Equal(t, "c_cust_id", indexes[1].Keys[0].ColId)
+	assert.False(t, indexes[1].Keys[0].Desc)
+	assert.Equal(t, "c_order_date", indexes[1].Keys[1].ColId)
+	assert.True(t, indexes[1].Keys[1].Desc)
+	assert.Equal(t, []string{"c_extra_info"}, indexes[1].StoredColumnIds)
 }

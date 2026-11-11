@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -40,30 +40,73 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
+// Type names are longest-first so "int8" isn't matched as "int".
+const (
+	pgStringType = `(?:character varying|character|varchar|bpchar|char|text|name)`
+	pgNumberType = `(?:double precision|numeric|decimal|real|float4|float8|float|bigint|smallint|integer|int2|int4|int8|int)`
+	pgTypeSuffix = `(?:\([0-9, ]+\))?(?:\[\])?`
+)
+
+// 'NEW'::character varying -> 'NEW'
+var pgStringCastRegex = regexp.MustCompile(
+	`('(?:[^']|'')*')::(?:pg_catalog\.)?` + pgStringType + pgTypeSuffix)
+
+// '9000000000'::bigint -> 9000000000, quotes included.
+var pgQuotedNumberCastRegex = regexp.MustCompile(
+	`'(-?\d+(?:\.\d+)?)'::(?:pg_catalog\.)?` + pgNumberType + pgTypeSuffix)
+
+// (0)::numeric -> (0). The leading char is captured, and put back by replace,
+// because RE2 has no lookbehind to stop "col1::text" matching the literal 1.
+var pgNumberCastRegex = regexp.MustCompile(
+	`(^|[^\w$.'])(\(-?\d+(?:\.\d+)?\)|-?\d+(?:\.\d+)?)::(?:pg_catalog\.)?` + pgNumberType + pgTypeSuffix)
+
+// stripLiteralCasts drops casts that only decorate a literal. Casts on columns,
+// and casts that change the type, are kept: dropping those would change what the
+// expression computes. PostgreSQL stores and dumps defaults with these casts:
+//
+//	status varchar(10) DEFAULT 'NEW'  -> 'NEW'::character varying -> 'NEW'
+//	big bigint DEFAULT 9000000000     -> '9000000000'::bigint      -> 9000000000
+//	price numeric DEFAULT 0::numeric  -> (0)::numeric              -> (0)
+//	e int GENERATED ALWAYS AS (a + (-1)) STORED -> (a + '-1'::integer) -> (a + -1)
+func stripLiteralCasts(expr string) string {
+	expr = pgStringCastRegex.ReplaceAllString(expr, "$1")
+	expr = pgQuotedNumberCastRegex.ReplaceAllString(expr, "$1")
+	return pgNumberCastRegex.ReplaceAllString(expr, "$1$2")
+}
+
+// (sku)::text from the live database, sku::text from pg_dump.
+var pgColumnTextCastRegex = regexp.MustCompile(`(^|[^\w$.'])(?:\((\w+)\)|(\w+))::text\b`)
+
+// stripColumnTextCasts drops the ::text PostgreSQL adds to a varchar or text
+// column inside an expression. The cast changes nothing, but GoogleSQL rejects
+// "::". Casts on other column types are kept. With sku varchar(20) and n int:
+//
+//	GENERATED ALWAYS AS (upper(sku)) STORED      -> upper((sku)::text)      -> upper(sku)
+//	GENERATED ALWAYS AS ((n)::text || sku) STORED -> ((n)::text || (sku)::text) -> ((n)::text || sku)
+func stripColumnTextCasts(expr string, colDefs map[string]schema.Column) string {
+	textCols := map[string]bool{}
+	for _, cd := range colDefs {
+		switch cd.Type.Name {
+		case "character varying", "varchar", "text":
+			textCols[cd.Name] = len(cd.Type.ArrayBounds) == 0
+		}
+	}
+	return pgColumnTextCastRegex.ReplaceAllStringFunc(expr, func(m string) string {
+		sm := pgColumnTextCastRegex.FindStringSubmatch(m)
+		if col := sm[2] + sm[3]; textCols[col] {
+			return sm[1] + col
+		}
+		return m
+	})
+}
+
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	Db                 *sql.DB
 	MigrationProjectId string
 	SourceProfile      profiles.SourceProfile
 	TargetProfile      profiles.TargetProfile
-	IsSchemaUnique     *bool
 }
-
-func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaAndName) {
-	schemaSet := make(map[string]struct{})
-	for _, table := range schemaAndNames {
-		schemaSet[table.Schema] = struct{}{}
-	}
-	if len(schemaSet) == 1 {
-		*isi.IsSchemaUnique = true
-	} else {
-		*isi.IsSchemaUnique = false
-	}
-}
-
-
-
-
 
 // GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
@@ -72,12 +115,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
-	if *isi.IsSchemaUnique { // Drop schema name as prefix if only one schema is detected.
-		return tableName
-	} else if schema == "public" {
-		return tableName
-	}
-	return fmt.Sprintf("%s.%s", schema, tableName)
+	return tableName
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
@@ -85,14 +123,11 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	isSchemaNamePrefixed := strings.HasPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
-	var tableName string
-	if isSchemaNamePrefixed {
-		tableName = strings.TrimPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
-	} else {
-		tableName = conv.SrcSchema[tableId].Name
+	extractionTableName, err := isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, conv.SrcSchema[tableId].Name)
+	if err != nil {
+		return nil, err
 	}
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, tableName)
+	q := fmt.Sprintf(`SELECT * FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -167,6 +202,9 @@ func convertSQLRow(conv *internal.Conv, tableId string, colIds []string, srcSche
 		if !ok1 || !ok2 {
 			return nil, nil, fmt.Errorf("data conversion: can't find schema for column id %s of table %s", colId, conv.SrcSchema[tableId].Name)
 		}
+		if spCd.GeneratedColumn.IsPresent {
+			continue // Spanner will automatically compute generated columns.
+		}
 		if srcVals[i] == nil {
 			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
 		}
@@ -197,7 +235,11 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
+	extractionTableName, err := isi.getExtractionTableName(table.Schema, table.Name)
+	if err != nil {
+		return 0, err
+	}
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, extractionTableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -217,13 +259,8 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 // schema information and table data (pg_dump does something
 // similar).
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	ignored := make(map[string]bool)
-	// Ignore all system tables: we just want to convert user tables.
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		ignored[s] = true
-	}
-	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
-	rows, err := isi.Db.Query(q)
+	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = $1"
+	rows, err := isi.Db.Query(q, constants.PG_DEFAULT_SCHEMA)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -232,22 +269,93 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
-		if !ignored[tableSchema] {
-			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
-		}
+		tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 	}
-	isi.populateSchemaIsUnique(tables)
 	return tables, nil
+}
+
+// GetNonPublicTables returns the skipped non-public tables, excluding partitions of public partitioned tables.
+func (isi InfoSchemaImpl) GetNonPublicTables() ([]common.SchemaAndName, error) {
+	q := `SELECT t.table_schema, t.table_name FROM information_schema.tables t
+	      WHERE t.table_type = 'BASE TABLE'
+	      AND t.table_schema NOT IN ($1, 'pg_catalog', 'information_schema')
+	      AND NOT EXISTS (
+	        WITH RECURSIVE ancestors(oid) AS (
+	          SELECT inhparent FROM pg_catalog.pg_inherits
+	          WHERE inhrelid = format('%I.%I', t.table_schema, t.table_name)::regclass
+	          UNION
+	          SELECT i.inhparent FROM ancestors a JOIN pg_catalog.pg_inherits i ON i.inhrelid = a.oid)
+	        SELECT 1 FROM ancestors a
+	        JOIN pg_catalog.pg_class p ON p.oid = a.oid
+	        JOIN pg_catalog.pg_namespace n ON n.oid = p.relnamespace
+	        WHERE p.relkind = 'p' AND n.nspname = $1)
+	      ORDER BY t.table_schema, t.table_name`
+	rows, err := isi.Db.Query(q, constants.PG_DEFAULT_SCHEMA)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get non-public tables: %w", err)
+	}
+	defer rows.Close()
+	var tableSchema, tableName string
+	var tables []common.SchemaAndName
+	for rows.Next() {
+		if err := rows.Scan(&tableSchema, &tableName); err != nil {
+			return nil, fmt.Errorf("couldn't scan non-public tables: %w", err)
+		}
+		tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
+	}
+	return tables, rows.Err()
+}
+
+// GetInheritedTables returns, for each child table, the parent tables it
+// directly inherits from. Parents can be regular or foreign tables; declarative
+// partitions (relkind 'p') are excluded.
+func (isi InfoSchemaImpl) GetInheritedTables(conv *internal.Conv) (map[string][]string, error) {
+	q := `SELECT cn.nspname AS child_schema, c.relname AS child_name,
+	             pn.nspname AS parent_schema, p.relname AS parent_name
+	      FROM pg_catalog.pg_inherits i
+	      JOIN pg_catalog.pg_class c ON c.oid = i.inhrelid
+	      JOIN pg_catalog.pg_namespace cn ON cn.oid = c.relnamespace
+	      JOIN pg_catalog.pg_class p ON p.oid = i.inhparent
+	      JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace
+	      WHERE p.relkind IN ('r', 'f')
+	      ORDER BY c.relname, i.inhseqno`
+	rows, err := isi.Db.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get table inheritance information: %w", err)
+	}
+	defer rows.Close()
+	inherited := make(map[string][]string)
+	for rows.Next() {
+		var childSchema, childName, parentSchema, parentName string
+		if err := rows.Scan(&childSchema, &childName, &parentSchema, &parentName); err != nil {
+			return nil, fmt.Errorf("couldn't scan table inheritance information: %w", err)
+		}
+		if childSchema != constants.PG_DEFAULT_SCHEMA {
+			continue
+		}
+		if parentSchema != constants.PG_DEFAULT_SCHEMA {
+			// The parent is not migrated, so the child is migrated standalone.
+			conv.AddNonPublicRef(isi.GetTableName(childSchema, childName), parentSchema, parentName)
+			logger.Log.Warn(fmt.Sprintf("%s.%s inherits from %s.%s, which is outside the %s schema and will not be migrated; treating it as a standalone table", childSchema, childName, parentSchema, parentName, constants.PG_DEFAULT_SCHEMA))
+			continue
+		}
+		child := isi.GetTableName(childSchema, childName)
+		inherited[child] = append(inherited[child], isi.GetTableName(parentSchema, parentName))
+	}
+	return inherited, rows.Err()
 }
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
+	// is_generated and generation_expression exist on every PostgreSQL version;
+	// before 12 they are always NEVER and NULL.
+	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.is_generated, c.generation_expression
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
 	serialCols := isi.getSerialColumns(conv, table)
+	virtualCols := isi.getVirtualColumns(conv, table)
 	identityCols := isi.getIdentityColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
@@ -257,10 +365,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	colDefs := make(map[string]schema.Column)
 	var colIds []string
 	var colName, dataType, isNullable string
-	var colDefault, elementDataType sql.NullString
+	var colDefault, elementDataType, isGenerated, generationExpression sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &isGenerated, &generationExpression)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -279,20 +387,83 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		isSerialColumn := slices.Contains(serialCols, colName)
 		isIdentityColumn := slices.Contains(identityCols, colName)
-		ignored.Default = colDefault.Valid && !isSerialColumn
+
+		ty := toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale)
+		var defaultVal ddl.DefaultValue
+		// A serial column's default is nextval('t_id_seq'::regclass). It isn't
+		// copied: the column is migrated as auto-generated instead (AutoGen below).
+		if colDefault.Valid && !isSerialColumn {
+			defaultVal = ddl.DefaultValue{
+				IsPresent: true,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(colDefault.String), ty.Name, false),
+				},
+			}
+		}
+		var generatedCol ddl.GeneratedColumn
+		// is_generated is ALWAYS for a GENERATED ALWAYS AS (expr) column and NEVER
+		// for every other column. Identity columns are reported in is_identity.
+		if isGenerated.Valid && isGenerated.String == "ALWAYS" && generationExpression.Valid {
+			generatedCol = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      toGeneratedColType(slices.Contains(virtualCols, colName)),
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    common.SanitizeExpressionsValue(stripLiteralCasts(generationExpression.String), ty.Name, true),
+				},
+			}
+		}
+
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: toAutoGen(isSerialColumn || isIdentityColumn),
+			Id:              colId,
+			Name:            colName,
+			Type:            ty,
+			NotNull:         common.ToNotNull(conv, isNullable),
+			Ignored:         ignored,
+			AutoGen:         toAutoGen(isSerialColumn || isIdentityColumn),
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedCol,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
 	}
+	// Done after the loop, as an expression can reference a later column.
+	for id, cd := range colDefs {
+		if cd.GeneratedColumn.IsPresent {
+			cd.GeneratedColumn.Value.Statement = stripColumnTextCasts(cd.GeneratedColumn.Value.Statement, colDefs)
+			colDefs[id] = cd
+		}
+	}
 	return colDefs, colIds, nil
+}
+
+// getVirtualColumns returns a table's VIRTUAL generated columns (PostgreSQL 18+).
+// information_schema cannot distinguish VIRTUAL from STORED; pg_attribute can.
+func (isi InfoSchemaImpl) getVirtualColumns(conv *internal.Conv, table common.SchemaAndName) []string {
+	q := `SELECT attname FROM pg_attribute
+              WHERE attrelid = $1::regclass AND attnum > 0 AND attgenerated = 'v';`
+	rows, err := isi.Db.Query(q, table.Schema+"."+table.Name)
+	if err != nil {
+		// attgenerated is absent before PG 12, where no column can be virtual.
+		if sqlState(err) == undefinedColumn {
+			return nil
+		}
+		conv.Unexpected(fmt.Sprintf("Couldn't get information about virtual columns for table %s.%s: %s", table.Schema, table.Name, err))
+		return nil
+	}
+	defer rows.Close()
+	var virtualCols []string
+	for rows.Next() {
+		var colName string
+		if err := rows.Scan(&colName); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan virtual column for table %s.%s: %s", table.Schema, table.Name, err))
+			return virtualCols
+		}
+		virtualCols = append(virtualCols, colName)
+	}
+	return virtualCols
 }
 
 // undefinedColumn is the SQLSTATE for a reference to a column that doesn't exist.
@@ -402,13 +573,49 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, nil, m, nil
+	checkConstraints, err := isi.getCheckConstraints(conv, table)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return primaryKeys, checkConstraints, m, nil
+}
+
+// getCheckConstraints returns a table's CHECK constraints. Uses pg_catalog because
+// information_schema also lists the NOT NULL constraints Postgres synthesizes per
+// column; pg_get_expr returns the bare expression, unlike pg_get_constraintdef.
+func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.SchemaAndName) ([]schema.CheckConstraint, error) {
+	q := `SELECT con.conname, pg_get_expr(con.conbin, con.conrelid)
+              FROM pg_constraint con
+                JOIN pg_class rel ON rel.oid = con.conrelid
+                JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+              WHERE con.contype = 'c' AND nsp.nspname = $1 AND rel.relname = $2
+              ORDER BY con.conname;`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var checkConstraints []schema.CheckConstraint
+	var name, expr string
+	for rows.Next() {
+		if err := rows.Scan(&name, &expr); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan check constraint: %v", err))
+			continue
+		}
+		checkConstraints = append(checkConstraints, schema.CheckConstraint{
+			Id:     internal.GenerateCheckConstrainstId(),
+			Name:   name,
+			Expr:   common.SanitizeExpressionsValue(stripLiteralCasts(expr), "", true),
+			ExprId: internal.GenerateExpressionId(),
+		})
+	}
+	return checkConstraints, nil
 }
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT
-			rc.constraint_schema AS "TABLE_SCHEMA",
+			ccu.table_schema AS "REFERENCED_TABLE_SCHEMA",
 			ccu.table_name AS "REFERENCED_TABLE_NAME",
 			kcu.column_name AS "COLUMN_NAME",
 			ccu.column_name AS "REF_COLUMN_NAME",
@@ -443,6 +650,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName, &onDelete, &onUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if refTable.Schema != constants.PG_DEFAULT_SCHEMA {
+			// The referenced table is not migrated, so drop the foreign key.
+			conv.AddNonPublicRef(isi.GetTableName(table.Schema, table.Name), refTable.Schema, refTable.Name)
+			logger.Log.Warn(fmt.Sprintf("Skipping foreign key %s on %s.%s: it references %s.%s, which is outside the %s schema", fKeyName, table.Schema, table.Name, refTable.Schema, refTable.Name, constants.PG_DEFAULT_SCHEMA))
 			continue
 		}
 		tableName := isi.GetTableName(refTable.Schema, refTable.Name)
@@ -566,6 +779,13 @@ func toAutoGen(isSerial bool) ddl.AutoGenCol {
 		autoGen.GenerationType = constants.SERIAL
 	}
 	return autoGen
+}
+
+func toGeneratedColType(isVirtual bool) ddl.GeneratedColType {
+	if isVirtual {
+		return ddl.GeneratedColVirtual
+	}
+	return ddl.GeneratedColStored
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
@@ -745,8 +965,29 @@ func valsToStrings(vals []interface{}) []string {
 	return s
 }
 
+// getExtractionTableName quotes schema.table and prefixes ONLY for inheritance
+// parents (relkind = 'r') so child table rows are not read twice.
+func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) (string, error) {
+	name := fmt.Sprintf(`"%s"."%s"`, schemaName, tableName)
+	q := `SELECT EXISTS (
+	        SELECT 1
+	        FROM pg_catalog.pg_inherits i
+	        JOIN pg_catalog.pg_class p ON p.oid = i.inhparent
+	        JOIN pg_catalog.pg_namespace pn ON pn.oid = p.relnamespace
+	        WHERE p.relkind = 'r' AND pn.nspname = $1 AND p.relname = $2)`
+	var isParent bool
+	if err := isi.Db.QueryRow(q, schemaName, tableName).Scan(&isParent); err != nil {
+		// Reading without ONLY would migrate the child tables' rows twice.
+		return "", fmt.Errorf("couldn't determine whether %s is an inheritance parent: %w", name, err)
+	}
+	if isParent {
+		return "ONLY " + name, nil
+	}
+	return name, nil
+}
+
 // PartitionParent returns the schema and name of the partitioned table that
-// schema.table is a child partition of
+// schema.table is a child partition of; false if that table is outside public.
 func (isi InfoSchemaImpl) PartitionParent(schema string, table string) (string, string, bool) {
 	q := `
 	SELECT pn.nspname, parent.relname
@@ -763,6 +1004,10 @@ func (isi InfoSchemaImpl) PartitionParent(schema string, table string) (string, 
 	}
 	if err != nil {
 		logger.Log.Warn(fmt.Sprintf("couldn't determine if %s.%s is a partition, treating it as a regular table: %s", schema, table, err))
+		return "", "", false
+	}
+	if parentSchema != constants.PG_DEFAULT_SCHEMA {
+		logger.Log.Warn(fmt.Sprintf("%s.%s is a partition of %s.%s, which is outside the %s schema and will not be migrated; treating it as a regular table", schema, table, parentSchema, parentTable, constants.PG_DEFAULT_SCHEMA))
 		return "", "", false
 	}
 	return parentSchema, parentTable, true

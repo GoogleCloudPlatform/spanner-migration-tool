@@ -86,7 +86,7 @@ func TestPrintScalarTypePG(t *testing.T) {
 		in       Type
 		expected string
 	}{
-		{Type{Name: String, Len: int64(42)}, "VARCHAR(2621440)"},
+		{Type{Name: String, Len: int64(42)}, "VARCHAR"},
 		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
 	}
 	for _, tc := range testsVirtual {
