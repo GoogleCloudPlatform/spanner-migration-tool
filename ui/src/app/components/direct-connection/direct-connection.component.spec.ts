@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { HttpResponse, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { DirectConnectionComponent } from './direct-connection.component'
 import { By } from '@angular/platform-browser'
 import { ReactiveFormsModule } from '@angular/forms'
@@ -14,6 +14,10 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatDialog } from '@angular/material/dialog'
+import { DataService } from 'src/app/services/data/data.service'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
+import { PersistedFormValues } from 'src/app/app.constants'
+import { of } from 'rxjs'
 
 const appRoutes: Routes = [{ path: 'workspace', component: WorkspaceComponent }]
 
@@ -166,5 +170,37 @@ describe('DirectConnectionComponent', () => {
         expect(component.connectForm.valid).toBeTruthy()
         expect(btn.nativeElement.disabled).toBeFalsy()
     })
+  })
+
+  it('should not store password in localStorage on testConn and should restore password from DataService on ngOnInit', () => {
+    const dataService = TestBed.inject(DataService)
+    const fetchService = TestBed.inject(FetchService)
+    const snackbarService = TestBed.inject(SnackbarService)
+    spyOn(fetchService, 'connectTodb').and.returnValue(of(new HttpResponse<HttpResponse<null>>({ status: 200 })))
+    spyOn(snackbarService, 'openSnackBar')
+    localStorage.clear()
+    component.connectForm.patchValue({
+      dbEngine: 'mysql',
+      isSharded: false,
+      hostName: 'localhost',
+      port: '3306',
+      userName: 'root',
+      password: 'my-secret-password',
+      dbName: 'testdb',
+      dialect: 'google_standard_sql',
+      dataCenter: '',
+    })
+
+    component.testConn()
+
+    const storedForm = JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm)!)
+    expect(storedForm.password).toBeUndefined()
+    expect(dataService.getDirectConnectPassword()).toEqual('my-secret-password')
+
+    component.connectForm.patchValue({ password: '' })
+    component.ngOnInit()
+    expect(component.connectForm.get('password')?.value).toEqual('my-secret-password')
+    localStorage.clear()
+    dataService.resetStore()
   })
 })

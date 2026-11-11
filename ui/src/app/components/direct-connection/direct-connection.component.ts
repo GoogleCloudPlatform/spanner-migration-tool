@@ -32,7 +32,7 @@ export class DirectConnectionComponent implements OnInit {
 
   dbEngineList = [
     { value: 'mysql', displayName: 'MySQL' },
-    { value: 'sqlserver', displayName: 'SQL Server' },
+    { value: 'sqlserver', displayName: 'SQLServer' },
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
     { value: 'cassandra', displayName: 'Cassandra'},
@@ -63,7 +63,20 @@ export class DirectConnectionComponent implements OnInit {
   ngOnInit(): void {
     //initialise component with the previously persisted values if present.
     if (localStorage.getItem(PersistedFormValues.DirectConnectForm) != null) {
-      this.connectForm.setValue(JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm) as string))
+      const { dbEngine, isSharded, hostName, port, userName, dbName, dialect, dataCenter } = JSON.parse(
+        localStorage.getItem(PersistedFormValues.DirectConnectForm) as string
+      )
+      this.connectForm.patchValue({
+        dbEngine,
+        isSharded,
+        hostName,
+        port,
+        userName,
+        password: this.data.getDirectConnectPassword(),
+        dbName,
+        dialect,
+        dataCenter,
+      })
     }
     if (localStorage.getItem(PersistedFormValues.IsConnectionSuccessful) != null) {
       this.isTestConnectionSuccessful = localStorage.getItem(PersistedFormValues.IsConnectionSuccessful) === 'true'
@@ -98,10 +111,20 @@ export class DirectConnectionComponent implements OnInit {
     dataCenterControl?.updateValueAndValidity()
   }
 
+  private persistDirectConnectFormValues() {
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } =
+      this.connectForm.value
+    localStorage.setItem(
+      PersistedFormValues.DirectConnectForm,
+      JSON.stringify({ dbEngine, isSharded, hostName, port, userName, dbName, dialect, dataCenter })
+    )
+    this.data.setDirectConnectPassword(password || '')
+  }
+
   testConn() {
     this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value
-    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
+    this.persistDirectConnectFormValues()
     let config: IDbConfig = {
       dbEngine: dbEngine!,
       isSharded: isSharded!,
@@ -150,7 +173,7 @@ export class DirectConnectionComponent implements OnInit {
         this.data.resetStore();
         localStorage.clear();
         const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value;
-        localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
+        this.persistDirectConnectFormValues();
         let config: IDbConfig = {
           dbEngine: dbEngine!,
           isSharded: isSharded!,
@@ -167,7 +190,7 @@ export class DirectConnectionComponent implements OnInit {
             this.data.conv.subscribe((res) => {
               localStorage.setItem(
                 StorageKeys.Config,
-                JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
+                JSON.stringify({ dbEngine, hostName, port, userName, dbName })
               );
               localStorage.setItem(StorageKeys.Type, InputType.DirectConnect);
               localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!));

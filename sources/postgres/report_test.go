@@ -95,3 +95,22 @@ func TestReport(t *testing.T) {
 	actual := buf.String()
 	assert.Equal(t, expected, actual)
 }
+
+// Skipped non-public tables are listed in the conversion summary.
+func TestReport_NonPublicTablesSkipped(t *testing.T) {
+	conv, _ := runProcessPgDump("CREATE TABLE public.kept (a text PRIMARY KEY);\n" +
+		"CREATE TABLE sales.orders (a text);\n" +
+		"CREATE TABLE archive.logs (a text);\n")
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
+
+	reportGenerator := reports.ReportImpl{}
+	structuredReport := reportGenerator.GenerateStructuredReport(constants.PGDUMP, "sampleDB", conv, nil, true, true)
+	warning := "Warning: Table(s) outside the 'public' schema ('archive.logs', 'sales.orders') are ignored.\n"
+	assert.Contains(t, structuredReport.Summary.Text, warning)
+
+	buf := new(bytes.Buffer)
+	w := bufio.NewWriter(buf)
+	reportGenerator.GenerateTextReport(structuredReport, w)
+	w.Flush()
+	assert.Contains(t, buf.String(), warning)
+}

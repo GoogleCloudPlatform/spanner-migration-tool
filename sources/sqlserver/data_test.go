@@ -92,6 +92,8 @@ func TestConvertData(t *testing.T) {
 		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "", "eh", "eh"},
+		{"uuid", ddl.Type{Name: ddl.UUID}, "uniqueidentifier", "6F9619FF-8B86-D011-B42D-00C04FC964FF", "6F9619FF-8B86-D011-B42D-00C04FC964FF"},
+		{"json", ddl.Type{Name: ddl.JSON}, "json", `{"a":1,"b":[true,null]}`, `{"a":1,"b":[true,null]}`},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}, "datetime", "2019-10-29T05:30:00", getTimeWithoutTimezone(t, "2019-10-29T05:30:00")},
 		{"datetimeoffset", ddl.Type{Name: ddl.Timestamp}, "datetimeoffset", "2021-12-15T07:39:52.9433333+01:20", getTimeWithTimezone(t, "2021-12-15T07:39:52.9433333+01:20")},
 		{"decimal", ddl.Type{Name: ddl.Numeric}, "decimal", "234.90909090909", big.NewRat(23490909090909, 100000000000)},
@@ -342,4 +344,43 @@ func getTimeWithTimezone(t *testing.T, s string) time.Time {
 	x, err := time.Parse(time.RFC3339, s)
 	assert.Nil(t, err, fmt.Sprintf("getTime can't parse %s:", s))
 	return x
+}
+
+func TestConvertData_GeneratedColumn(t *testing.T) {
+	tableName := "testtable"
+	tableId := "t1"
+	colIds := []string{"c1", "c2", "c3"}
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:   tableName,
+			Id:     tableId,
+			ColIds: colIds,
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+				"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
+				"c3": {
+					Name: "c",
+					Id:   "c3",
+					T:    ddl.Type{Name: ddl.Int64},
+					GeneratedColumn: ddl.GeneratedColumn{
+						IsPresent: true,
+						Type:      ddl.GeneratedColStored,
+						Value:     ddl.Expression{Statement: "(a + b)"},
+					},
+				},
+			}},
+		schema.Table{
+			Name:   tableName,
+			Id:     tableId,
+			ColIds: colIds,
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "int"}},
+			}})
+	spTable, cols, vals, err := ConvertData(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"10", "20", "30"})
+	assert.NoError(t, err)
+	assert.Equal(t, tableName, spTable)
+	assert.Equal(t, []string{"a", "b"}, cols)
+	assert.Equal(t, []interface{}{int64(10), int64(20)}, vals)
 }
