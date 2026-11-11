@@ -92,7 +92,7 @@ func TestGetType(t *testing.T) {
 			newType:    "",
 			wantType:   ddl.Type{Name: ddl.Int64},
 			wantErr:    false,
-			wantIssues: []internal.SchemaIssue{internal.Widened},
+			wantIssues: nil,
 		},
 		{
 			name:    "Oracle simple type",
@@ -103,6 +103,8 @@ func TestGetType(t *testing.T) {
 			newType: "",
 			wantType: ddl.Type{Name: ddl.Numeric},
 			wantErr: false,
+			// Unconstrained NUMBER can exceed GoogleSQL NUMERIC's (38,9).
+			wantIssues: []internal.SchemaIssue{internal.Numeric},
 		},
 		{
 			name:    "Unsupported driver",

@@ -17,6 +17,7 @@ package conversion
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -101,10 +102,10 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 
 		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
-			return nil, fmt.Errorf("sql.Open: %w", err)
+			return nil, fmt.Errorf("sql.Open: %w", profiles.SanitizeConnectionError(err))
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
 		return mysql.InfoSchemaImpl{
 			DbName:             sourceProfile.ConnCloudSQL.Mysql.Db,
@@ -132,7 +133,7 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		}
 		config, err := pgx.ParseConfig(dsn)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("cannot parse connection configuration")
 		}
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
 		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
@@ -141,18 +142,16 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		dbURI := stdlib.RegisterConnConfig(config)
 		db, err := sql.Open("pgx", dbURI)
 		if err != nil {
-			return nil, fmt.Errorf("sql.Open: %w", err)
+			return nil, fmt.Errorf("sql.Open: %w", profiles.SanitizeConnectionError(err))
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
-		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
 			MigrationProjectId: migrationProjectId,
 			SourceProfile:      sourceProfile,
 			TargetProfile:      targetProfile,
-			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
@@ -170,10 +169,10 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, err
+			return nil, profiles.SanitizeConnectionError(err)
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
 		return mysql.InfoSchemaImpl{
 			DbName:             dbName,
@@ -185,37 +184,35 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, err
+			return nil, profiles.SanitizeConnectionError(err)
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
-		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,
 			MigrationProjectId: migrationProjectId,
 			SourceProfile:      sourceProfile,
 			TargetProfile:      targetProfile,
-			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, err
+			return nil, profiles.SanitizeConnectionError(err)
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.ORACLE:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
-			return nil, err
+			return nil, profiles.SanitizeConnectionError(err)
 		}
 		if err = db.Ping(); err != nil {
-			return nil, fmt.Errorf("failed to connect to source database: %w", err)
+			return nil, fmt.Errorf("failed to connect to source database: %w", profiles.SanitizeConnectionError(err))
 		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	case constants.CASSANDRA:

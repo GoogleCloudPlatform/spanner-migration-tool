@@ -80,3 +80,29 @@ func (m *MockDDLVerifier) RefreshSpannerClient(ctx context.Context, project stri
 	}
 	return nil
 }
+
+// AcceptAllDDLVerifier returns a DDLVerifierImpl whose accessor is mocked to
+// accept every expression, so tests need no Spanner connection.
+func AcceptAllDDLVerifier() *DDLVerifierImpl {
+	acceptAll := func(_ context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+		outputs := make([]internal.ExpressionVerificationOutput, 0, len(input.ExpressionDetailList))
+		for _, expressionDetail := range input.ExpressionDetailList {
+			outputs = append(outputs, internal.ExpressionVerificationOutput{
+				Result:           true,
+				ExpressionDetail: expressionDetail,
+			})
+		}
+		return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: outputs}
+	}
+	return &DDLVerifierImpl{
+		Expressions: &MockExpressionVerificationAccessor{
+			VerifyExpressionsMock: acceptAll,
+			RefreshSpannerClientMock: func(ctx context.Context, project string, instance string) error {
+				return nil
+			},
+			VerifyPrimaryKeysExpressionsUsingCreateTableMock: func(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+				return internal.VerifyExpressionsOutput{ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{}}
+			},
+		},
+	}
+}

@@ -72,7 +72,9 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[colId].Type.Name {
-			case "NUMBER":
+			case "NUMBER", "INTEGER", "FLOAT":
+				// Read numbers as text so that the driver does not convert them to
+				// float64 and lose precision (FLOAT holds up to 38 decimal digits).
 				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
 			case "XMLTYPE":
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
@@ -194,15 +196,26 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	}
 
 	var q string
+	// CHAR_LENGTH (declared length in characters) is used instead of DATA_LENGTH
+	// (length in bytes) so that VARCHAR2(n CHAR), NVARCHAR2(n), NCHAR(n) etc. map
+	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
+	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
+	// used instead, mapping it to Spanner BYTES(n).
+	//
+	// Hidden system generated columns are skipped (USER_GENERATED = 'YES' from 12c,
+	// HIDDEN_COLUMN = 'NO' in 11g), such as the SYS_NC...$ columns behind function based
+	// indexes, the SYS_C...$ columns left by SET UNUSED and the storage columns of XMLTYPE.
+	// This matches the MySQL and PostgreSQL sources (information_schema.COLUMNS), while
+	// keeping ALL_TAB_COLS for VIRTUAL_COLUMN and preserving user INVISIBLE columns (12c+).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
-		WHERE OWNER = :1 AND TABLE_NAME IN (%s) 
+		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND HIDDEN_COLUMN = 'NO' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	}
 
@@ -216,11 +229,11 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	colIds := make(map[string][]string)
 
 	for rows.Next() {
-		var tableName, colName, dataType, isNullable, identityCol string
+		var tableName, colName, dataType, isNullable, identityCol, virtualCol string
 		var colDefault sql.NullString
-		var charMaxLen, numericPrecision, numericScale sql.NullInt64
+		var colLength, numericPrecision, numericScale sql.NullInt64
 
-		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &identityCol)
+		err := rows.Scan(&tableName, &colName, &dataType, &isNullable, &colDefault, &colLength, &numericPrecision, &numericScale, &identityCol, &virtualCol)
 		if err != nil {
 			continue
 		}
@@ -238,9 +251,36 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
-			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
+			Type:    toType(dataType, colLength, numericPrecision, numericScale),
 			NotNull: isNullable == "N",
 			AutoGen: colAutoGen,
+		}
+
+		// DATA_DEFAULT holds the sequence nextval for identity columns and the
+		// generation expression for virtual columns; only populate DefaultValue for
+		// regular column defaults.
+		if colDefault.Valid && identityCol != "YES" && virtualCol != "YES" {
+			stmt, ok := toSpannerDefault(colDefault.String, dataType, conv.SpDialect)
+			if !ok {
+				c.Ignored.Default = true
+			} else if stmt != "" {
+				c.DefaultValue = ddl.DefaultValue{
+					IsPresent: true,
+					Value: ddl.Expression{
+						ExpressionId: internal.GenerateExpressionId(),
+						Statement:    stmt,
+					},
+				}
+			}
+		} else if colDefault.Valid && virtualCol == "YES" && !strings.HasPrefix(colName, "SYS_") {
+			c.GeneratedColumn = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      ddl.GeneratedColVirtual,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    colDefault.String,
+				},
+			}
 		}
 
 		if _, ok := colDefs[tableName]; !ok {
@@ -252,6 +292,17 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 	result := make(map[string]common.TableColumns)
 	for _, t := range tables {
+		for id, cd := range colDefs[t.Name] {
+			if cd.GeneratedColumn.IsPresent {
+				stmt := toSpannerGeneratedExpr(cd.GeneratedColumn.Value.Statement, colDefs[t.Name], conv.SpDialect)
+				if stmt == "" {
+					cd.GeneratedColumn = ddl.GeneratedColumn{}
+				} else {
+					cd.GeneratedColumn.Value.Statement = stmt
+				}
+				colDefs[t.Name][id] = cd
+			}
+		}
 		result[t.Name] = common.TableColumns{
 			ColDefs: colDefs[t.Name],
 			ColIds:  colIds[t.Name],
@@ -260,21 +311,34 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	return result, nil
 }
 
-func toType(dataType string, charLen sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
+// toType builds the source schema type of a column. length is the declared length
+// of the column: in characters for character types (CHAR_LENGTH) and in bytes for
+// RAW (DATA_LENGTH).
+func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
-	if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+	if strings.HasPrefix(dataType, "INTERVAL") {
+		// Oracle reports intervals with their precisions in the type name (e.g.
+		// INTERVAL DAY(3) TO SECOND(2)), so they are not added again as modifiers.
+		return schema.Type{Name: dataType}
+	}
+	if dataType == "NUMBER" && !numericPrecision.Valid && numericScale.Valid && numericScale.Int64 == 0 {
+		// INTEGER, INT, SMALLINT and NUMBER(*,0) are all reported as NUMBER with a
+		// NULL precision and a scale of 0. Report them as INTEGER so that they are
+		// not mistaken for an unconstrained NUMBER.
+		return schema.Type{Name: "INTEGER"}
+	} else if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	} else if charLen.Valid && strings.Contains(dataType, "CHAR") {
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW") {
+		return schema.Type{Name: dataType, Mods: []int64{length.Int64}}
 	}
 	return schema.Type{Name: dataType}
 }
 
 // GetConstraintsBatch filters ALL_CONSTRAINTS to selectively capture primary keys ('P')
-// and Check constraints ('C'). It filters out basic NOT NULL constraints since they are processed
-// directly via table column definitions. It natively discovers 'IS JSON' check constraints.
+// and Check constraints ('C'). It filters out the check constraints Oracle creates for NOT NULL
+// columns since they are processed directly via table column definitions. It natively discovers 'IS JSON' check constraints.
 // It does not capture foreign key constraints directly; they are fetched securely in GetForeignKeysBatch.
 // Functional dependencies or advanced check constraints using user-defined functions are unsupported
 // via standard schema mapping.
@@ -296,15 +360,20 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 		args[i+1] = name
 	}
 
+	// The column's nullability is fetched to recognise the check constraints Oracle creates
+	// for NOT NULL columns (see isNotNullConstraint).
 	q := fmt.Sprintf(`SELECT 
 			k.table_name,
 			k.column_name,
 			t.constraint_type,
 			t.search_condition,
-			t.constraint_name
+			t.constraint_name,
+			c.nullable
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
+		LEFT JOIN all_tab_cols c
+		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (%s)
 		ORDER BY k.table_name, k.position`, strings.Join(placeholders, ","))
 
@@ -319,10 +388,10 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	checkKeys := make(map[string]map[string]schema.CheckConstraint)
 
 	var tableName, col, constraint, constraintName string
-	var condition sql.NullString
+	var condition, nullable sql.NullString
 
 	for rows.Next() {
-		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName)
+		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName, &nullable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -343,7 +412,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 			}
 			m[tableName][col] = append(m[tableName][col], constraint)
 
-			if condition.Valid && !strings.Contains(condition.String, "IS NOT NULL") {
+			if condition.Valid && !isNotNullConstraint(condition.String, col, nullable.String) {
 				if _, ok := checkKeys[tableName]; !ok {
 					checkKeys[tableName] = make(map[string]schema.CheckConstraint)
 				}
@@ -351,7 +420,7 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 					checkKeys[tableName][constraintName] = schema.CheckConstraint{
 						Id:     internal.GenerateCheckConstrainstId(),
 						Name:   constraintName,
-						Expr:   "(" + condition.String + ")",
+						Expr:   "(" + toSpannerGeneratedExpr(condition.String, nil, conv.SpDialect) + ")",
 						ExprId: internal.GenerateExpressionId(),
 					}
 				}
@@ -383,6 +452,15 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	return result, nil
 }
 
+// isNotNullConstraint reports whether a check constraint is the one Oracle creates for a
+// NOT NULL column: the condition is exactly `"COL" IS NOT NULL` on that column and the
+// column is NOT NULL. Such constraints are skipped because the column's NOT NULL already
+// carries them. User-written checks are kept, e.g. `EMAIL IS NOT NULL OR PHONE IS NOT NULL`,
+// or `EMAIL IS NOT NULL` on a nullable column.
+func isNotNullConstraint(condition, col, nullable string) bool {
+	return nullable == "N" && strings.TrimSpace(condition) == `"`+col+`" IS NOT NULL`
+}
+
 // GetForeignKeysBatch specifically pulls referential constraints by mapping R_CONSTRAINT_NAMEs
 // between referencing and referenced columns using ALL_CONS_COLUMNS joined structurally.
 // Information related to cascading deletes/updates is currently ignored in standard mapping phase.
@@ -405,6 +483,8 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 		args[i+1] = name
 	}
 
+	// The n-th referencing column (A) is paired with the n-th referenced column (B) by
+	// matching positions, so that composite foreign keys keep one pair per column.
 	q := fmt.Sprintf(`SELECT 
 			A.table_name,
 			B.table_name AS ref_table, 
@@ -413,9 +493,9 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 			A.constraint_name AS name
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
-		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
 		WHERE A.owner = :1 AND A.table_name IN (%s)
-		ORDER BY A.table_name, A.position`, strings.Join(placeholders, ","))
+		ORDER BY A.table_name, A.constraint_name, A.position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
@@ -495,6 +575,11 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		args[i+1] = name
 	}
 
+	// Oracle enforces a primary key with an index that is listed in ALL_INDEXES like any
+	// other index. Spanner already indexes the primary key, so the index enforcing the
+	// primary key is skipped when it has exactly the primary key columns (same columns in
+	// the same order). An existing wider index reused by Oracle to enforce the primary key
+	// (e.g. index on (ID, NAME) for PRIMARY KEY (ID)) is still migrated.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -507,6 +592,19 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_constraints C
+			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
+			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
+				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
+			AND NOT EXISTS (
+				SELECT 1 FROM all_ind_columns X
+				WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name
+				AND NOT EXISTS (
+					SELECT 1 FROM all_cons_columns CC
+					WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name
+					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
@@ -540,12 +638,32 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 			ignoredIndexes[tableName] = make(map[string]bool)
 		}
 
-		if indexType != "NORMAL" && strings.Contains(colexpression.String, "(") && strings.Contains(colexpression.String, ")") {
-			ignoredIndexes[tableName][name] = true
+		// Resolve the index key column:
+		// 1. Regular ASC column: IE.column_expression is NULL and IC.column_name is the column.
+		// 2. DESC on a regular column: IC.column_name is a hidden SYS_NC...$ column and
+		//    IE.column_expression is the quoted column name ("COL").
+		// 3. Index on a user-defined virtual column: IC.column_name is the virtual column
+		//    name (not SYS_...) and IE.column_expression is its generation expression.
+		// 4. Function-based index (e.g. LOWER("NAME") or "PRICE"+"QTY"): IC.column_name is
+		//    SYS_NC...$ and IE.column_expression is an expression; skip the index.
+		var colId string
+		if !colexpression.Valid {
+			colId = colNameIdMap[tableName][column]
+		} else {
+			expr := strings.TrimSpace(colexpression.String)
+			if len(expr) >= 2 && expr[0] == '"' && expr[len(expr)-1] == '"' {
+				colId = colNameIdMap[tableName][expr[1:len(expr)-1]]
+			}
+			if colId == "" && !strings.HasPrefix(column, "SYS_") {
+				colId = colNameIdMap[tableName][column]
+			}
 		}
-
-		if colexpression.Valid && !strings.Contains(colexpression.String, "(") && !strings.Contains(colexpression.String, ")") {
-			column = colexpression.String[1 : len(colexpression.String)-1]
+		if colId == "" {
+			if !ignoredIndexes[tableName][name] {
+				conv.Unexpected(fmt.Sprintf("Skipping function-based index %s on table %s", name, tableName))
+				ignoredIndexes[tableName][name] = true
+			}
+			continue
 		}
 
 		if _, found := indexMap[tableName][name]; !found {
@@ -558,7 +676,7 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 
 		idx := indexMap[tableName][name]
 		idx.Keys = append(idx.Keys, schema.Key{
-			ColId: colNameIdMap[tableName][column],
+			ColId: colId,
 			Desc:  (collation.Valid && collation.String == "DESC"),
 		})
 		indexMap[tableName][name] = idx
@@ -610,3 +728,190 @@ func valsToStrings(vals []sql.RawBytes) []string {
 
 var TimestampReg = regexp.MustCompile(`^TIMESTAMP(\(\d+\))?(\s+WITH(\s+LOCAL)?\s+TIME\s+ZONE)?$`)
 var IntervalReg = regexp.MustCompile(`^INTERVAL\s+(YEAR(\(\d+\))?\s+TO\s+MONTH|DAY(\(\d+\))?\s+TO\s+SECOND(\(\d+\))?)$`)
+var currentTimeDefaultReg = regexp.MustCompile(`(?i)^(sysdate|current_date|systimestamp(\(\s*\d*\s*\))?|current_timestamp(\(\s*\d*\s*\))?|localtimestamp(\(\s*\d*\s*\))?)$`)
+var sequenceNextvalReg = regexp.MustCompile(`(?i)\.\s*"?nextval"?$`)
+var dateLiteralDefaultReg = regexp.MustCompile(`(?i)^date\s+'(\d{4}-\d{2}-\d{2})'$`)
+var toDateDefaultReg = regexp.MustCompile(`(?i)^to_date\s*\(`)
+
+// toSpannerDefault translates an Oracle DATA_DEFAULT expression into a Spanner
+// default expression. It returns ("", true) when the expression represents no
+// default (empty, NULL, or '' which is NULL in Oracle), ("", false) when the
+// default cannot be migrated and should be marked Ignored.Default (e.g. a
+// sequence .NEXTVAL reference or an Oracle DATE expression whose Spanner type
+// does not match TIMESTAMP), and (stmt, true) for candidate expressions that
+// Spanner's DDLVerifier will validate against the staging database.
+func toSpannerDefault(raw string, dataType string, dialect string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", true
+	}
+	unwrapped := stripOuterParens(s)
+	if strings.EqualFold(unwrapped, "NULL") || unwrapped == "''" {
+		return "", true
+	}
+	if sequenceNextvalReg.MatchString(unwrapped) {
+		return "", false
+	}
+	if currentTimeDefaultReg.MatchString(unwrapped) {
+		if dialect == constants.DIALECT_POSTGRESQL {
+			return "CURRENT_TIMESTAMP", true
+		}
+		return "CURRENT_TIMESTAMP()", true
+	}
+	// Oracle DATE maps to Spanner TIMESTAMP/TIMESTAMPTZ by default.
+	// - DATE 'YYYY-MM-DD' has type DATE in GoogleSQL (which passes SELECT CAST(DATE '...' AS TIMESTAMP)
+	//   in the verifier yet is rejected by Spanner DDL on a TIMESTAMP column), so rewrite it to a
+	//   TIMESTAMP/timestamptz literal.
+	// - TO_DATE(...) returns DATE in Spanner PostgreSQL (which passes SELECT CAST(to_date(...) AS TIMESTAMPTZ)
+	//   in the verifier yet is rejected by Spanner DDL on a TIMESTAMPTZ column) and uses Oracle format
+	//   masks, so mark it unsupported.
+	if m := dateLiteralDefaultReg.FindStringSubmatch(unwrapped); m != nil && dataType == "DATE" {
+		if dialect == constants.DIALECT_POSTGRESQL {
+			return fmt.Sprintf("'%s 00:00:00'::timestamptz", m[1]), true
+		}
+		return fmt.Sprintf("TIMESTAMP '%s 00:00:00'", m[1]), true
+	}
+	if toDateDefaultReg.MatchString(unwrapped) {
+		return "", false
+	}
+	if dialect != constants.DIALECT_POSTGRESQL {
+		s = normalizeGSQLStringLiterals(s)
+	}
+	return s, true
+}
+
+func stripOuterParens(s string) string {
+	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		depth := 0
+		inSingle := false
+		balanced := true
+		for i := 0; i < len(s)-1; i++ {
+			ch := s[i]
+			if ch == '\'' {
+				inSingle = !inSingle
+				continue
+			}
+			if inSingle {
+				continue
+			}
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					balanced = false
+					break
+				}
+			}
+		}
+		if !balanced {
+			break
+		}
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	return s
+}
+
+// normalizeGSQLStringLiterals rewrites SQL doubled single quotes ('') and raw
+// backslashes inside single-quoted string literals to GoogleSQL escapes (\' and \\).
+func normalizeGSQLStringLiterals(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inSingle := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if !inSingle {
+			if ch == '\'' {
+				inSingle = true
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\'' {
+			if i+1 < len(s) && s[i+1] == '\'' {
+				b.WriteString(`\'`)
+				i++
+				continue
+			}
+			inSingle = false
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\\' {
+			b.WriteString(`\\`)
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
+}
+
+// toSpannerGeneratedExpr normalizes an Oracle virtual column expression from
+// ALL_TAB_COLS.DATA_DEFAULT for the target Spanner dialect. Oracle canonicalizes
+// column references in virtual column expressions as double-quoted identifiers
+// (e.g. "PRICE"*"QTY"), which GoogleSQL would parse as STRING literals.
+func toSpannerGeneratedExpr(raw string, colDefs map[string]schema.Column, dialect string) string {
+	s := stripOuterParens(strings.TrimSpace(raw))
+	if s == "" {
+		return ""
+	}
+	fixedColNames := make(map[string]string, len(colDefs))
+	for _, col := range colDefs {
+		fixed, _ := internal.FixName(col.Name)
+		fixedColNames[col.Name] = fixed
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	inSingle := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if inSingle {
+			if ch == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					if dialect == constants.DIALECT_POSTGRESQL {
+						b.WriteString("''")
+					} else {
+						b.WriteString(`\'`)
+					}
+					i++
+					continue
+				}
+				inSingle = false
+				b.WriteByte(ch)
+				continue
+			}
+			if ch == '\\' && dialect != constants.DIALECT_POSTGRESQL {
+				b.WriteString(`\\`)
+				continue
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\'' {
+			inSingle = true
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '"' {
+			end := strings.IndexByte(s[i+1:], '"')
+			if end >= 0 {
+				ident := s[i+1 : i+1+end]
+				colName, ok := fixedColNames[ident]
+				if !ok {
+					colName, _ = internal.FixName(ident)
+				}
+				if dialect == constants.DIALECT_POSTGRESQL {
+					b.WriteByte('"')
+					b.WriteString(colName)
+					b.WriteByte('"')
+				} else {
+					b.WriteString(colName)
+				}
+				i += end + 1
+				continue
+			}
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
+}
