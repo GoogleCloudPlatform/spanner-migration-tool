@@ -17,14 +17,83 @@ package sqlserver
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
+
+var bracketIdentRegex = regexp.MustCompile(`\[([^\]\[]+)\]`)
+
+type sqlServerComputedCol struct {
+	definition  string
+	isPersisted bool
+}
+
+func trimOuterParens(expr string) string {
+	s := strings.TrimSpace(expr)
+	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
+		depth := 0
+		validOuter := true
+		inSingleQuote := false
+		for i := 0; i < len(s)-1; i++ {
+			ch := s[i]
+			if ch == '\'' {
+				inSingleQuote = !inSingleQuote
+			}
+			if inSingleQuote {
+				continue
+			}
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					validOuter = false
+					break
+				}
+			}
+		}
+		if validOuter && depth == 1 && !inSingleQuote {
+			s = strings.TrimSpace(s[1 : len(s)-1])
+		} else {
+			break
+		}
+	}
+	return s
+}
+
+func sanitizeSQLServerExpression(expr string, wrapParens bool) string {
+	s := trimOuterParens(expr)
+	s = bracketIdentRegex.ReplaceAllStringFunc(s, func(m string) string {
+		inner := m[1 : len(m)-1]
+		fixed, _ := internal.FixName(inner)
+		return fixed
+	})
+	if wrapParens {
+		return "(" + s + ")"
+	}
+	return s
+}
+
+func sanitizeSQLServerDefault(defVal string, dataType string) string {
+	s := trimOuterParens(defVal)
+	if (strings.HasPrefix(s, "N'") || strings.HasPrefix(s, "n'")) && strings.HasSuffix(s, "'") {
+		s = s[1:]
+	}
+	s = bracketIdentRegex.ReplaceAllStringFunc(s, func(m string) string {
+		inner := m[1 : len(m)-1]
+		fixed, _ := internal.FixName(inner)
+		return fixed
+	})
+	return common.SanitizeExpressionsValue(s, dataType, false)
+}
 
 const (
 	uuidType           string = "uniqueidentifier"
@@ -49,7 +118,6 @@ type InfoSchemaImpl struct {
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
-
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
@@ -207,6 +275,11 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
+	computedCols := isi.getComputedColumns(conv, table)
+
+	// information_schema.COLUMNS carries no identity information, so IsIdentity
+	// is fetched via COLUMNPROPERTY. QUOTENAME handles table names containing
+	// dots (e.g. [go.get]).
 	q := `
 		SELECT 
 			column_name, 
@@ -215,9 +288,11 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			column_default, 
 			character_maximum_length, 
 			numeric_precision, 
-			numeric_scale
+			numeric_scale,
+			COLUMNPROPERTY(OBJECT_ID(QUOTENAME(table_schema) + '.' + QUOTENAME(table_name)), column_name, 'IsIdentity') AS is_identity
 		FROM information_schema.COLUMNS 
 		WHERE table_schema = @p1 and table_name = @p2 
+			AND ISNULL(COLUMNPROPERTY(OBJECT_ID(QUOTENAME(table_schema) + '.' + QUOTENAME(table_name)), column_name, 'IsHidden'), 0) = 0
 		ORDER BY ordinal_position;
 	`
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
@@ -231,9 +306,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var isNullable string
 	var colDefault sql.NullString
 	// elementDataType
-	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	var charMaxLen, numericPrecision, numericScale, isIdentity sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &isIdentity)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -250,19 +325,83 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				// Nothing to do here -- these are handled elsewhere.
 			}
 		}
-		ignored.Default = colDefault.Valid
+		var colAutoGen ddl.AutoGenCol
+		if isIdentity.Valid && isIdentity.Int64 == 1 {
+			colAutoGen = ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+			}
+		}
+		var defaultVal ddl.DefaultValue
+		if colDefault.Valid && strings.TrimSpace(colDefault.String) != "" {
+			defaultVal = ddl.DefaultValue{
+				IsPresent: true,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    sanitizeSQLServerDefault(colDefault.String, dataType),
+				},
+			}
+		}
+		var generatedCol ddl.GeneratedColumn
+		if cc, ok := computedCols[colName]; ok && strings.TrimSpace(cc.definition) != "" {
+			genType := ddl.GeneratedColVirtual
+			if cc.isPersisted {
+				genType = ddl.GeneratedColStored
+			}
+			generatedCol = ddl.GeneratedColumn{
+				IsPresent: true,
+				Type:      genType,
+				Value: ddl.Expression{
+					ExpressionId: internal.GenerateExpressionId(),
+					Statement:    sanitizeSQLServerExpression(cc.definition, false),
+				},
+			}
+		}
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: strings.ToUpper(isNullable) == "NO",
-			Ignored: ignored,
+			Id:              colId,
+			Name:            colName,
+			Type:            toType(dataType, charMaxLen, numericPrecision, numericScale),
+			NotNull:         strings.ToUpper(isNullable) == "NO",
+			Ignored:         ignored,
+			AutoGen:         colAutoGen,
+			DefaultValue:    defaultVal,
+			GeneratedColumn: generatedCol,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+func (isi InfoSchemaImpl) getComputedColumns(conv *internal.Conv, table common.SchemaAndName) map[string]sqlServerComputedCol {
+	res := make(map[string]sqlServerComputedCol)
+	q := `
+		SELECT 
+			name, 
+			definition, 
+			is_persisted 
+		FROM sys.computed_columns 
+		WHERE object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2));
+	`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("couldn't get computed columns for table %s.%s: %s", table.Schema, table.Name, err))
+		return res
+	}
+	defer rows.Close()
+	var name, definition, isPersisted string
+	for rows.Next() {
+		if err := rows.Scan(&name, &definition, &isPersisted); err != nil {
+			conv.Unexpected(fmt.Sprintf("can't scan computed column: %v", err))
+			continue
+		}
+		res[name] = sqlServerComputedCol{
+			definition:  definition,
+			isPersisted: isPersisted == "true" || isPersisted == "1",
+		}
+	}
+	return res
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -304,7 +443,47 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, nil, m, nil
+	checkConstraints, err := isi.getCheckConstraints(conv, table)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return primaryKeys, checkConstraints, m, nil
+}
+
+func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.SchemaAndName) ([]schema.CheckConstraint, error) {
+	q := `
+		SELECT 
+			cc.name, 
+			cc.definition 
+		FROM sys.check_constraints cc 
+		WHERE cc.parent_object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2))
+			AND cc.is_disabled = 0
+		ORDER BY cc.name;
+	`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var checkConstraints []schema.CheckConstraint
+	var name, definition string
+	for rows.Next() {
+		if err := rows.Scan(&name, &definition); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan check constraint: %v", err))
+			continue
+		}
+		if name == "" || definition == "" {
+			continue
+		}
+		fixedName, _ := internal.FixName(name)
+		checkConstraints = append(checkConstraints, schema.CheckConstraint{
+			Id:     internal.GenerateCheckConstrainstId(),
+			Name:   fixedName,
+			Expr:   sanitizeSQLServerExpression(definition, true),
+			ExprId: internal.GenerateExpressionId(),
+		})
+	}
+	return checkConstraints, nil
 }
 
 // GetForeignKeys returns a list of all the foreign key constraints.
@@ -319,10 +498,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	FROM sys.foreign_keys AS FK  
 	INNER JOIN sys.foreign_key_columns AS FKC   
     ON FK.object_id = FKC.constraint_object_id  
-	WHERE FK.parent_object_id = OBJECT_ID(@p1);
+	WHERE FK.parent_object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2))
+	ORDER BY FK.name, FKC.constraint_column_id;
 	`
 
-	rows, err := isi.Db.Query(q, fmt.Sprintf("%s.%s", table.Schema, table.Name))
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -378,12 +558,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			ON IX.object_id = TAB.object_id 
 		WHERE
 			IX.is_primary_key = 0          
-			AND IX.is_unique_constraint = 0 
 			AND TAB.is_ms_shipped = 0   
 			AND TAB.name=@p1
 			AND TAB.schema_id = SCHEMA_ID(@p2)
-			AND IX.type != 5 								 -- type=5 for clustered columnstore indexes
-			ORDER BY IX.name ;
+			AND IX.type IN (1, 2)
+		ORDER BY IX.name, IXC.is_included_column, IXC.key_ordinal, IXC.index_column_id;
 	`
 	rows, err := isi.Db.Query(q2, table.Name, table.Schema)
 	if err != nil {
@@ -394,6 +573,10 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
+	// Indexes that reference a column not present in colNameIdMap (e.g. a HIDDEN
+	// temporal period column filtered out by GetColumns) cannot be expressed in
+	// Spanner and are skipped as a whole.
+	skipped := make(map[string]bool)
 	for rows.Next() {
 		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
@@ -405,19 +588,30 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
-				Unique: (isUnique == "true")}
+				Unique: (isUnique == "true" || isUnique == "1")}
+		}
+		colId, ok := colNameIdMap[column]
+		if !ok || colId == "" {
+			if !skipped[name] {
+				skipped[name] = true
+				logger.Log.Warn(fmt.Sprintf("Skipping index %s on table %s.%s: column %s is not part of the migrated schema (hidden or unsupported)", name, table.Schema, table.Name, column))
+			}
+			continue
 		}
 		index := indexMap[name]
-		if isStored == "false" {
+		if isStored == "false" || isStored == "0" {
 			index.Keys = append(index.Keys, schema.Key{
-				ColId: colNameIdMap[column],
-				Desc:  (collation == "DESC")})
+				ColId: colId,
+				Desc:  (collation == "true" || collation == "1" || collation == "DESC")})
 		} else {
-			index.StoredColumnIds = append(index.StoredColumnIds, colNameIdMap[column])
+			index.StoredColumnIds = append(index.StoredColumnIds, colId)
 		}
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
+		if skipped[k] || len(indexMap[k].Keys) == 0 {
+			continue
+		}
 		indexes = append(indexes, indexMap[k])
 	}
 	return indexes, nil

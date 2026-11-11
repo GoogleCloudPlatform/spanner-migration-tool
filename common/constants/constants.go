@@ -24,6 +24,9 @@ const (
 	// POSTGRES is the driver name for PostgreSQL.
 	POSTGRES string = "postgres"
 
+	// PG_DEFAULT_SCHEMA is the PostgreSQL schema that SMT migrates.
+	PG_DEFAULT_SCHEMA string = "public"
+
 	// MYSQLDUMP is the driver name for mysqldump.
 	MYSQLDUMP string = "mysqldump"
 
