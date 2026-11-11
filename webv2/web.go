@@ -163,13 +163,13 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", profiles.SanitizeConnectionError(err)), http.StatusInternalServerError)
 		return
 	}
 	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", profiles.SanitizeConnectionError(err)), http.StatusInternalServerError)
 		return
 	}
 
