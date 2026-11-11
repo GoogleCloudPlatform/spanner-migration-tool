@@ -63,10 +63,19 @@ export class DirectConnectionComponent implements OnInit {
   ngOnInit(): void {
     //initialise component with the previously persisted values if present.
     if (localStorage.getItem(PersistedFormValues.DirectConnectForm) != null) {
-      const persistedForm = JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm) as string)
+      const { dbEngine, isSharded, hostName, port, userName, dbName, dialect, dataCenter } = JSON.parse(
+        localStorage.getItem(PersistedFormValues.DirectConnectForm) as string
+      )
       this.connectForm.patchValue({
-        ...persistedForm,
+        dbEngine,
+        isSharded,
+        hostName,
+        port,
+        userName,
         password: this.data.getDirectConnectPassword(),
+        dbName,
+        dialect,
+        dataCenter,
       })
     }
     if (localStorage.getItem(PersistedFormValues.IsConnectionSuccessful) != null) {
@@ -102,12 +111,20 @@ export class DirectConnectionComponent implements OnInit {
     dataCenterControl?.updateValueAndValidity()
   }
 
+  private persistDirectConnectFormValues() {
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } =
+      this.connectForm.value
+    localStorage.setItem(
+      PersistedFormValues.DirectConnectForm,
+      JSON.stringify({ dbEngine, isSharded, hostName, port, userName, dbName, dialect, dataCenter })
+    )
+    this.data.setDirectConnectPassword(password || '')
+  }
+
   testConn() {
     this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value
-    const { password: _, ...formValuesWithoutPassword } = this.connectForm.value
-    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(formValuesWithoutPassword))
-    this.data.setDirectConnectPassword(password || '')
+    this.persistDirectConnectFormValues()
     let config: IDbConfig = {
       dbEngine: dbEngine!,
       isSharded: isSharded!,
@@ -156,9 +173,7 @@ export class DirectConnectionComponent implements OnInit {
         this.data.resetStore();
         localStorage.clear();
         const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value;
-        const { password: _, ...formValuesWithoutPassword } = this.connectForm.value;
-        localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(formValuesWithoutPassword));
-        this.data.setDirectConnectPassword(password || '');
+        this.persistDirectConnectFormValues();
         let config: IDbConfig = {
           dbEngine: dbEngine!,
           isSharded: isSharded!,
