@@ -954,12 +954,12 @@ func getNegativeUnaryVals(valExpr *driver.ValueExpr) (string, error) {
 	switch val := valExpr.GetValue().(type) {
 	case int64:
 		return fmt.Sprintf("%v", -1*val), nil
+	case uint64:
+		return "-" + strconv.FormatUint(val, 10), nil
+	case float64:
+		return fmt.Sprintf("%v", -1*val), nil
 	case *driver.MyDecimal:
-		floatVal, err := strconv.ParseFloat(val.String(), 64)
-		if err != nil {
-			return "", fmt.Errorf("unexpected UnaryOperationExpr with value %v", val)
-		}
-		return fmt.Sprintf("%v", -1*floatVal), nil
+		return "-" + val.String(), nil
 	default:
 		return "", fmt.Errorf("unexpected UnaryOperationExpr value with type %T", val)
 	}

@@ -1098,7 +1098,9 @@ func TestParseMySQLDecimal_EdgeCases(t *testing.T) {
 
 func TestProcessMySQLDump_DecimalAndNumericEdgeCases(t *testing.T) {
 	pos38 := "12345678901234567890123456789.123456789"
+	neg38 := "-12345678901234567890123456789.123456789"
 	pos65 := strings.Repeat("1", 35) + "." + strings.Repeat("2", 30)
+	neg65 := "-" + pos65
 	over81Frac := "1." + strings.Repeat("5", 85)
 	over81FracTruncated := "1." + strings.Repeat("5", 72)
 
@@ -1109,12 +1111,14 @@ CREATE TABLE dec_edge (
 	d_neg_zero DECIMAL(10, 2),
 	d_hp DECIMAL(38, 9),
 	d_max DECIMAL(65, 30),
-	f_sci DOUBLE
+	f_sci DOUBLE,
+	v_raw VARCHAR(64)
 );
-INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci) VALUES
-	(1, 0.00, -0.00, %s, %s, 1.25e4),
-	(2, .25, -0.25, 0.000000001, %s, 0.0);
-`, pos38, pos65, over81Frac)
+INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci, v_raw) VALUES
+	(1, 0.00, -0.00, %s, %s, 1.25e4, -1.50),
+	(-9223372036854775808, 0.0000, -.5, %s, %s, -1.25e4, -00012.3400),
+	(-42, .25, -0.25, 0.000000001, %s, -2.5e-3, -0.00);
+`, pos38, pos65, neg38, neg65, over81Frac)
 
 	conv, rows := runProcessMySQLDump(sqlDump)
 	noIssues(conv, t, "Decimal and numeric edge cases")
@@ -1122,7 +1126,7 @@ INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci) VALUES
 	expected := []spannerData{
 		{
 			table: "dec_edge",
-			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci"},
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
 			vals: []interface{}{
 				int64(1),
 				mustRat(t, "0"),
@@ -1130,22 +1134,111 @@ INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci) VALUES
 				mustRat(t, pos38),
 				mustRat(t, pos65),
 				float64(12500),
+				"-1.50",
 			},
 		},
 		{
 			table: "dec_edge",
-			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci"},
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
 			vals: []interface{}{
-				int64(2),
+				int64(-9223372036854775808),
+				mustRat(t, "0"),
+				mustRat(t, "-0.5"),
+				mustRat(t, neg38),
+				mustRat(t, neg65),
+				float64(-12500),
+				"-12.3400",
+			},
+		},
+		{
+			table: "dec_edge",
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
+			vals: []interface{}{
+				int64(-42),
 				mustRat(t, "0.25"),
 				mustRat(t, "-0.25"),
 				mustRat(t, "0.000000001"),
 				mustRat(t, over81FracTruncated),
-				float64(0),
+				float64(-0.0025),
+				"-0.00",
 			},
 		},
 	}
 	assert.Equal(t, expected, rows)
+}
+
+func TestGetNegativeUnaryVals_AllBranches(t *testing.T) {
+	extractUnaryValExpr := func(t *testing.T, literalSQL string) *ast.UnaryOperationExpr {
+		t.Helper()
+		sql := fmt.Sprintf("INSERT INTO t VALUES (%s);", literalSQL)
+		stmts, _, err := parser.New().Parse(sql, "", "")
+		if !assert.NoError(t, err, "sql=%s", sql) {
+			t.FailNow()
+		}
+		ins := stmts[0].(*ast.InsertStmt)
+		unary, ok := ins.Lists[0][0].(*ast.UnaryOperationExpr)
+		if !assert.True(t, ok, "expected UnaryOperationExpr for %s, got %T", literalSQL, ins.Lists[0][0]) {
+			t.FailNow()
+		}
+		return unary
+	}
+
+	validCases := []struct {
+		name       string
+		literalSQL string
+		want       string
+	}{
+		{name: "int64 negative", literalSQL: "-42", want: "-42"},
+		{name: "int64 negative zero", literalSQL: "-0", want: "0"},
+		{name: "uint64 MinInt64", literalSQL: "-9223372036854775808", want: "-9223372036854775808"},
+		{name: "uint64 MaxUint64 magnitude", literalSQL: "-18446744073709551615", want: "-18446744073709551615"},
+		{name: "float64 scientific positive exp", literalSQL: "-1.25e4", want: "-12500"},
+		{name: "float64 scientific negative exp", literalSQL: "-2.5e-3", want: "-0.0025"},
+		{name: "MyDecimal trailing zeros", literalSQL: "-1.50", want: "-1.50"},
+		{name: "MyDecimal negative zero", literalSQL: "-0.00", want: "-0.00"},
+		{name: "MyDecimal leading dot", literalSQL: "-.5", want: "-0.5"},
+		{name: "MyDecimal leading and trailing zeros", literalSQL: "-00012.3400", want: "-12.3400"},
+		{name: "MyDecimal 38 digits", literalSQL: "-12345678901234567890123456789.123456789", want: "-12345678901234567890123456789.123456789"},
+	}
+
+	for _, tc := range validCases {
+		t.Run(tc.name, func(t *testing.T) {
+			unary := extractUnaryValExpr(t, tc.literalSQL)
+			gotVals, err := getVals([]ast.ExprNode{unary})
+			assert.NoError(t, err)
+			assert.Equal(t, []string{tc.want}, gotVals)
+		})
+	}
+
+	invalidCases := []struct {
+		name       string
+		literalSQL string
+	}{
+		{name: "default branch unary minus string", literalSQL: "-'abc'"},
+		{name: "default branch unary minus NULL", literalSQL: "-NULL"},
+		{name: "default branch unary minus hex literal", literalSQL: "-0x10"},
+	}
+
+	for _, tc := range invalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			unary := extractUnaryValExpr(t, tc.literalSQL)
+			gotVals, err := getVals([]ast.ExprNode{unary})
+			assert.Error(t, err)
+			assert.Nil(t, gotVals)
+		})
+	}
+
+	t.Run("unsupported negative unary value recorded as bad row in dump", func(t *testing.T) {
+		sqlDump := "CREATE TABLE t_bad_unary (id INT PRIMARY KEY, v VARCHAR(16));\n" +
+			"INSERT INTO t_bad_unary (id, v) VALUES (1, 'ok'), (2, -'bad'), (3, -1.50);\n"
+		conv, rows := runProcessMySQLDump(sqlDump)
+		expected := []spannerData{
+			{table: "t_bad_unary", cols: []string{"id", "v"}, vals: []interface{}{int64(1), "ok"}},
+			{table: "t_bad_unary", cols: []string{"id", "v"}, vals: []interface{}{int64(3), "-1.50"}},
+		}
+		assert.Equal(t, expected, rows)
+		assert.Equal(t, int64(1), conv.Stats.BadRows["t_bad_unary"])
+	})
 }
 
 func TestProcessMySQLDump_Over81DigitIntegerLiteralDoesNotPanic(t *testing.T) {
