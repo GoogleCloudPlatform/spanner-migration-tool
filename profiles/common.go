@@ -16,6 +16,7 @@ package profiles
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -52,22 +53,40 @@ func ParseMap(s string) (map[string]string, error) {
 	for _, kv := range records[0] {
 		equalSignIndex := strings.Index(kv, "=")
 		if equalSignIndex == -1 {
-			return params, fmt.Errorf("invalid key=value pair (expected format: key1=value1): %v", kv)
+			return params, fmt.Errorf("invalid key=value pair (expected format: key1=value1)")
 		}
 
 		key := strings.TrimSpace(kv[:equalSignIndex])
 		value := kv[equalSignIndex+1:]
 
 		if len(key) == 0 {
-			return params, fmt.Errorf("empty key found in pair: %v", kv)
+			return params, fmt.Errorf("empty key found in pair")
 		}
 
 		if _, ok := params[key]; ok {
-			return params, fmt.Errorf("duplicate key found: %v", key)
+			return params, fmt.Errorf("duplicate key found")
 		}
 		params[key] = value
 	}
 	return params, nil
+}
+
+// SanitizeConnectionError redacts embedded URLs or credentials from connection
+// errors (such as standard library *url.Error) so secrets are never echoed to
+// logs or HTTP responses.
+func SanitizeConnectionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return &url.Error{
+			Op:  urlErr.Op,
+			URL: "<redacted>",
+			Err: SanitizeConnectionError(urlErr.Err),
+		}
+	}
+	return err
 }
 
 func ParseList(s string) ([]string, error) {
@@ -151,7 +170,15 @@ func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
 }
 
 func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbName)
+	u := url.URL{
+		Scheme: "sqlserver",
+		User:   url.UserPassword(user, password),
+		Host:   fmt.Sprintf("%s:%s", server, port),
+	}
+	q := u.Query()
+	q.Set("database", dbName)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
