@@ -24,7 +24,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -107,24 +106,7 @@ type InfoSchemaImpl struct {
 	MigrationProjectId string
 	SourceProfile      profiles.SourceProfile
 	TargetProfile      profiles.TargetProfile
-	IsSchemaUnique     *bool
 }
-
-func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaAndName) {
-	schemaSet := make(map[string]struct{})
-	for _, table := range schemaAndNames {
-		schemaSet[table.Schema] = struct{}{}
-	}
-	if len(schemaSet) == 1 {
-		*isi.IsSchemaUnique = true
-	} else {
-		*isi.IsSchemaUnique = false
-	}
-}
-
-
-
-
 
 // GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
@@ -133,12 +115,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
-	if *isi.IsSchemaUnique { // Drop schema name as prefix if only one schema is detected.
-		return tableName
-	} else if schema == "public" {
-		return tableName
-	}
-	return fmt.Sprintf("%s.%s", schema, tableName)
+	return tableName
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
@@ -146,14 +123,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	isSchemaNamePrefixed := strings.HasPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
-	var tableName string
-	if isSchemaNamePrefixed {
-		tableName = strings.TrimPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
-	} else {
-		tableName = conv.SrcSchema[tableId].Name
-	}
-	extractionTableName, err := isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, tableName)
+	extractionTableName, err := isi.getExtractionTableName(conv.SrcSchema[tableId].Schema, conv.SrcSchema[tableId].Name)
 	if err != nil {
 		return nil, err
 	}
@@ -289,13 +259,8 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 // schema information and table data (pg_dump does something
 // similar).
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	ignored := make(map[string]bool)
-	// Ignore all system tables: we just want to convert user tables.
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		ignored[s] = true
-	}
-	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
-	rows, err := isi.Db.Query(q)
+	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema = $1"
+	rows, err := isi.Db.Query(q, constants.PG_DEFAULT_SCHEMA)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -304,18 +269,47 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
-		if !ignored[tableSchema] {
-			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
-		}
+		tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 	}
-	isi.populateSchemaIsUnique(tables)
 	return tables, nil
+}
+
+// GetNonPublicTables returns the skipped non-public tables, excluding partitions of public partitioned tables.
+func (isi InfoSchemaImpl) GetNonPublicTables() ([]common.SchemaAndName, error) {
+	q := `SELECT t.table_schema, t.table_name FROM information_schema.tables t
+	      WHERE t.table_type = 'BASE TABLE'
+	      AND t.table_schema NOT IN ($1, 'pg_catalog', 'information_schema')
+	      AND NOT EXISTS (
+	        WITH RECURSIVE ancestors(oid) AS (
+	          SELECT inhparent FROM pg_catalog.pg_inherits
+	          WHERE inhrelid = format('%I.%I', t.table_schema, t.table_name)::regclass
+	          UNION
+	          SELECT i.inhparent FROM ancestors a JOIN pg_catalog.pg_inherits i ON i.inhrelid = a.oid)
+	        SELECT 1 FROM ancestors a
+	        JOIN pg_catalog.pg_class p ON p.oid = a.oid
+	        JOIN pg_catalog.pg_namespace n ON n.oid = p.relnamespace
+	        WHERE p.relkind = 'p' AND n.nspname = $1)
+	      ORDER BY t.table_schema, t.table_name`
+	rows, err := isi.Db.Query(q, constants.PG_DEFAULT_SCHEMA)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get non-public tables: %w", err)
+	}
+	defer rows.Close()
+	var tableSchema, tableName string
+	var tables []common.SchemaAndName
+	for rows.Next() {
+		if err := rows.Scan(&tableSchema, &tableName); err != nil {
+			return nil, fmt.Errorf("couldn't scan non-public tables: %w", err)
+		}
+		tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
+	}
+	return tables, rows.Err()
 }
 
 // GetInheritedTables returns, for each child table, the parent tables it
 // directly inherits from. Parents can be regular or foreign tables; declarative
 // partitions (relkind 'p') are excluded.
-func (isi InfoSchemaImpl) GetInheritedTables() (map[string][]string, error) {
+func (isi InfoSchemaImpl) GetInheritedTables(conv *internal.Conv) (map[string][]string, error) {
 	q := `SELECT cn.nspname AS child_schema, c.relname AS child_name,
 	             pn.nspname AS parent_schema, p.relname AS parent_name
 	      FROM pg_catalog.pg_inherits i
@@ -335,6 +329,15 @@ func (isi InfoSchemaImpl) GetInheritedTables() (map[string][]string, error) {
 		var childSchema, childName, parentSchema, parentName string
 		if err := rows.Scan(&childSchema, &childName, &parentSchema, &parentName); err != nil {
 			return nil, fmt.Errorf("couldn't scan table inheritance information: %w", err)
+		}
+		if childSchema != constants.PG_DEFAULT_SCHEMA {
+			continue
+		}
+		if parentSchema != constants.PG_DEFAULT_SCHEMA {
+			// The parent is not migrated, so the child is migrated standalone.
+			conv.AddNonPublicRef(isi.GetTableName(childSchema, childName), parentSchema, parentName)
+			logger.Log.Warn(fmt.Sprintf("%s.%s inherits from %s.%s, which is outside the %s schema and will not be migrated; treating it as a standalone table", childSchema, childName, parentSchema, parentName, constants.PG_DEFAULT_SCHEMA))
+			continue
 		}
 		child := isi.GetTableName(childSchema, childName)
 		inherited[child] = append(inherited[child], isi.GetTableName(parentSchema, parentName))
@@ -612,7 +615,7 @@ func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT
-			rc.constraint_schema AS "TABLE_SCHEMA",
+			ccu.table_schema AS "REFERENCED_TABLE_SCHEMA",
 			ccu.table_name AS "REFERENCED_TABLE_NAME",
 			kcu.column_name AS "COLUMN_NAME",
 			ccu.column_name AS "REF_COLUMN_NAME",
@@ -647,6 +650,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName, &onDelete, &onUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if refTable.Schema != constants.PG_DEFAULT_SCHEMA {
+			// The referenced table is not migrated, so drop the foreign key.
+			conv.AddNonPublicRef(isi.GetTableName(table.Schema, table.Name), refTable.Schema, refTable.Name)
+			logger.Log.Warn(fmt.Sprintf("Skipping foreign key %s on %s.%s: it references %s.%s, which is outside the %s schema", fKeyName, table.Schema, table.Name, refTable.Schema, refTable.Name, constants.PG_DEFAULT_SCHEMA))
 			continue
 		}
 		tableName := isi.GetTableName(refTable.Schema, refTable.Name)
@@ -978,7 +987,7 @@ func (isi InfoSchemaImpl) getExtractionTableName(schemaName, tableName string) (
 }
 
 // PartitionParent returns the schema and name of the partitioned table that
-// schema.table is a child partition of
+// schema.table is a child partition of; false if that table is outside public.
 func (isi InfoSchemaImpl) PartitionParent(schema string, table string) (string, string, bool) {
 	q := `
 	SELECT pn.nspname, parent.relname
@@ -995,6 +1004,10 @@ func (isi InfoSchemaImpl) PartitionParent(schema string, table string) (string, 
 	}
 	if err != nil {
 		logger.Log.Warn(fmt.Sprintf("couldn't determine if %s.%s is a partition, treating it as a regular table: %s", schema, table, err))
+		return "", "", false
+	}
+	if parentSchema != constants.PG_DEFAULT_SCHEMA {
+		logger.Log.Warn(fmt.Sprintf("%s.%s is a partition of %s.%s, which is outside the %s schema and will not be migrated; treating it as a regular table", schema, table, parentSchema, parentTable, constants.PG_DEFAULT_SCHEMA))
 		return "", "", false
 	}
 	return parentSchema, parentTable, true
