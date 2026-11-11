@@ -16,6 +16,7 @@ package internal
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -165,6 +166,8 @@ const (
 	InheritedTable
 	NonPublicTable
 	NonPublicSchemaRef
+	IdentityTypeNotSupported
+	IdentityPrimaryKeyAdded
 )
 
 const (
@@ -522,13 +525,18 @@ func (conv *Conv) buildColumnNameWithBase(tableId, base string) string {
 		conv.Unexpected(fmt.Sprintf("Table doesn't exist for tableId %s: ", tableId))
 		return base
 	}
+	return UniqueColumnName(conv.SpSchema[tableId].ColDefs, base)
+}
+
+// UniqueColumnName returns base, or base followed by a number, so that it is not
+// the name of any column in colDefs.
+func UniqueColumnName(colDefs map[string]ddl.ColumnDef, base string) string {
 	count := 0
 	key := base
 	for {
-		// Check key isn't already a column in the table.
 		ok := true
-		for _, column := range conv.SpSchema[tableId].ColDefs {
-			if column.Name == key {
+		for _, column := range colDefs {
+			if strings.EqualFold(column.Name, key) {
 				ok = false
 				break
 			}

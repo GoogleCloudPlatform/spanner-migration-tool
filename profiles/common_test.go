@@ -15,6 +15,8 @@
 package profiles
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -25,10 +27,11 @@ import (
 func TestParseMap(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name           string
-		inputString    string
-		expectedParams map[string]string
-		errorExpected  bool
+		name              string
+		inputString       string
+		expectedParams    map[string]string
+		errorExpected     bool
+		notContainedInErr string
 	}{
 		{
 			name:           "empty params",
@@ -55,10 +58,25 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  false,
 		},
 		{
-			name:           "invalid params incorrect format",
-			inputString:    "uuwy",
-			expectedParams: map[string]string{},
-			errorExpected:  true,
+			name:              "invalid params incorrect format does not leak value",
+			inputString:       "uuwy",
+			expectedParams:    map[string]string{},
+			errorExpected:     true,
+			notContainedInErr: "uuwy",
+		},
+		{
+			name:              "invalid params unquoted comma in password does not leak secret",
+			inputString:       "user=admin,password=part1,secret_part2",
+			expectedParams:    map[string]string{"user": "admin", "password": "part1"},
+			errorExpected:     true,
+			notContainedInErr: "secret_part2",
+		},
+		{
+			name:              "invalid params empty key does not leak value",
+			inputString:       "=secret_value",
+			expectedParams:    map[string]string{},
+			errorExpected:     true,
+			notContainedInErr: "secret_value",
 		},
 		{
 			name:           "invalid params new line char",
@@ -67,10 +85,11 @@ func TestParseMap(t *testing.T) {
 			errorExpected:  true,
 		},
 		{
-			name:           "invalid params duplicates",
-			inputString:    "instance=instance, instance=instance",
-			expectedParams: map[string]string{"instance": "instance"},
-			errorExpected:  true,
+			name:              "invalid params duplicates does not leak key",
+			inputString:       "secret_key=v1, secret_key=v2",
+			expectedParams:    map[string]string{"secret_key": "v1"},
+			errorExpected:     true,
+			notContainedInErr: "secret_key",
 		},
 	}
 
@@ -78,6 +97,9 @@ func TestParseMap(t *testing.T) {
 		res, err := ParseMap(tc.inputString)
 		assert.Equal(t, tc.expectedParams, res, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
+		if err != nil && tc.notContainedInErr != "" {
+			assert.NotContains(t, err.Error(), tc.notContainedInErr, tc.name)
+		}
 	}
 }
 
@@ -144,6 +166,20 @@ func TestGetSQLConnectionStr(t *testing.T) {
 			name:                   "source profile connection type sql server",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeSqlServer, SqlServer: SourceProfileConnectionSqlServer{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
 			expectedOutput:         "sqlserver://user:password@0.0.0.0:3306?database=database",
+		},
+		{
+			name: "source profile connection type sql server with special characters and spaces",
+			inputSourceProfileConn: SourceProfileConnection{
+				Ty: SourceProfileConnectionTypeSqlServer,
+				SqlServer: SourceProfileConnectionSqlServer{
+					Host: "localhost",
+					Port: "1433",
+					User: "user#1",
+					Pwd:  "passw\\`~ord#1",
+					Db:   "test db#1",
+				},
+			},
+			expectedOutput: "sqlserver://user%231:passw%5C%60~ord%231@localhost:1433?database=test+db%231",
 		},
 		{
 			name:                   "source profile connection type oracle",
@@ -240,3 +276,31 @@ func TestGetORACLEConnectionStrSpecialCharacters(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeConnectionError(t *testing.T) {
+	secret := "SuperSecretPass_9988"
+
+	assert.NoError(t, SanitizeConnectionError(nil))
+
+	// 1. Direct *url.Error (e.g. Oracle / SQL Server invalid port)
+	_, urlErr := url.Parse("oracle://admin:" + secret + "@localhost:bad_port/xe")
+	assert.Error(t, urlErr)
+	sanitized := SanitizeConnectionError(fmt.Errorf("open failed: %w", urlErr))
+	assert.NotContains(t, sanitized.Error(), secret)
+	assert.Contains(t, sanitized.Error(), "invalid port")
+
+	// 2. Nested *url.Error
+	nestedErr := fmt.Errorf("connection wrapper: %w", &url.Error{
+		Op:  "parse",
+		URL: "postgres://user:" + secret + "@localhost:5432/db",
+		Err: errors.New("underlying failure"),
+	})
+	sanitizedNested := SanitizeConnectionError(nestedErr)
+	assert.NotContains(t, sanitizedNested.Error(), secret)
+	assert.Contains(t, sanitizedNested.Error(), "<redacted>")
+
+	// 3. Plain network error preserved as-is
+	plainErr := errors.New("dial tcp 127.0.0.1:5432: connect: connection refused")
+	assert.Equal(t, plainErr, SanitizeConnectionError(plainErr))
+}
+
