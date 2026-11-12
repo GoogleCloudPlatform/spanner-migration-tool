@@ -7,6 +7,7 @@ import { ISpannerDetails } from 'src/app/model/conv'
   selector: 'app-target-details-form',
   templateUrl: './target-details-form.component.html',
   styleUrls: ['./target-details-form.component.scss'],
+  standalone: false,
 })
 export class TargetDetailsFormComponent implements OnInit {
   targetDetailsForm: FormGroup

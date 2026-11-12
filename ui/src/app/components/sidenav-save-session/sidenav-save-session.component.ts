@@ -11,6 +11,7 @@ import IConv from 'src/app/model/conv'
   selector: 'app-sidenav-save-session',
   templateUrl: './sidenav-save-session.component.html',
   styleUrls: ['./sidenav-save-session.component.scss'],
+  standalone: false,
 })
 export class SidenavSaveSessionComponent implements OnInit {
   errMessage: string = ''

@@ -10,7 +10,8 @@ import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
-  styleUrls: ['./add-new-column.component.scss']
+  styleUrls: ['./add-new-column.component.scss'],
+  standalone: false,
 })
 
 export class AddNewColumnComponent implements OnInit {

@@ -33,10 +33,10 @@ RUN mvn clean install -DskipTests
 # --- Final Image ---
 FROM alpine:3.23
 
-# Install bash, ca-certificates, openssl, gettext (for envsubst), and Java 17 JRE
+# Install bash, ca-certificates, curl, jq, openssl, gettext (for envsubst), and Java 17 JRE
 RUN apk update && \
     apk upgrade && \
-    apk add --no-cache bash ca-certificates openssl gettext openjdk17-jre
+    apk add --no-cache bash ca-certificates curl jq openssl gettext openjdk17-jre
 
 EXPOSE 9042 14002
 

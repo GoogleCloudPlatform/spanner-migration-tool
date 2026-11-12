@@ -20,6 +20,7 @@ import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.co
   selector: 'app-object-explorer',
   templateUrl: './object-explorer.component.html',
   styleUrls: ['./object-explorer.component.scss'],
+  standalone: false,
 })
 export class ObjectExplorerComponent implements OnInit {
   conv!: IConv
