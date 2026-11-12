@@ -1,3 +1,4 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -8,12 +9,15 @@ import { TargetDetails, MigrationDetails } from 'src/app/app.constants';
 describe('GcsMetadataDetailsFormComponent', () => {
   let component: GcsMetadataDetailsFormComponent;
   let fixture: ComponentFixture<GcsMetadataDetailsFormComponent>;
-  let dialogRefSpy: jasmine.SpyObj<MatDialogRef<GcsMetadataDetailsFormComponent>>;
+  let dialogRefSpy: { close: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['close']);
+    dialogRefSpy = {
+      close: vi.fn(),
+    };
 
     await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
       declarations: [GcsMetadataDetailsFormComponent],
       imports: [ReactiveFormsModule, MatSnackBarModule],
       providers: [
@@ -35,12 +39,16 @@ describe('GcsMetadataDetailsFormComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
   it('should update localStorage and close the dialog', () => {
-    spyOn(localStorage, 'setItem');
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
     component.gcsMetadataDetailsForm.setValue({
       gcsName: 'testGcsName',
       gcsRootPath: 'testGcsRootPath'
@@ -48,9 +56,9 @@ describe('GcsMetadataDetailsFormComponent', () => {
 
     component.updateGcsPathMetadataDetails();
 
-    expect(localStorage.setItem).toHaveBeenCalledWith(TargetDetails.GcsMetadataName, 'testGcsName');
-    expect(localStorage.setItem).toHaveBeenCalledWith(TargetDetails.GcsMetadataRootPath, 'testGcsRootPath');
-    expect(localStorage.setItem).toHaveBeenCalledWith(MigrationDetails.IsGcsMetadataPathSet, 'true');
+    expect(setItemSpy).toHaveBeenCalledWith(TargetDetails.GcsMetadataName, 'testGcsName');
+    expect(setItemSpy).toHaveBeenCalledWith(TargetDetails.GcsMetadataRootPath, 'testGcsRootPath');
+    expect(setItemSpy).toHaveBeenCalledWith(MigrationDetails.IsGcsMetadataPathSet, 'true');
     expect(dialogRefSpy.close).toHaveBeenCalled();
   });
 });
