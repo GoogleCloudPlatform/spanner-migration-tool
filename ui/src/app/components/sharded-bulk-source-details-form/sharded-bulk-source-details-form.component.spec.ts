@@ -1,4 +1,6 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -13,6 +15,7 @@ describe('ShardedBulkSourceDetailsFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
     declarations: [ShardedBulkSourceDetailsFormComponent],
     imports: [MatSnackBarModule],
     providers: [
@@ -26,7 +29,7 @@ describe('ShardedBulkSourceDetailsFormComponent', () => {
             provide: MAT_DIALOG_DATA,
             useValue: {}
         },
-        provideHttpClient(withInterceptorsFromDi())
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
     ]
 })
     .compileComponents();
