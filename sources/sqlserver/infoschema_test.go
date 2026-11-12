@@ -391,14 +391,14 @@ func TestProcessSchema(t *testing.T) {
 				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}},
-			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "production_product", ReferColumnIds: []string{"product_id"}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}},
 				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
 			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}},
 				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}, StoredColumnIds: []string{"productid"}},
 				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}},
 			CheckConstraints: []ddl.CheckConstraint{{Name: "cart_quantity_check", Expr: "(quantity > 0)"}}},
-		"production_product": {
-			Name:   "production_product",
+		"product": {
+			Name:   "product",
 			ColIds: []string{"product_id", "product_name"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"product_id":   {Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
@@ -638,4 +638,10 @@ func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
 	assert.Equal(t, "c_order_date", indexes[1].Keys[1].ColId)
 	assert.True(t, indexes[1].Keys[1].Desc)
 	assert.Equal(t, []string{"c_extra_info"}, indexes[1].StoredColumnIds)
+}
+
+func TestGetTableName(t *testing.T) {
+	isi := InfoSchemaImpl{}
+	assert.Equal(t, "orders", isi.GetTableName("dbo", "orders"))
+	assert.Equal(t, "orders", isi.GetTableName("dimension", "orders"))
 }

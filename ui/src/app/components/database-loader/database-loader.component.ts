@@ -6,6 +6,7 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
   selector: 'app-database-loader',
   templateUrl: './database-loader.component.html',
   styleUrls: ['./database-loader.component.scss'],
+  standalone: false,
 })
 export class DatabaseLoaderComponent implements OnInit {
   @Input() loaderType: string = ''
