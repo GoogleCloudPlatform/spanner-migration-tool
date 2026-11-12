@@ -284,8 +284,8 @@ describe('Utils', () => {
 
   describe('downloadSession', () => {
     let mockConv: IConv;
-    let mockCreateElement: jasmine.Spy;
-    let mockClick: jasmine.Spy;
+    let mockCreateElement: ReturnType<typeof vi.spyOn>;
+    let mockClick: ReturnType<typeof vi.fn>;
     let mockElement: any;
 
     beforeEach(() => {
@@ -317,13 +317,17 @@ describe('Utils', () => {
         SrcSequences: {}
       };
 
-      mockClick = jasmine.createSpy('click');
+      mockClick = vi.fn();
       mockElement = {
         click: mockClick,
         download: '',
         href: ''
       };
-      mockCreateElement = spyOn(document, 'createElement').and.returnValue(mockElement);
+      mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockElement);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
     it('should create download link with correct filename', () => {
@@ -345,8 +349,8 @@ describe('Utils', () => {
 
   describe('downloadOverrides', () => {
     let mockConv: IConv;
-    let mockCreateElement: jasmine.Spy;
-    let mockClick: jasmine.Spy;
+    let mockCreateElement: ReturnType<typeof vi.spyOn>;
+    let mockClick: ReturnType<typeof vi.fn>;
     let mockElement: any;
 
     beforeEach(() => {
@@ -378,13 +382,17 @@ describe('Utils', () => {
         SrcSequences: {}
       };
 
-      mockClick = jasmine.createSpy('click');
+      mockClick = vi.fn();
       mockElement = {
         click: mockClick,
         download: '',
         href: ''
       };
-      mockCreateElement = spyOn(document, 'createElement').and.returnValue(mockElement);
+      mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockElement);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
     it('should create download link with correct filename for overrides', () => {

@@ -74,9 +74,9 @@ Before you begin, ensure you have:
 - Network connectivity configured so that you can access the following from the machine running the proxy: 
   - Source Cassandra cluster (Test quickly via telnet/cqlsh)
   - Target Spanner instance (Test quickly via `gcloud spanner databases execute-sql`)
-- A Google Cloud Service Account key file with permissions to:
-  - Write to Spanner instance
-  - Create and manage databases
+- Application Default Credentials configured locally (`gcloud auth application-default login`) with permissions to:
+  - Read and write data on the target Spanner database (`roles/spanner.databaseUser`)
+  - Write client-side metrics to Cloud Monitoring (`roles/monitoring.metricWriter`)
 - A Spanner instance and database already set up
 - The Spanner database name matches your Cassandra keyspace name
 
@@ -91,7 +91,10 @@ docker build -t zdm-proxy:latest .
 ```
 
 #### Step 2: Run the container
-1. Ensure your service account key file (e.g., `keys.json`) is in the directory
+1. Authenticate locally with Application Default Credentials (avoiding long-lived service account key files):
+```bash
+gcloud auth application-default login
+```
 
 2. Create a `zdm-config.yaml` file with your configuration. See [sample-zdm-config.yaml](./sample-zdm-config.yaml) for an example.
 
@@ -104,13 +107,13 @@ mkdir -p ./host-logs
 
 ```bash
 docker run -d -p 14002:14002 \
--v $(pwd)/zdm-config.yaml:/zdm-config.yaml \
--v $(pwd)/keys.json:/var/run/secret/keys.json \
+-v $(pwd)/zdm-config.yaml:/zdm-config.yaml:ro \
+-v $HOME/.config/gcloud/application_default_credentials.json:/var/run/secret/adc.json:ro \
 -v $(pwd)/host-logs:/app/logs \
 -e SPANNER_PROJECT=your-project-id \
 -e SPANNER_INSTANCE=your-instance-id \
 -e SPANNER_DATABASE=your-database-id \
--e GOOGLE_APPLICATION_CREDENTIALS="/var/run/secret/keys.json" \
+-e GOOGLE_APPLICATION_CREDENTIALS="/var/run/secret/adc.json" \
 -e ZDM_CONFIG=/zdm-config.yaml \
 zdm-proxy:latest
 ```
@@ -159,20 +162,25 @@ For production environments, we provide Terraform templates to automate the depl
 #### Prerequisites
 
 Before proceeding with production deployment, ensure you have:
-- Terraform installed on your system
-- Application default credentials configured with permissions to:
-  - Create and manage GCP resources
-  - Configure networking
-  - Create and manage VMs
-- A service account key file with permissions to:
-  - Write to Spanner instance
-  - Manage Spanner databases
-- Spanner instance and database already configured
+- Terraform (`>= 1.3`) installed on your system
+- Application Default Credentials configured (`gcloud auth application-default login`) with permissions to:
+  - Create and manage Compute Engine VMs and firewall rules
+  - Attach a service account to Compute Engine VMs (`roles/iam.serviceAccountUser` on the proxy service account)
+  - Create a service account and grant Spanner database, Cloud Monitoring, and Secret Manager IAM bindings (only required when `common_params.service_account_email` is omitted and Terraform creates the dedicated proxy service account)
+- Spanner instance and database already configured (and Secret Manager & Cloud Monitoring APIs enabled)
+- Origin Cassandra password stored in Secret Manager (if your origin Cassandra cluster requires password authentication):
+  ```bash
+  printf '%s' 'your-cassandra-password' | gcloud secrets create cassandra-origin-password --data-file=- --project=your-project-id
+  ```
+- If you bring an existing service account via `common_params.service_account_email` instead of letting Terraform create one, grant it:
+  - `roles/spanner.databaseUser` on the target Spanner database
+  - `roles/monitoring.metricWriter` on the Spanner project (for built-in client-side metrics)
+  - `roles/secretmanager.secretAccessor` on the origin password secret (if used)
 - The following files in your deployment directory:
   - `Dockerfile`
   - `entrypoint.sh`
-  - Service account key file
-  - Terraform configuration files
+  - `spanner-cassandra-config.yaml`
+  - Terraform configuration files (`main.tf`, `variables.tf`, `outputs.tf`, `terraform.tf`, `terraform.tfvars`)
 
 #### Infrastructure Sizing
 
@@ -210,11 +218,12 @@ When planning your production deployment, consider these guidelines:
 #### What Gets Deployed
 
 The Terraform template:
-1. Creates Container-Optimized OS VMs based on your specified count
-2. Sets up necessary firewall rules for proxy communication
-3. Generates individual `zdm-config.yaml` files for each VM with appropriate topology settings
-4. Copies required files (Dockerfile, entrypoint.sh, etc.) to each VM
-5. Builds and launches Docker containers on each VM
+1. Creates a dedicated least-privilege service account (unless `common_params.service_account_email` is supplied) and attaches it to the proxy VMs—no service account key files are created or copied to VMs
+2. Creates Container-Optimized OS VMs based on your specified count
+3. Sets up firewall rules for proxy communication restricted to `common_params.allowed_source_ranges`
+4. Generates individual `zdm-config.yaml` files for each VM with topology settings (without plaintext passwords; the origin password is fetched into tmpfs memory at container startup from Secret Manager)
+5. Copies `Dockerfile`, `entrypoint.sh`, `spanner-cassandra-config.yaml`, and `zdm-config.yaml` to each VM
+6. Builds and launches Docker containers on each VM using Application Default Credentials from the GCE metadata server
 
 ⚠️ **Note**: The template assumes a default network configuration. You may need to modify the Terraform scripts to match your specific network infrastructure requirements.
 

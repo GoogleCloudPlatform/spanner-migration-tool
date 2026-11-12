@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core'
+import { NgModule, provideZoneChangeDetection } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MaterialModule } from './material/material.module'
@@ -99,6 +99,7 @@ import { NgSelectModule } from '@ng-select/ng-select';
         MatChipsModule,
         NgSelectModule,
         MatTooltipModule], providers: [
+        provideZoneChangeDetection(),
         {
             provide: HTTP_INTERCEPTORS,
             useClass: InterceptorService,

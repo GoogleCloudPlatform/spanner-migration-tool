@@ -41,7 +41,7 @@ describe('FetchService', () => {
 
       service.connectTodb(mockDbConfig, mockDialect).subscribe()
 
-      const req = httpMock.expectOne('http://localhost:9876/connect')
+      const req = httpMock.expectOne(`${window.location.origin}/connect`)
       expect(req.request.method).toBe('POST')
       expect(req.request.body).toEqual({
         Driver: 'cassandra',
@@ -73,7 +73,7 @@ describe('FetchService', () => {
 
       service.setSourceDBDetailsForDirectConnect(mockDbConfig).subscribe()
 
-      const req = httpMock.expectOne('http://localhost:9876/SetSourceDBDetailsForDirectConnect')
+      const req = httpMock.expectOne(`${window.location.origin}/SetSourceDBDetailsForDirectConnect`)
       expect(req.request.method).toBe('POST')
       expect(req.request.body).toEqual({
         Driver: 'cassandra',
