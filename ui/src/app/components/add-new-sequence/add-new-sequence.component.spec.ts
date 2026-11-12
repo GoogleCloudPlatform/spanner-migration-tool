@@ -1,7 +1,8 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -13,27 +14,29 @@ import { DataService } from 'src/app/services/data/data.service';
 describe('AddNewSequenceComponent', () => {
   let component: AddNewSequenceComponent;
   let fixture: ComponentFixture<AddNewSequenceComponent>;
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
+  let dataServiceSpy: { addSequence: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['addSequence']);
+    dataServiceSpy = {
+      addSequence: vi.fn(),
+    };
     await TestBed.configureTestingModule({
-    declarations: [AddNewSequenceComponent],
-    imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
-    providers: [
+      declarations: [AddNewSequenceComponent],
+      imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
+      providers: [
         {
-            provide: MatDialogRef,
-            useValue: {
-                close: () => { },
-            },
+          provide: MatDialogRef,
+          useValue: {
+            close: () => { },
+          },
         },
         {
-            provide: DataService,
-            useValue: dataServiceSpy
+          provide: DataService,
+          useValue: dataServiceSpy
         },
-        provideHttpClient(withInterceptorsFromDi())
-    ]
-})
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
+      ]
+    })
       .compileComponents();
   });
 

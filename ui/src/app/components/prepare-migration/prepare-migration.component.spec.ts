@@ -1,4 +1,6 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -15,40 +17,50 @@ describe('PrepareMigrationComponent', () => {
   let component: PrepareMigrationComponent;
   let fixture: ComponentFixture<PrepareMigrationComponent>;
   let dialog: MatDialog;
-  let dialogRefSpy: jasmine.SpyObj<MatDialogRef<GcsMetadataDetailsFormComponent>>;
-
-  let fetchServiceSpy: jasmine.SpyObj<FetchService>;
+  let dialogRefSpy: { afterClosed: ReturnType<typeof vi.fn<() => any>> };
+  let fetchServiceSpy: {
+    getSourceDestinationSummary: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    getLastSessionDetails: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    getSpannerConfig: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+    getIsOffline: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
+  };
 
   beforeEach(async () => {
-    dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
-    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getSourceDestinationSummary', 'getLastSessionDetails', 'getSpannerConfig', 'getIsOffline']);
-    fetchServiceSpy.getLastSessionDetails.and.returnValue(of({} as IConv));
-    fetchServiceSpy.getSpannerConfig.and.returnValue(of({} as ISpannerConfig));
-    fetchServiceSpy.getIsOffline.and.returnValue(of(false));
-    fetchServiceSpy.getSourceDestinationSummary.and.returnValue(of({ DatabaseType: SourceDbNames.Cassandra } as ISessionSummary));
+    dialogRefSpy = {
+      afterClosed: vi.fn().mockReturnValue(of(true)),
+    };
+    fetchServiceSpy = {
+      getLastSessionDetails: vi.fn().mockReturnValue(of({} as IConv)),
+      getSpannerConfig: vi.fn().mockReturnValue(of({} as ISpannerConfig)),
+      getIsOffline: vi.fn().mockReturnValue(of(false)),
+      getSourceDestinationSummary: vi.fn().mockReturnValue(of({ DatabaseType: SourceDbNames.Cassandra } as ISessionSummary)),
+    };
 
     await TestBed.configureTestingModule({
-    declarations: [PrepareMigrationComponent],
-    imports: [MatDialogModule, MatSnackBarModule],
-    providers: [
+      schemas: [NO_ERRORS_SCHEMA],
+      declarations: [PrepareMigrationComponent],
+      imports: [MatDialogModule, MatSnackBarModule],
+      providers: [
         { provide: MatDialogRef, useValue: dialogRefSpy },
         { provide: MatDialog, useValue: { open: () => dialogRefSpy } },
         { provide: FetchService, useValue: fetchServiceSpy },
-        provideHttpClient(withInterceptorsFromDi())
-    ]
-}).compileComponents();
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
+      ]
+    }).compileComponents();
 
     fixture = TestBed.createComponent(PrepareMigrationComponent);
     component = fixture.componentInstance;
     dialog = TestBed.inject(MatDialog);
-
-    dialogRefSpy.afterClosed.and.returnValue(of(true));
   });
 
   beforeEach(() => {
     fixture = TestBed.createComponent(PrepareMigrationComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should create', () => {
@@ -64,8 +76,8 @@ describe('PrepareMigrationComponent', () => {
       [MigrationDetails.IsGcsMetadataPathSet]: 'true'
     };
 
-    spyOn(localStorage, 'getItem').and.callFake((key: string) => mockValues[key]);
-    const dialogOpenSpy = spyOn(dialog, 'open').and.returnValue(dialogRefSpy);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => mockValues[key] ?? null);
+    const dialogOpenSpy = vi.spyOn(dialog, 'open').mockReturnValue(dialogRefSpy as any);
 
     component.openGcsMetadataDetailsForm();
 
@@ -76,7 +88,7 @@ describe('PrepareMigrationComponent', () => {
     });
 
     dialogRefSpy.afterClosed().subscribe(() => {
-      expect(component.isGcsMetadataDetailSet).toBeTrue();
+      expect(component.isGcsMetadataDetailSet).toBe(true);
       expect(component.targetDetails).toEqual({
         TargetDB: 'mockTargetDB',
         GcsMetadataPath: {
@@ -98,7 +110,7 @@ describe('PrepareMigrationComponent', () => {
       ConnectionType: 'sessionFile',
       SourceDatabaseName: 'testdb',
     };
-    fetchServiceSpy.getSourceDestinationSummary.and.returnValue(of(mockSummary as any));
+    fetchServiceSpy.getSourceDestinationSummary.mockReturnValue(of(mockSummary as any));
 
     component.ngOnInit();
 

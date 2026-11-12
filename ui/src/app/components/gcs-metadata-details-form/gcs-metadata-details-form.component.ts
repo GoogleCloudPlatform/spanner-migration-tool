@@ -7,6 +7,7 @@ import { MigrationDetails, TargetDetails } from 'src/app/app.constants'
   selector: 'app-gcs-metadata-details-form',
   templateUrl: './gcs-metadata-details-form.component.html',
   styleUrls: ['./gcs-metadata-details-form.component.scss'],
+  standalone: false,
 })
 export class GcsMetadataDetailsFormComponent implements OnInit {
   gcsMetadataDetailsForm: FormGroup
