@@ -1,3 +1,4 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { InstructionComponent } from './instruction.component';
@@ -8,6 +9,7 @@ describe('InstructionComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
       declarations: [ InstructionComponent ]
     })
     .compileComponents();

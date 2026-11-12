@@ -9,6 +9,7 @@ import IConv from 'src/app/model/conv'
   selector: 'app-sidenav-rule',
   templateUrl: './sidenav-rule.component.html',
   styleUrls: ['./sidenav-rule.component.scss'],
+  standalone: false,
 })
 export class SidenavRuleComponent implements OnInit {
   @Input() currentRules: any = []

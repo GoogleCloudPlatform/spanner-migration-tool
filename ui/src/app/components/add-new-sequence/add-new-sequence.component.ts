@@ -8,7 +8,8 @@ import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-sequence',
   templateUrl: './add-new-sequence.component.html',
-  styleUrls: ['./add-new-sequence.component.scss']
+  styleUrls: ['./add-new-sequence.component.scss'],
+  standalone: false,
 })
 
 export class AddNewSequenceComponent implements OnInit {
