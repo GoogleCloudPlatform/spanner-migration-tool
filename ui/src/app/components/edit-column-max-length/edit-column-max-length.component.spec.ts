@@ -1,4 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
@@ -16,7 +17,7 @@ describe('EditColumnMaxLengthComponent', () => {
     await TestBed.configureTestingModule({
     declarations: [EditColumnMaxLengthComponent],
     imports: [ReactiveFormsModule, MatSnackBarModule, MatInputModule, MatSelectModule, BrowserAnimationsModule],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 })
     .compileComponents();
   });

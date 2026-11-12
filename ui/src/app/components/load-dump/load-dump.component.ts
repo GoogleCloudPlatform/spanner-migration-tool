@@ -12,6 +12,7 @@ import { ISpannerDetails } from 'src/app/model/target-details'
   selector: 'app-load-dump',
   templateUrl: './load-dump.component.html',
   styleUrls: ['./load-dump.component.scss'],
+  standalone: false,
 })
 export class LoadDumpComponent implements OnInit {
   constructor(

@@ -5,6 +5,7 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
   selector: 'app-source-selection',
   templateUrl: './source-selection.component.html',
   styleUrls: ['./source-selection.component.scss'],
+  standalone: false,
 })
 export class SourceSelectionComponent implements OnInit {
   isDatabaseLoading: boolean = false

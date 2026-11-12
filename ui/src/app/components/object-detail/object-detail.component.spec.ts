@@ -1,4 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialog, MatDialogModule } from '@angular/material/dialog'
 import { By } from '@angular/platform-browser'
@@ -24,22 +25,32 @@ import IUpdateTable from 'src/app/model/update-table'
 describe('ObjectDetailComponent', () => {
   let component: ObjectDetailComponent
   let fixture: ComponentFixture<ObjectDetailComponent>
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
-  let conversionServiceSpy: jasmine.SpyObj<ConversionService>
+  let dataServiceSpy: any;
+  let conversionServiceSpy: any;
   let mockIConv = createMockIConv();
-  let dialogSpyObj: jasmine.SpyObj<MatDialog>;
+  let dialogSpyObj: any;
   let rowData: IColumnTabData[]
 
   beforeEach(async () => {
     mockIConv = createMockIConv();
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave', 'dropTable', 'getConversionRate']);
-    dataServiceSpy.updateSequence.and.returnValue(of({}));
-    dataServiceSpy.dropSequence.and.returnValue(of(''));
-    dataServiceSpy.reviewTableUpdate.and.returnValue(of(''));
-    dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
-    conversionServiceSpy = jasmine.createSpyObj('ConversionService', [], {
+    dataServiceSpy = {
+      updateSequence: vi.fn().mockReturnValue(of({})),
+      dropSequence: vi.fn().mockReturnValue(of('')),
+      updateCheckConstraint: vi.fn().mockReturnValue(of('')),
+      reviewTableUpdate: vi.fn().mockReturnValue(of('')),
+      setInterleave: vi.fn(),
+      dropTable: vi.fn().mockReturnValue(of('')),
+      getConversionRate: vi.fn(),
+      updatePk: vi.fn().mockReturnValue(of('')),
+      conv: of(mockIConv),
+      tableInterleaveStatus: of({}),
+    };
+    dialogSpyObj = {
+      open: vi.fn(),
+    };
+    conversionServiceSpy = {
       pgSQLToStandardTypeTypeMap: of(new Map<String, String>()),
-    })
+    };
 
     await TestBed.configureTestingModule({
     declarations: [ObjectDetailComponent],
@@ -63,15 +74,9 @@ describe('ObjectDetailComponent', () => {
           provide: ConversionService,
           useValue: conversionServiceSpy,
         },
-        provideHttpClient(withInterceptorsFromDi())
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
     ]
 }).compileComponents()
-    dataServiceSpy.conv = of(mockIConv);
-    dataServiceSpy.tableInterleaveStatus = of({});
-    dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
-    dataServiceSpy.dropTable.and.returnValue(of(''))
-    dataServiceSpy.updatePk = jasmine.createSpy('updatePk').and.returnValue(of(''));
-    dataServiceSpy.getConversionRate.and.returnValue()
   })
 
   beforeEach(() => {
@@ -207,6 +212,10 @@ describe('ObjectDetailComponent', () => {
     fixture.detectChanges()
   })
 
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('should create', () => {
     expect(component).toBeTruthy()
   })
@@ -220,8 +229,8 @@ describe('ObjectDetailComponent', () => {
 
   describe('displayed default value columns', () => {
     beforeEach(() => {
-      conversionServiceSpy.getPkMapping = jasmine.createSpy('getPkMapping').and.returnValue([])
-      dataServiceSpy.getSummary = jasmine.createSpy('getSummary').and.returnValue(of({}))
+      conversionServiceSpy.getPkMapping = vi.fn().mockReturnValue([])
+      dataServiceSpy.getSummary = vi.fn().mockReturnValue(of({}))
     })
 
     it('should not be shown when the source does not support defaults', () => {
@@ -275,15 +284,15 @@ describe('ObjectDetailComponent', () => {
   });
 
   it('should drop sequence and update sidebar', () => {
-    const dialogRefSpyObj = jasmine.createSpyObj({
-      afterClosed: of(ObjectDetailNodeType.Sequence),
-      close: null
-    });
-    dialogSpyObj.open.and.returnValue(dialogRefSpyObj);
+    const dialogRefSpyObj = {
+      afterClosed: vi.fn().mockReturnValue(of(ObjectDetailNodeType.Sequence)),
+      close: vi.fn(),
+    };
+    dialogSpyObj.open.mockReturnValue(dialogRefSpyObj);
 
     component.currentObject = { id: 's2', name: 'Sequence Name' } as FlatNode;
     component.isObjectSelected = true;
-    spyOn(component.updateSidebar, 'emit');
+    vi.spyOn(component.updateSidebar, 'emit');
 
     component.dropSequence();
 
@@ -301,7 +310,7 @@ describe('ObjectDetailComponent', () => {
   });
 
   it('should remove an item with a matching deleteIndex from Check Constraint Array', () => {
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
 
     component.ccData = [
       {
@@ -369,7 +378,7 @@ describe('ObjectDetailComponent', () => {
         deleteIndex: 'cc1',
       },
     ]
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
 
     component.dropCc({ value: { deleteIndex: 'cc1' } })
 
@@ -389,7 +398,7 @@ describe('ObjectDetailComponent', () => {
         deleteIndex: 'cc1',
       }
     ]
-    spyOn(component, 'addCcColumn').and.callThrough()
+    vi.spyOn(component, 'addCcColumn')
 
     component.addCcColumn()
 
@@ -397,7 +406,7 @@ describe('ObjectDetailComponent', () => {
   })
 
   it('should open dialog if there are duplicate constraints', () => {
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
     component.ccData = [
       {
         srcSno: '',
@@ -424,16 +433,16 @@ describe('ObjectDetailComponent', () => {
     component.currentObject = { id: 't2', name: 'Sequence Name' } as FlatNode
     component.saveCc();
 
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, jasmine.objectContaining({
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, expect.objectContaining({
       data: {
-        message: jasmine.stringMatching(/constraint name or condition is duplicate/),
+        message: expect.stringMatching(/constraint name or condition is duplicate/),
         type: 'error'
       }
     }));
   });
 
   it('should call updateCheckConstraint and handle success response', () => {
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
     component.ccData = [
       {
         srcSno: '',
@@ -451,13 +460,13 @@ describe('ObjectDetailComponent', () => {
 
     component.saveCc();
 
-    expect(dataServiceSpy.updateCheckConstraint);
+    expect(dataServiceSpy.updateCheckConstraint).toHaveBeenCalled();
     expect(component.isCcEditMode).toBe(false);
 
   })
 
   it('should Edit the existing record and updateCheckConstraint and handle success response', () => {
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
     component.ccData = [
       {
         srcSno: '',
@@ -477,13 +486,13 @@ describe('ObjectDetailComponent', () => {
 
     component.saveCc();
 
-    expect(dataServiceSpy.updateCheckConstraint);
+    expect(dataServiceSpy.updateCheckConstraint).toHaveBeenCalled();
     expect(component.isCcEditMode).toBe(false);
 
   })
 
   it('should display the check constraints perfectly', () => {
-    spyOn(component, 'setCCRows').and.callThrough()
+    vi.spyOn(component, 'setCCRows')
     component.ccData = [
       {
         srcSno: '',
@@ -505,8 +514,8 @@ describe('ObjectDetailComponent', () => {
 
   it('should show error dialog if updateCheckConstraint response is an error', () => {
 
-    spyOn(component, 'setCCRows').and.callThrough()
-    dataServiceSpy.updateCheckConstraint.and.returnValue(of('Error message'));
+    vi.spyOn(component, 'setCCRows')
+    dataServiceSpy.updateCheckConstraint.mockReturnValue(of('Error message'));
     component.ccData = [
       {
         srcSno: '',
@@ -524,7 +533,7 @@ describe('ObjectDetailComponent', () => {
 
     component.saveCc();
 
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, jasmine.objectContaining({
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, expect.objectContaining({
       data: { message: 'Error message', type: 'error' }
     }));
 
@@ -582,8 +591,8 @@ describe('ObjectDetailComponent', () => {
   })
 
   it('should log an error and return if interleaveType is null', () => {
-    spyOn(console, 'error');
-    dataServiceSpy.setInterleave.and.returnValue(of(''));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    dataServiceSpy.setInterleave.mockReturnValue(of(''));
     component.setInterleave('p1', null, 'CASCADE');
     expect(console.error).toHaveBeenCalledWith('Interleave type cannot be empty');
     expect(dataServiceSpy.setInterleave).not.toHaveBeenCalled();
@@ -595,7 +604,7 @@ describe('ObjectDetailComponent', () => {
     const interleaveType = 'IN';
     const onDelete = 'CASCADE';
     component.currentObject = { id: tableId } as FlatNode;
-    dataServiceSpy.setInterleave.and.returnValue(of(''));
+    dataServiceSpy.setInterleave.mockReturnValue(of(''));
 
     component.setInterleave(parentId, interleaveType, onDelete);
 
@@ -613,7 +622,7 @@ describe('ObjectDetailComponent', () => {
     const onDelete = 'CASCADE';
     const errorMessage = 'Interleave failed';
     component.currentObject = { id: tableId } as FlatNode;
-    dataServiceSpy.setInterleave.and.returnValue(of(errorMessage));
+    dataServiceSpy.setInterleave.mockReturnValue(of(errorMessage));
 
     component.setInterleave(parentId, interleaveType, onDelete);
 
@@ -625,15 +634,15 @@ describe('ObjectDetailComponent', () => {
   });
 
   it('should drop table successfully', () => {
-    const dialogRefSpyObj = jasmine.createSpyObj({ afterClosed: of(ObjectDetailNodeType.Table), close: null });
-    dialogSpyObj.open.and.returnValue(dialogRefSpyObj);
+    const dialogRefSpyObj = { afterClosed: vi.fn().mockReturnValue(of(ObjectDetailNodeType.Table)), close: vi.fn() };
+    dialogSpyObj.open.mockReturnValue(dialogRefSpyObj);
     component.currentObject = { id: 't1', name: 'test_table' } as FlatNode;
-    spyOn(component.updateSidebar, 'emit');
-    spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+    vi.spyOn(component.updateSidebar, 'emit');
+    vi.spyOn(component, 'tableInterleaveWith').mockReturnValue([]);
 
     component.dropTable();
 
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, jasmine.any(Object));
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, expect.any(Object));
     expect(dataServiceSpy.dropTable).toHaveBeenCalledWith('t1');
     expect(component.isObjectSelected).toBe(false);
     expect(dataServiceSpy.getConversionRate).toHaveBeenCalled();
@@ -643,7 +652,7 @@ describe('ObjectDetailComponent', () => {
 
   it('should not drop table if it is interleaved', () => {
     component.currentObject = { id: 't1', name: 'test_table' } as FlatNode;
-    spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
+    vi.spyOn(component, 'tableInterleaveWith').mockReturnValue(['t2']);
     component.conv.SpSchema['t2'] = { Name: 'table2' } as any;
 
     component.dropTable();
@@ -745,7 +754,7 @@ describe('ObjectDetailComponent', () => {
       component.pkArray = formBuilder.array([
         formBuilder.group({ spColName: 'col1', spOrder: 1 })
       ]);
-      spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+      vi.spyOn(component, 'tableInterleaveWith').mockReturnValue([]);
 
       component.savePk();
 
@@ -760,13 +769,13 @@ describe('ObjectDetailComponent', () => {
       component.pkArray = formBuilder.array([
         formBuilder.group({ spColName: 'col1', spOrder: 1 })
       ]);
-      spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
-      spyOn(component, 'isPKPrefixModified').and.returnValue(false);
+      vi.spyOn(component, 'tableInterleaveWith').mockReturnValue(['t2']);
+      vi.spyOn(component, 'isPKPrefixModified').mockReturnValue(false);
 
       component.savePk();
 
       expect(dataServiceSpy.updatePk).toHaveBeenCalled();
-      expect(dialogSpyObj.open).not.toHaveBeenCalledWith(InfodialogComponent, jasmine.any(Object));
+      expect(dialogSpyObj.open).not.toHaveBeenCalledWith(InfodialogComponent, expect.any(Object));
     });
 
     it('should show error dialog if PK prefix is modified for an interleaved table', () => {
@@ -774,8 +783,8 @@ describe('ObjectDetailComponent', () => {
       component.pkArray = formBuilder.array([
         formBuilder.group({ spColName: 'col2', spOrder: 1 })
       ]);
-      spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
-      spyOn(component, 'isPKPrefixModified').and.returnValue(true);
+      vi.spyOn(component, 'tableInterleaveWith').mockReturnValue(['t2']);
+      vi.spyOn(component, 'isPKPrefixModified').mockReturnValue(true);
 
       component.savePk();
 
@@ -791,12 +800,12 @@ describe('ObjectDetailComponent', () => {
 
     it('should show error dialog if updatePk fails', () => {
       const errorMessage = 'PK update failed';
-      dataServiceSpy.updatePk.and.returnValue(of(errorMessage));
+      dataServiceSpy.updatePk.mockReturnValue(of(errorMessage));
       component.pkData = [{ spId: 'c1', spIsPk: true, spOrder: 1 }] as IColumnTabData[];
       component.pkArray = formBuilder.array([
         formBuilder.group({ spColName: 'col1', spOrder: 1 })
       ]);
-      spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+      vi.spyOn(component, 'tableInterleaveWith').mockReturnValue([]);
 
       component.savePk();
 
