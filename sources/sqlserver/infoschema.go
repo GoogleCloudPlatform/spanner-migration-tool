@@ -121,10 +121,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
-	if schema == "dbo" { // Drop 'dbo' prefix.
-		return tableName
-	}
-	return fmt.Sprintf("%s.%s", schema, tableName)
+	return tableName
 }
 
 // ProcessDataRows performs data conversion for source database
@@ -178,10 +175,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
 	tbl := conv.SrcSchema[tableId]
-	//To get only the table name by removing the schema name prefix
-	tblName := strings.Replace(tbl.Name, tbl.Schema+".", "", 1)
-
-	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColIds, tbl.ColDefs)
+	q := getSelectQuery(isi.DbName, tbl.Schema, tbl.Name, tbl.ColIds, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
