@@ -30,6 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/pingcap/tidb/pkg/parser"
+	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -1055,4 +1057,295 @@ func TestAlterTableModifyUniqueColumnUsesColId(t *testing.T) {
 	if !foundUnique {
 		t.Fatal("no unique index was created for the UNIQUE column")
 	}
+
+func mustRat(t *testing.T, s string) *big.Rat {
+	t.Helper()
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		t.Fatalf("failed to parse rational %q", s)
+	}
+	return r
+}
+
+func TestParseMySQLDecimal_EdgeCases(t *testing.T) {
+	t.Run("valid decimals within 9 words", func(t *testing.T) {
+		cases := []struct {
+			in   string
+			want string
+		}{
+			{"0", "0"},
+			{"0.00", "0.00"},
+			{"-0.00", "0.00"},
+			{".5", "0.5"},
+			{"12345.67890", "12345.67890"},
+			{strings.Repeat("9", 35) + "." + strings.Repeat("9", 30), strings.Repeat("9", 35) + "." + strings.Repeat("9", 30)},
+			{strings.Repeat("9", 81), strings.Repeat("9", 81)},
+		}
+		for _, tc := range cases {
+			dec, err := parseMySQLDecimal(tc.in)
+			assert.NoError(t, err, tc.in)
+			assert.Equal(t, tc.want, fmt.Sprintf("%v", dec), tc.in)
+		}
+	})
+
+	t.Run("fractional precision exceeding 9 words truncates safely without panic", func(t *testing.T) {
+		// 1 integer digit (1 word) + 85 fractional digits (10 words) -> truncated to (9-1)*9 = 72 fractional digits.
+		in := "1." + strings.Repeat("2", 85)
+		dec, err := parseMySQLDecimal(in)
+		assert.NoError(t, err)
+		assert.Equal(t, "1."+strings.Repeat("2", 72), fmt.Sprintf("%v", dec))
+
+		// 40 integer digits (5 words) + 40 fractional digits (5 words) -> truncated to (9-5)*9 = 36 fractional digits.
+		in80 := strings.Repeat("3", 40) + "." + strings.Repeat("4", 40)
+		dec80, err := parseMySQLDecimal(in80)
+		assert.NoError(t, err)
+		assert.Equal(t, strings.Repeat("3", 40)+"."+strings.Repeat("4", 36), fmt.Sprintf("%v", dec80))
+
+		// 81 integer digits (9 words) + 5 fractional digits (1 word) -> truncated to 0 fractional digits.
+		in81Frac := strings.Repeat("7", 81) + ".12345"
+		dec81Frac, err := parseMySQLDecimal(in81Frac)
+		assert.NoError(t, err)
+		assert.Equal(t, strings.Repeat("7", 81), fmt.Sprintf("%v", dec81Frac))
+	})
+
+	t.Run("integer precision exceeding 81 digits returns error without panic", func(t *testing.T) {
+		in := strings.Repeat("9", 82)
+		dec, err := parseMySQLDecimal(in)
+		assert.Error(t, err)
+		assert.NotNil(t, dec)
+	})
+
+	t.Run("malformed inputs return error without panic", func(t *testing.T) {
+		for _, bad := range []string{"", "   ", "-", "+", "."} {
+			dec, err := parseMySQLDecimal(bad)
+			assert.Error(t, err, "input=%q", bad)
+			assert.NotNil(t, dec, "input=%q", bad)
+		}
+	})
+}
+
+func TestProcessMySQLDump_DecimalAndNumericEdgeCases(t *testing.T) {
+	pos38 := "12345678901234567890123456789.123456789"
+	neg38 := "-12345678901234567890123456789.123456789"
+	pos65 := strings.Repeat("1", 35) + "." + strings.Repeat("2", 30)
+	neg65 := "-" + pos65
+	over81Frac := "1." + strings.Repeat("5", 85)
+	over81FracTruncated := "1." + strings.Repeat("5", 72)
+
+	sqlDump := fmt.Sprintf(`
+CREATE TABLE dec_edge (
+	id BIGINT PRIMARY KEY,
+	d_zero DECIMAL(10, 2),
+	d_neg_zero DECIMAL(10, 2),
+	d_hp DECIMAL(38, 9),
+	d_max DECIMAL(65, 30),
+	f_sci DOUBLE,
+	v_raw VARCHAR(64)
+);
+INSERT INTO dec_edge (id, d_zero, d_neg_zero, d_hp, d_max, f_sci, v_raw) VALUES
+	(1, 0.00, -0.00, %s, %s, 1.25e4, -1.50),
+	(-9223372036854775808, 0.0000, -.5, %s, %s, -1.25e4, -00012.3400),
+	(-42, .25, -0.25, 0.000000001, %s, -2.5e-3, -0.00);
+`, pos38, pos65, neg38, neg65, over81Frac)
+
+	conv, rows := runProcessMySQLDump(sqlDump)
+	noIssues(conv, t, "Decimal and numeric edge cases")
+
+	expected := []spannerData{
+		{
+			table: "dec_edge",
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
+			vals: []interface{}{
+				int64(1),
+				mustRat(t, "0"),
+				mustRat(t, "0"),
+				mustRat(t, pos38),
+				mustRat(t, pos65),
+				float64(12500),
+				"-1.50",
+			},
+		},
+		{
+			table: "dec_edge",
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
+			vals: []interface{}{
+				int64(-9223372036854775808),
+				mustRat(t, "0"),
+				mustRat(t, "-0.5"),
+				mustRat(t, neg38),
+				mustRat(t, neg65),
+				float64(-12500),
+				"-12.3400",
+			},
+		},
+		{
+			table: "dec_edge",
+			cols:  []string{"id", "d_zero", "d_neg_zero", "d_hp", "d_max", "f_sci", "v_raw"},
+			vals: []interface{}{
+				int64(-42),
+				mustRat(t, "0.25"),
+				mustRat(t, "-0.25"),
+				mustRat(t, "0.000000001"),
+				mustRat(t, over81FracTruncated),
+				float64(-0.0025),
+				"-0.00",
+			},
+		},
+	}
+	assert.Equal(t, expected, rows)
+}
+
+func TestGetNegativeUnaryVals_AllBranches(t *testing.T) {
+	extractUnaryValExpr := func(t *testing.T, literalSQL string) *ast.UnaryOperationExpr {
+		t.Helper()
+		sql := fmt.Sprintf("INSERT INTO t VALUES (%s);", literalSQL)
+		stmts, _, err := parser.New().Parse(sql, "", "")
+		if !assert.NoError(t, err, "sql=%s", sql) {
+			t.FailNow()
+		}
+		ins := stmts[0].(*ast.InsertStmt)
+		unary, ok := ins.Lists[0][0].(*ast.UnaryOperationExpr)
+		if !assert.True(t, ok, "expected UnaryOperationExpr for %s, got %T", literalSQL, ins.Lists[0][0]) {
+			t.FailNow()
+		}
+		return unary
+	}
+
+	validCases := []struct {
+		name       string
+		literalSQL string
+		want       string
+	}{
+		{name: "int64 negative", literalSQL: "-42", want: "-42"},
+		{name: "int64 negative zero", literalSQL: "-0", want: "0"},
+		{name: "uint64 MinInt64", literalSQL: "-9223372036854775808", want: "-9223372036854775808"},
+		{name: "uint64 MaxUint64 magnitude", literalSQL: "-18446744073709551615", want: "-18446744073709551615"},
+		{name: "float64 scientific positive exp", literalSQL: "-1.25e4", want: "-12500"},
+		{name: "float64 scientific negative exp", literalSQL: "-2.5e-3", want: "-0.0025"},
+		{name: "MyDecimal trailing zeros", literalSQL: "-1.50", want: "-1.50"},
+		{name: "MyDecimal negative zero", literalSQL: "-0.00", want: "-0.00"},
+		{name: "MyDecimal leading dot", literalSQL: "-.5", want: "-0.5"},
+		{name: "MyDecimal leading and trailing zeros", literalSQL: "-00012.3400", want: "-12.3400"},
+		{name: "MyDecimal 38 digits", literalSQL: "-12345678901234567890123456789.123456789", want: "-12345678901234567890123456789.123456789"},
+	}
+
+	for _, tc := range validCases {
+		t.Run(tc.name, func(t *testing.T) {
+			unary := extractUnaryValExpr(t, tc.literalSQL)
+			gotVals, err := getVals([]ast.ExprNode{unary})
+			assert.NoError(t, err)
+			assert.Equal(t, []string{tc.want}, gotVals)
+		})
+	}
+
+	invalidCases := []struct {
+		name       string
+		literalSQL string
+	}{
+		{name: "default branch unary minus string", literalSQL: "-'abc'"},
+		{name: "default branch unary minus NULL", literalSQL: "-NULL"},
+		{name: "default branch unary minus hex literal", literalSQL: "-0x10"},
+	}
+
+	for _, tc := range invalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			unary := extractUnaryValExpr(t, tc.literalSQL)
+			gotVals, err := getVals([]ast.ExprNode{unary})
+			assert.Error(t, err)
+			assert.Nil(t, gotVals)
+		})
+	}
+
+	t.Run("unsupported negative unary value recorded as bad row in dump", func(t *testing.T) {
+		sqlDump := "CREATE TABLE t_bad_unary (id INT PRIMARY KEY, v VARCHAR(16));\n" +
+			"INSERT INTO t_bad_unary (id, v) VALUES (1, 'ok'), (2, -'bad'), (3, -1.50);\n"
+		conv, rows := runProcessMySQLDump(sqlDump)
+		expected := []spannerData{
+			{table: "t_bad_unary", cols: []string{"id", "v"}, vals: []interface{}{int64(1), "ok"}},
+			{table: "t_bad_unary", cols: []string{"id", "v"}, vals: []interface{}{int64(3), "-1.50"}},
+		}
+		assert.Equal(t, expected, rows)
+		assert.Equal(t, int64(1), conv.Stats.BadRows["t_bad_unary"])
+	})
+}
+
+func TestProcessMySQLDump_Over81DigitIntegerLiteralDoesNotPanic(t *testing.T) {
+	hugeInt := strings.Repeat("9", 85)
+	sqlDump := fmt.Sprintf("CREATE TABLE t_overflow (id INT PRIMARY KEY, d DECIMAL(65, 0));\n"+
+		"INSERT INTO t_overflow (id, d) VALUES (1, 42),(2, %s),(3, 99);\n", hugeInt)
+
+	assert.NotPanics(t, func() {
+		_, rows := runProcessMySQLDump(sqlDump)
+		expected := []spannerData{
+			{table: "t_overflow", cols: []string{"id", "d"}, vals: []interface{}{int64(1), mustRat(t, "42")}},
+			{table: "t_overflow", cols: []string{"id", "d"}, vals: []interface{}{int64(3), mustRat(t, "99")}},
+		}
+		assert.Equal(t, expected, rows)
+	})
+}
+
+func TestProcessMySQLDump_DefaultValuesAndEscapedExpressions(t *testing.T) {
+	sqlDump := "CREATE TABLE expr_edge (\n" +
+		"  id INT NOT NULL PRIMARY KEY,\n" +
+		"  c_null VARCHAR(20) DEFAULT NULL,\n" +
+		"  c_str VARCHAR(20) DEFAULT 'hello',\n" +
+		"  c_dec DECIMAL(10, 2) DEFAULT 0.00,\n" +
+		"  c_int INT DEFAULT 42,\n" +
+		"  path VARCHAR(255),\n" +
+		"  label VARCHAR(255),\n" +
+		"  gen_virtual VARCHAR(512) GENERATED ALWAYS AS (CONCAT(`path`, 'C:\\\\Users\\\\docs', 'O''Brien')) VIRTUAL,\n" +
+		"  gen_stored DECIMAL(12, 2) GENERATED ALWAYS AS ((`c_dec` + 1.25)) STORED,\n" +
+		"  CONSTRAINT `chk_escaped_backslash` CHECK ((`path` LIKE 'C:\\\\Users\\\\%')),\n" +
+		"  CONSTRAINT `chk_escaped_quotes` CHECK ((`label` <> _utf8mb4'it''s_invalid')),\n" +
+		"  CONSTRAINT `chk_decimal` CHECK (((`c_dec` >= 0.00) AND (`c_dec` <= 9999.99)))\n" +
+		");\n"
+
+	conv, _ := runProcessMySQLDump(sqlDump)
+	tableID, err := internal.GetTableIdFromSrcName(conv.SrcSchema, "expr_edge")
+	assert.NoError(t, err)
+	srcTbl := conv.SrcSchema[tableID]
+
+	cNullID, err := internal.GetColIdFromSrcName(srcTbl.ColDefs, "c_null")
+	assert.NoError(t, err)
+	assert.False(t, srcTbl.ColDefs[cNullID].Ignored.Default, "DEFAULT NULL should not mark Ignored.Default")
+
+	for _, colName := range []string{"c_str", "c_dec", "c_int"} {
+		colID, err := internal.GetColIdFromSrcName(srcTbl.ColDefs, colName)
+		assert.NoError(t, err, colName)
+		assert.True(t, srcTbl.ColDefs[colID].Ignored.Default, "%s with explicit DEFAULT should mark Ignored.Default", colName)
+	}
+
+	genVirtID, err := internal.GetColIdFromSrcName(srcTbl.ColDefs, "gen_virtual")
+	assert.NoError(t, err)
+	assert.True(t, srcTbl.ColDefs[genVirtID].GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColVirtual, srcTbl.ColDefs[genVirtID].GeneratedColumn.Type)
+	assert.Equal(t, "CONCAT(path, _UTF8MB4'C:\\Users\\docs', _UTF8MB4'O''Brien')", srcTbl.ColDefs[genVirtID].GeneratedColumn.Value.Statement)
+
+	genStoredID, err := internal.GetColIdFromSrcName(srcTbl.ColDefs, "gen_stored")
+	assert.NoError(t, err)
+	assert.True(t, srcTbl.ColDefs[genStoredID].GeneratedColumn.IsPresent)
+	assert.Equal(t, ddl.GeneratedColStored, srcTbl.ColDefs[genStoredID].GeneratedColumn.Type)
+	assert.Equal(t, "(c_dec+1.25)", srcTbl.ColDefs[genStoredID].GeneratedColumn.Value.Statement)
+
+	gotChecks := map[string]string{}
+	for _, cc := range srcTbl.CheckConstraints {
+		gotChecks[cc.Name] = cc.Expr
+	}
+	assert.Equal(t, "(path LIKE 'C:\\\\Users\\\\%')", gotChecks["chk_escaped_backslash"])
+	assert.Equal(t, "(label!='it''s_invalid')", gotChecks["chk_escaped_quotes"])
+	assert.Equal(t, "((c_dec>=0.00) AND (c_dec<=9999.99))", gotChecks["chk_decimal"])
+}
+
+func TestExpressionToString_ValueExprRestoreParity(t *testing.T) {
+	stmtSQL := "CREATE TABLE t (id INT, CONSTRAINT c1 CHECK (" +
+		"a = 'C:\\\\dir\\\\file' AND b = 'O''Reilly' AND d = 0.00 AND e IS NOT NULL AND f = TRUE AND g = b'101' AND h = x'ff'" +
+		"));"
+	stmts, _, err := parser.New().Parse(stmtSQL, "", "")
+	assert.NoError(t, err)
+	createStmt := stmts[0].(*ast.CreateTableStmt)
+	restored := expressionToString(createStmt.Constraints[0].Expr)
+	assert.Equal(t,
+		"a=_UTF8MB4'C:\\\\dir\\\\file' AND b=_UTF8MB4'O''Reilly' AND d=0.00 AND e IS NOT NULL AND f=TRUE AND g=b'101' AND h=x'ff'",
+		restored,
+	)
 }

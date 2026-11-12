@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { LoadDumpComponent } from './load-dump.component'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
@@ -31,7 +32,7 @@ describe('LoadDumpComponent', () => {
         MatInputModule,
         BrowserAnimationsModule,
         MatSnackBarModule],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 }).compileComponents()
   })
 

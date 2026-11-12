@@ -11,6 +11,7 @@ import { LoaderService } from 'src/app/services/loader/loader.service'
   selector: 'app-header',
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss'],
+  standalone: false,
 })
 export class HeaderComponent implements OnInit {
   spannerConfig: ISpannerConfig

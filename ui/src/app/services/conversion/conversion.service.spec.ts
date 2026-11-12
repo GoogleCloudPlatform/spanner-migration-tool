@@ -1,4 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import IConv, { IInterleavedParent } from '../../model/conv'
@@ -15,7 +16,7 @@ describe('ConversionService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
     imports: [],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 });
     service = TestBed.inject(ConversionService);
   });
