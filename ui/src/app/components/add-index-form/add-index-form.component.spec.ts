@@ -1,4 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormArray, FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,49 +19,45 @@ import { AddIndexFormComponent } from './add-index-form.component';
 describe('AddIndexFormComponent', () => {
   let component: AddIndexFormComponent;
   let fixture: ComponentFixture<AddIndexFormComponent>;
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
-  let sidenavServiceSpy: jasmine.SpyObj<SidenavService>;
+  let dataServiceSpy: any;
+  let sidenavServiceSpy: any;
   let fb: FormBuilder;
-  let conversionServiceSpy: jasmine.SpyObj<ConversionService>;
+  let conversionServiceSpy: any;
   let localIConv: IConv;
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['conv', 'applyRule', 'dropRule']);
-    sidenavServiceSpy = jasmine.createSpyObj('SidenavService', [
-      'sidenavAddIndexTable',
-      'setSidenavAddIndexTable',
-      'closeSidenav',
-      'displayRuleFlag',
-      'ruleData',
-    ]);
-    conversionServiceSpy = jasmine.createSpyObj('ConversionService', [
-      'getTableIdFromSpName',
-      'getColIdFromSpannerColName',
-    ]);
+    localIConv = createMockIConv();
+    dataServiceSpy = {
+      conv: of(localIConv),
+      applyRule: vi.fn(),
+      dropRule: vi.fn(),
+    };
+    sidenavServiceSpy = {
+      sidenavAddIndexTable: of("t1"),
+      setSidenavAddIndexTable: vi.fn(),
+      closeSidenav: vi.fn(),
+      displayRuleFlag: of(true),
+      ruleData: of(),
+    };
+    conversionServiceSpy = {
+      getTableIdFromSpName: vi.fn().mockReturnValue("t1"),
+      getColIdFromSpannerColName: vi.fn().mockReturnValue("TestId"),
+    };
 
     await TestBed.configureTestingModule({
-    declarations: [AddIndexFormComponent],
-    imports: [ReactiveFormsModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule, MatFormFieldModule, MatInputModule],
-    providers: [
+      declarations: [AddIndexFormComponent],
+      imports: [ReactiveFormsModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule, MatFormFieldModule, MatInputModule],
+      providers: [
         FormBuilder,
         { provide: DataService, useValue: dataServiceSpy },
         { provide: SidenavService, useValue: sidenavServiceSpy },
         { provide: ConversionService, useValue: conversionServiceSpy },
-        provideHttpClient(withInterceptorsFromDi()),
-    ]
-})
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting(),
+      ]
+    })
       .compileComponents();
 
     fb = TestBed.inject(FormBuilder);
-
-    // Added the spy methods in beforeEach block because these are referred in the ngOnInit function
-    conversionServiceSpy.getColIdFromSpannerColName.withArgs(jasmine.any(String),jasmine.any(String),jasmine.objectContaining<IConv>({})).and.returnValue("TestId")
-    conversionServiceSpy.getTableIdFromSpName.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue("t1")
-    localIConv = createMockIConv();
-    dataServiceSpy.conv = of(localIConv);
-    sidenavServiceSpy.sidenavAddIndexTable = of("t1");
-    sidenavServiceSpy.displayRuleFlag = of(true)
-    sidenavServiceSpy.ruleData = of()
   });
 
   beforeEach(() => {
@@ -72,6 +69,10 @@ describe('AddIndexFormComponent', () => {
       ColsArray: fb.array([]),
     });
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should create', () => {
@@ -122,7 +123,7 @@ describe('AddIndexFormComponent', () => {
   });
 
   it('should reset rule type', () => {
-    spyOn(component.resetRuleType, 'emit');
+    vi.spyOn(component.resetRuleType, 'emit');
     component.resetRuleType.emit('');
     expect(component.resetRuleType.emit).toHaveBeenCalledWith('');
   });
@@ -180,7 +181,6 @@ describe('AddIndexFormComponent', () => {
   });
 
   it('should add an index and apply a rule', () => {
-    // Mock form values
     component.addIndexForm = fb.group({
       tableName: 'table1',
       indexName: 'ind1',

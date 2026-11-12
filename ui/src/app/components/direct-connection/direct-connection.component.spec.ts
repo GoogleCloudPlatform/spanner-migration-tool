@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
 import { HttpResponse, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { DirectConnectionComponent } from './direct-connection.component'
 import { By } from '@angular/platform-browser'
 import { ReactiveFormsModule } from '@angular/forms'
@@ -40,7 +41,7 @@ describe('DirectConnectionComponent', () => {
     providers: [
         SnackbarService,
         { provide: MatDialog, useValue: {} },
-        provideHttpClient(withInterceptorsFromDi())
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
     ]
 }).compileComponents()
   })
@@ -176,8 +177,8 @@ describe('DirectConnectionComponent', () => {
     const dataService = TestBed.inject(DataService)
     const fetchService = TestBed.inject(FetchService)
     const snackbarService = TestBed.inject(SnackbarService)
-    spyOn(fetchService, 'connectTodb').and.returnValue(of(new HttpResponse<HttpResponse<null>>({ status: 200 })))
-    spyOn(snackbarService, 'openSnackBar')
+    vi.spyOn(fetchService, 'connectTodb').mockReturnValue(of(new HttpResponse<HttpResponse<null>>({ status: 200 })))
+    vi.spyOn(snackbarService, 'openSnackBar')
     localStorage.clear()
     component.connectForm.patchValue({
       dbEngine: 'mysql',

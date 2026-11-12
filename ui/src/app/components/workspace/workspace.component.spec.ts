@@ -1,5 +1,7 @@
-import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing'
+import { NO_ERRORS_SCHEMA } from '@angular/core'
+import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { WorkspaceComponent } from './workspace.component'
 import { MatDialog } from '@angular/material/dialog'
@@ -9,7 +11,6 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { InputType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
 import { of, Subscription } from 'rxjs'
-import * as JSZip from 'jszip'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { createMockIConv, createMockIConv2 } from 'src/mocks/conv'
 import mockSpannerConfig from 'src/mocks/spannerConfig'
@@ -17,7 +18,6 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import IStructuredReport from 'src/app/model/structured-report'
-import ISpannerConfig from 'src/app/model/spanner-config'
 import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { FlatNode } from 'src/app/model/schema-object-node'
@@ -50,61 +50,16 @@ describe('WorkspaceComponent', () => {
   let component: WorkspaceComponent
   let fixture: ComponentFixture<WorkspaceComponent>
   let mockIConv: IConv;
-  let dialogSpyObj: jasmine.SpyObj<MatDialog>;
-  let clickEventSpyObj: jasmine.SpyObj<ClickEventService>;
-  let sidenavSpyObj: jasmine.SpyObj<SidenavService>;
-  let fetchServiceSpy: jasmine.SpyObj<FetchService>;
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
-  let routerSpy: jasmine.SpyObj<Router>;
-  let conversionServiceSpy: jasmine.SpyObj<ConversionService>;
+  let dialogSpyObj: any;
+  let clickEventSpyObj: any;
+  let sidenavSpyObj: any;
+  let fetchServiceSpy: any;
+  let dataServiceSpy: any;
+  let routerSpy: any;
+  let conversionServiceSpy: any;
 
   beforeEach(async () => {
     mockIConv = createMockIConv();
-    dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
-    clickEventSpyObj = jasmine.createSpyObj('ClickEventService', ['setViewAssesmentData', 'setTabToSpanner']);
-    sidenavSpyObj = jasmine.createSpyObj('SidenavService', ['openSidenav', 'setSidenavComponent', 'setSidenavDatabaseName', 'setMiddleColumnComponent']);
-    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getDStructuredReport', 'getDTextReport', 'getDSpannerDDL', 'getSpannerConfig', 'getIsOffline', 'getLastSessionDetails', 'getTableWithErrors','verifyCheckConstraintExpression']);
-    conversionServiceSpy = jasmine.createSpyObj('ConversionService', [
-      'getStandardTypeToPGSQLTypemap',
-      'getPGSQLToStandardTypeTypemap',
-      'isIndexAddedOrRemoved',
-      'getFkMapping',
-      'getColumnMapping',
-      'getIndexMapping',
-      'createTreeNode',
-      'createTreeNodeForSource',
-      'getCheckConstraints'
-    ]);
-    dataServiceSpy = jasmine.createSpyObj('DataService', [
-      'getRateTypemapAndSummary',
-      'verifyCheckConstraintExpression'
-    ]);
-    routerSpy = jasmine.createSpyObj('Router', ['navigate']);
-
-    await TestBed.configureTestingModule({
-    declarations: [WorkspaceComponent],
-    imports: [MatSnackBarModule, MatMenuModule, MatTabsModule, BrowserAnimationsModule],
-    providers: [
-        { provide: MatDialog, useValue: dialogSpyObj },
-        { provide: ClickEventService, useValue: clickEventSpyObj },
-        { provide: SidenavService, useValue: sidenavSpyObj },
-        { provide: FetchService, useValue: fetchServiceSpy },
-        { provide: ConversionService, useValue: conversionServiceSpy },
-        { provide: DataService, useValue: dataServiceSpy },
-        { provide: Router, useValue: routerSpy },
-        provideHttpClient(withInterceptorsFromDi())
-    ]
-}).compileComponents()
-
-    dataServiceSpy.typeMap = of({});
-    dataServiceSpy.defaultTypeMap = of({});
-    dataServiceSpy.ddl = of("");
-    dataServiceSpy.conversionRate = of({
-      t1: 'EXCELLENT',
-      t2: 'GOOD',
-      t3: 'OK',
-      t4: 'BAD',
-    });
     const mockData = {
       rates: {},
       typeMap: {},
@@ -114,13 +69,71 @@ describe('WorkspaceComponent', () => {
     };
     const mockSubscription = new Subscription();
     mockSubscription.add(of(mockData).subscribe());
-    dataServiceSpy.isOffline = of(false);
-    dataServiceSpy.conv = of(mockIConv);
-    dataServiceSpy.getRateTypemapAndSummary.and.returnValue(mockSubscription);
-    sidenavSpyObj.setMiddleColumnComponent = of(false);
-    fetchServiceSpy.getLastSessionDetails.and.returnValue(of(mockIConv));
-    fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
-    fetchServiceSpy.getIsOffline.and.returnValue(of(false));
+
+    dialogSpyObj = { open: vi.fn() };
+    clickEventSpyObj = {
+      setViewAssesmentData: vi.fn(),
+      setTabToSpanner: vi.fn(),
+    };
+    sidenavSpyObj = {
+      openSidenav: vi.fn(),
+      setSidenavComponent: vi.fn(),
+      setSidenavDatabaseName: vi.fn(),
+      setMiddleColumnComponent: of(false),
+    };
+    fetchServiceSpy = {
+      getDStructuredReport: vi.fn(),
+      getDTextReport: vi.fn(),
+      getDSpannerDDL: vi.fn(),
+      getSpannerConfig: vi.fn().mockReturnValue(of(mockSpannerConfig)),
+      getIsOffline: vi.fn().mockReturnValue(of(false)),
+      getLastSessionDetails: vi.fn().mockReturnValue(of(mockIConv)),
+      getTableWithErrors: vi.fn(),
+      verifyCheckConstraintExpression: vi.fn(),
+    };
+    conversionServiceSpy = {
+      getStandardTypeToPGSQLTypemap: vi.fn(),
+      getPGSQLToStandardTypeTypemap: vi.fn(),
+      isIndexAddedOrRemoved: vi.fn(),
+      getFkMapping: vi.fn(),
+      getColumnMapping: vi.fn(),
+      getIndexMapping: vi.fn(),
+      createTreeNode: vi.fn(),
+      createTreeNodeForSource: vi.fn(),
+      getCheckConstraints: vi.fn(),
+    };
+    dataServiceSpy = {
+      getRateTypemapAndSummary: vi.fn().mockReturnValue(mockSubscription),
+      verifyCheckConstraintExpression: vi.fn(),
+      typeMap: of({}),
+      defaultTypeMap: of({}),
+      ddl: of(""),
+      conversionRate: of({
+        t1: 'EXCELLENT',
+        t2: 'GOOD',
+        t3: 'OK',
+        t4: 'BAD',
+      }),
+      isOffline: of(false),
+      conv: of(mockIConv),
+    };
+    routerSpy = { navigate: vi.fn() };
+
+    await TestBed.configureTestingModule({
+      schemas: [NO_ERRORS_SCHEMA],
+      declarations: [WorkspaceComponent],
+      imports: [MatSnackBarModule, MatMenuModule, MatTabsModule, BrowserAnimationsModule],
+      providers: [
+        { provide: MatDialog, useValue: dialogSpyObj },
+        { provide: ClickEventService, useValue: clickEventSpyObj },
+        { provide: SidenavService, useValue: sidenavSpyObj },
+        { provide: FetchService, useValue: fetchServiceSpy },
+        { provide: ConversionService, useValue: conversionServiceSpy },
+        { provide: DataService, useValue: dataServiceSpy },
+        { provide: Router, useValue: routerSpy },
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()
+      ]
+    }).compileComponents()
   })
 
   beforeEach(() => {
@@ -142,15 +155,15 @@ describe('WorkspaceComponent', () => {
         store = {};
       }
     };
-    spyOn(localStorage, 'getItem')
-      .and.callFake(mockLocalStorage.getItem);
-    spyOn(localStorage, 'setItem')
-      .and.callFake(mockLocalStorage.setItem);
-    spyOn(localStorage, 'removeItem')
-      .and.callFake(mockLocalStorage.removeItem);
-    spyOn(localStorage, 'clear')
-      .and.callFake(mockLocalStorage.clear);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(mockLocalStorage.getItem);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockLocalStorage.setItem);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(mockLocalStorage.removeItem);
+    vi.spyOn(Storage.prototype, 'clear').mockImplementation(mockLocalStorage.clear);
     fixture.detectChanges()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   })
 
   it('should create', () => {
@@ -203,24 +216,24 @@ describe('WorkspaceComponent', () => {
     expect(component.isMiddleColumnCollapse).toEqual(true);
   })
 
-  it('should update issues label', fakeAsync(() => {
+  it('should update issues label', async () => {
     const count = 5;
     component.updateIssuesLabel(count);
-    tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     fixture.detectChanges();
     const issuesLabelElement = fixture.nativeElement.querySelector('.mdc-tab__text-label');
     expect(issuesLabelElement).toBeTruthy();
     expect(issuesLabelElement.textContent).toContain(`ISSUES AND SUGGESTIONS (${count})`);
-  }));
+  });
 
-  it('should update rules label', fakeAsync(() => {
+  it('should update rules label', async () => {
     const count = 3;
     component.updateRulesLabel(count);
-    tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     fixture.detectChanges();
     const rulesLabelElement = fixture.nativeElement.querySelectorAll('.mdc-tab__text-label')[1];
     expect(rulesLabelElement.textContent).toContain(`RULES (${count})`);
-  }));
+  });
 
   it('should open the assessment sidenav and set view data for direct connection', () => {
     localStorage.setItem(StorageKeys.Type, InputType.DirectConnect);
@@ -285,11 +298,11 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should handle table errors', () => {
-    fetchServiceSpy.getTableWithErrors.and.returnValue(
+    fetchServiceSpy.getTableWithErrors.mockReturnValue(
       of([{ Name: 'TableA', Id: 't1' }, { Name: 'TableB', Id: 't2' }])
     );
     component.prepareMigration();
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(expect.any(Function), {
       data: {
         message: 'Please fix the errors for the following tables to move ahead: TableA, TableB',
         type: 'error',
@@ -302,10 +315,10 @@ describe('WorkspaceComponent', () => {
 
   it('should handle offline status', () => {
 
-    fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
+    fetchServiceSpy.getTableWithErrors.mockReturnValue(of([]));
     component.isOfflineStatus = true;
     component.prepareMigration();
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(expect.any(Function), {
       data: {
         message: 'Please configure spanner project id and instance id to proceed',
         type: 'error',
@@ -317,11 +330,11 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should handle empty SpSchema', () => {
-    fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
+    fetchServiceSpy.getTableWithErrors.mockReturnValue(of([]));
     component.isOfflineStatus = false;
     component.conv = { SpSchema: {} } as any;
     component.prepareMigration();
-    expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(expect.any(Function), {
       data: {
         message: 'Please restore some table(s) to proceed with the migration',
         type: 'error',
@@ -333,10 +346,10 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should navigate to prepare-migration', () => {
-    fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
-    fetchServiceSpy.verifyCheckConstraintExpression.and.returnValue(of(false))
+    fetchServiceSpy.getTableWithErrors.mockReturnValue(of([]));
+    fetchServiceSpy.verifyCheckConstraintExpression.mockReturnValue(of(false))
     const mockObservable = of(false);
-    dataServiceSpy.verifyCheckConstraintExpression.and.returnValue(mockObservable)
+    dataServiceSpy.verifyCheckConstraintExpression.mockReturnValue(mockObservable)
     component.isOfflineStatus = false;
     component.conv = { SpSchema: { TableA: {}, TableB: {} } } as any;
     component.prepareMigration();
@@ -371,11 +384,11 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should trigger downloadStructuredReport', () => {
-    const aClickSpy = jasmine.createSpy('aClickSpy');
-    fetchServiceSpy.getDStructuredReport.and.returnValue(of(mockStructuredReport));
+    const aClickSpy = vi.fn();
+    fetchServiceSpy.getDStructuredReport.mockReturnValue(of(mockStructuredReport));
     const aElement = document.createElement('a');
-    spyOn(document, 'createElement').and.returnValue(aElement);
-    spyOn(aElement, 'click').and.callFake(() => {
+    vi.spyOn(document, 'createElement').mockReturnValue(aElement);
+    vi.spyOn(aElement, 'click').mockImplementation(() => {
       aClickSpy();
     });
     component.downloadStructuredReport();
@@ -384,11 +397,11 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should trigger downloadTextReport', () => {
-    const aClickSpy = jasmine.createSpy('aClickSpy');
-    fetchServiceSpy.getDTextReport.and.returnValue(of("text"));
+    const aClickSpy = vi.fn();
+    fetchServiceSpy.getDTextReport.mockReturnValue(of("text"));
     const aElement = document.createElement('a');
-    spyOn(document, 'createElement').and.returnValue(aElement);
-    spyOn(aElement, 'click').and.callFake(() => {
+    vi.spyOn(document, 'createElement').mockReturnValue(aElement);
+    vi.spyOn(aElement, 'click').mockImplementation(() => {
       aClickSpy();
     });
     component.downloadTextReport();
@@ -397,11 +410,11 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should trigger downloadDdl', () => {
-    const aClickSpy = jasmine.createSpy('aClickSpy');
-    fetchServiceSpy.getDSpannerDDL.and.returnValue(of("ddl"));
+    const aClickSpy = vi.fn();
+    fetchServiceSpy.getDSpannerDDL.mockReturnValue(of("ddl"));
     const aElement = document.createElement('a');
-    spyOn(document, 'createElement').and.returnValue(aElement);
-    spyOn(aElement, 'click').and.callFake(() => {
+    vi.spyOn(document, 'createElement').mockReturnValue(aElement);
+    vi.spyOn(aElement, 'click').mockImplementation(() => {
       aClickSpy();
     });
     component.downloadDDL();
@@ -428,8 +441,8 @@ describe('WorkspaceComponent', () => {
       parent: '',
       parentId: ''
     };
-    conversionServiceSpy.getColumnMapping.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([]);
-    conversionServiceSpy.getFkMapping.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([]);
+    conversionServiceSpy.getColumnMapping.mockReturnValue([]);
+    conversionServiceSpy.getFkMapping.mockReturnValue([]);
 
     component.changeCurrentObject(tableNode);
 
@@ -452,8 +465,8 @@ describe('WorkspaceComponent', () => {
       isDeleted: false,
       parent: ''
     };
-    conversionServiceSpy.getCheckConstraints.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([])
-    conversionServiceSpy.getIndexMapping.withArgs(jasmine.any(String),jasmine.objectContaining<IConv>({}),jasmine.any(String)).and.returnValue([]);
+    conversionServiceSpy.getCheckConstraints.mockReturnValue([])
+    conversionServiceSpy.getIndexMapping.mockReturnValue([]);
     component.changeCurrentObject(indexNode);
     expect(component.currentObject).toEqual(indexNode);
     expect(component.indexData).toEqual([]);

@@ -23,6 +23,7 @@ import { GcsMetadataDetailsFormComponent } from '../gcs-metadata-details-form/gc
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
   styleUrls: ['./prepare-migration.component.scss'],
+  standalone: false,
 })
 export class PrepareMigrationComponent implements OnInit {
   conv!: IConv
