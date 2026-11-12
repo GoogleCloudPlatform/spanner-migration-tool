@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { SessionListingComponent } from './session-listing.component'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { WorkspaceComponent } from '../workspace/workspace.component'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 
@@ -14,7 +15,7 @@ describe('SessionListingComponent', () => {
     await TestBed.configureTestingModule({
     declarations: [SessionListingComponent],
     imports: [RouterModule.forRoot(appRoutes), MatSnackBarModule],
-    providers: [provideHttpClient(withInterceptorsFromDi())]
+    providers: [provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting()]
 }).compileComponents()
   })
 
