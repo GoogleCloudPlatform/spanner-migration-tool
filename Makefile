@@ -6,11 +6,11 @@ ifndef $(GOPATH)
 endif
 # Build the default binary
 build: ui/package-lock.json
-	cd ui/ && npm install --from-lock-file && ng build
+	cd ui/ && npm ci && npm run build
 	go build -o spanner-migration-tool
 # Build a static binary
 build-static: ui/package-lock.json
-	cd ui/ && npm install --from-lock-file && ng build
+	cd ui/ && npm ci && npm run build
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o spanner-migration-tool main.go
 # Create a new release for Spanner migration tool.
 release:
@@ -26,10 +26,10 @@ update-vendor: ui/package-lock.json
 	git commit -m "Update Vendor files" --no-edit
 # Run unit tests
 test:
-	cd ui/ && npm install && ng build && npm test -- --browsers=ChromeHeadless --watch=false
+	cd ui/ && npm install && npm run build && npm test -- --watch=false
 	go test -v ./...
 # Run code coverage with unit tests
 test-coverage:
-	cd ui/ && npm install && ng build && npm test -- --browsers=ChromeHeadless --watch=false
+	cd ui/ && npm install && npm run build && npm test -- --watch=false --coverage
 	go test ./... -coverprofile coverage.out -covermode count
 	go tool cover -func coverage.out
