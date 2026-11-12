@@ -11,6 +11,7 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
   selector: 'app-load-session',
   templateUrl: './load-session.component.html',
   styleUrls: ['./load-session.component.scss'],
+  standalone: false,
 })
 export class LoadSessionComponent implements OnInit {
   constructor(

@@ -5,6 +5,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
   selector: 'app-instruction',
   templateUrl: './instruction.component.html',
   styleUrls: ['./instruction.component.scss'],
+  standalone: false,
 })
 export class InstructionComponent implements OnInit {
   constructor(private sidenav: SidenavService) {}

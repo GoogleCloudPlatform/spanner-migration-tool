@@ -1,7 +1,9 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 
 import { UpdateSpannerConfigFormComponent } from './update-spanner-config-form.component'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { throwError } from 'rxjs'
@@ -12,28 +14,37 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 describe('UpdateSpannerConfigFormComponent', () => {
   let component: UpdateSpannerConfigFormComponent
   let fixture: ComponentFixture<UpdateSpannerConfigFormComponent>
-  let dialogRefSpy: jasmine.SpyObj<MatDialogRef<UpdateSpannerConfigFormComponent>>;
-  let snackSpy: jasmine.SpyObj<SnackbarService>;
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
-  let fetchServiceSpy: jasmine.SpyObj<FetchService>;
+  let dialogRefSpy: { close: ReturnType<typeof vi.fn> };
+  let snackSpy: { openSnackBar: ReturnType<typeof vi.fn> };
+  let dataServiceSpy: {
+    updateIsOffline: ReturnType<typeof vi.fn>;
+    updateConfig: ReturnType<typeof vi.fn>;
+    getAllSessions: ReturnType<typeof vi.fn>;
+  };
+  let fetchServiceSpy: { setSpannerConfig: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['close']);
-    snackSpy = jasmine.createSpyObj('SnackbarService', ['openSnackBar']);
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateIsOffline', 'updateConfig', 'getAllSessions']);
-    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['setSpannerConfig']);
+    dialogRefSpy = { close: vi.fn() };
+    snackSpy = { openSnackBar: vi.fn() };
+    dataServiceSpy = {
+      updateIsOffline: vi.fn(),
+      updateConfig: vi.fn(),
+      getAllSessions: vi.fn(),
+    };
+    fetchServiceSpy = { setSpannerConfig: vi.fn() };
     await TestBed.configureTestingModule({
-    declarations: [UpdateSpannerConfigFormComponent],
-    imports: [MatSnackBarModule],
-    providers: [
+      schemas: [NO_ERRORS_SCHEMA],
+      declarations: [UpdateSpannerConfigFormComponent],
+      imports: [MatSnackBarModule],
+      providers: [
         { provide: MAT_DIALOG_DATA, useValue: {} },
         { provide: MatDialogRef, useValue: dialogRefSpy },
         { provide: SnackbarService, useValue: snackSpy },
         { provide: DataService, useValue: dataServiceSpy },
         { provide: FetchService, useValue: fetchServiceSpy },
-        provideHttpClient(withInterceptorsFromDi()),
-    ]
-}).compileComponents()
+        provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting(),
+      ]
+    }).compileComponents()
   })
 
   beforeEach(() => {
@@ -47,20 +58,17 @@ describe('UpdateSpannerConfigFormComponent', () => {
   })
 
   it('should handle error in updateSpannerConfig', () => {
-    // Mock the form value
     component.updateConfigForm.setValue({
       GCPProjectID: 'mockProjectID',
       SpannerInstanceID: 'mockInstanceID',
     });
 
-    // Mock the error response from setSpannerConfig
-    fetchServiceSpy.setSpannerConfig.and.returnValue(throwError(() =>new Error('Mock error message')))
+    fetchServiceSpy.setSpannerConfig.mockReturnValue(throwError(() => new Error('Mock error message')))
 
-    // Trigger the updateSpannerConfig method
     component.updateSpannerConfig();
 
-    // Assertions
-    expect(fetchServiceSpy.setSpannerConfig).toHaveBeenCalledOnceWith({
+    expect(fetchServiceSpy.setSpannerConfig).toHaveBeenCalledTimes(1);
+    expect(fetchServiceSpy.setSpannerConfig).toHaveBeenCalledWith({
       GCPProjectID: 'mockProjectID',
       SpannerInstanceID: 'mockInstanceID',
     });
