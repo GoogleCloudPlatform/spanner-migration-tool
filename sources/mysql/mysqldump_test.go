@@ -1057,6 +1057,7 @@ func TestAlterTableModifyUniqueColumnUsesColId(t *testing.T) {
 	if !foundUnique {
 		t.Fatal("no unique index was created for the UNIQUE column")
 	}
+}
 
 func mustRat(t *testing.T, s string) *big.Rat {
 	t.Helper()
