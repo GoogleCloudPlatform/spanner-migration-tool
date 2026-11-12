@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { DataService } from './data.service'
 import { FetchService } from '../fetch/fetch.service'
 import { SnackbarService } from '../snackbar/snackbar.service'
@@ -11,26 +12,34 @@ describe('DataService', () => {
     let service: DataService
     let snackbarService: SnackbarService;
     let fetchService: FetchService;
-
-    // Create spy objects for dependencies
-    const snackbarServiceSpy = jasmine.createSpyObj('SnackbarService', ['openSnackBar']);
-    const fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getSpannerConfig', 'getIsOffline', 'getLastSessionDetails']);
+    let snackbarServiceSpy: { openSnackBar: ReturnType<typeof vi.fn> };
+    let fetchServiceSpy: {
+        getSpannerConfig: ReturnType<typeof vi.fn>;
+        getIsOffline: ReturnType<typeof vi.fn>;
+        getLastSessionDetails: ReturnType<typeof vi.fn>;
+    };
 
     beforeEach(() => {
+        snackbarServiceSpy = {
+            openSnackBar: vi.fn(),
+        };
+        fetchServiceSpy = {
+            getSpannerConfig: vi.fn().mockReturnValue(of(mockSpannerConfig)),
+            getIsOffline: vi.fn().mockReturnValue(of(false)),
+            getLastSessionDetails: vi.fn().mockReturnValue(of(createMockIConv())),
+        };
+
         TestBed.configureTestingModule({
-    imports: [],
-    providers: [
-        DataService,
-        { provide: SnackbarService, useValue: snackbarServiceSpy },
-        { provide: FetchService, useValue: fetchServiceSpy },
-        provideHttpClient(withInterceptorsFromDi()),
-    ]
-})
-        fetchServiceSpy.getLastSessionDetails.and.returnValue(of(createMockIConv()));
-        fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
-        fetchServiceSpy.getIsOffline.and.returnValue(of(false));
+            imports: [],
+            providers: [
+                DataService,
+                { provide: SnackbarService, useValue: snackbarServiceSpy },
+                { provide: FetchService, useValue: fetchServiceSpy },
+                provideHttpClient(withInterceptorsFromDi()), provideHttpClientTesting(),
+            ]
+        })
         snackbarService = TestBed.inject(SnackbarService);
-        fetchService = TestBed.inject(FetchService) as jasmine.SpyObj<FetchService>;
+        fetchService = TestBed.inject(FetchService);
         service = TestBed.inject(DataService)
     })
 

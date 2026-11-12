@@ -6,7 +6,8 @@ import { ITableState } from 'src/app/model/migrate';
 @Component({
   selector: 'app-bulk-drop-restore-table-dialog',
   templateUrl: './bulk-drop-restore-table-dialog.component.html',
-  styleUrls: ['./bulk-drop-restore-table-dialog.component.scss']
+  styleUrls: ['./bulk-drop-restore-table-dialog.component.scss'],
+  standalone: false,
 })
 export class BulkDropRestoreTableDialogComponent implements OnInit {
 
