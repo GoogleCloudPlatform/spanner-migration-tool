@@ -586,3 +586,85 @@ func TestGetMaxSize(t *testing.T) {
 		})
 	}
 }
+
+// TestToSpannerTypeInternalBinaryTypes verifies the MySQL to Spanner mappings of
+// the binary datatypes documented in the MySQL data type support matrix.
+func TestToSpannerTypeInternalBinaryTypes(t *testing.T) {
+	testCases := []struct {
+		name       string
+		srcType    schema.Type
+		spType     string
+		want       ddl.Type
+		wantIssues []internal.SchemaIssue
+	}{
+		{
+			name:    "binary without length maps to bytes(max)",
+			srcType: schema.Type{Name: "binary"},
+			want:    ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+		},
+		{
+			name:    "binary with length maps to bytes(n)",
+			srcType: schema.Type{Name: "binary", Mods: []int64{32}},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 32},
+		},
+		{
+			name:    "varbinary with length maps to bytes(n)",
+			srcType: schema.Type{Name: "varbinary", Mods: []int64{32}},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 32},
+		},
+		{
+			name:    "binary keeps its length when bytes is explicitly selected",
+			srcType: schema.Type{Name: "binary", Mods: []int64{32}},
+			spType:  ddl.Bytes,
+			want:    ddl.Type{Name: ddl.Bytes, Len: 32},
+		},
+		{
+			name:    "binary maps to string when string is explicitly selected",
+			srcType: schema.Type{Name: "binary", Mods: []int64{32}},
+			spType:  ddl.String,
+			want:    ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+		},
+		{
+			name:    "bit(1) maps to bool",
+			srcType: schema.Type{Name: "bit", Mods: []int64{1}},
+			want:    ddl.Type{Name: ddl.Bool},
+		},
+		{
+			name:    "bit(n) maps to bytes(max)",
+			srcType: schema.Type{Name: "bit", Mods: []int64{32}},
+			want:    ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+		},
+		{
+			name:    "bit(n) maps to int64 when int64 is explicitly selected",
+			srcType: schema.Type{Name: "bit", Mods: []int64{32}},
+			spType:  ddl.Int64,
+			want:    ddl.Type{Name: ddl.Int64},
+		},
+		{
+			name:       "bit(64) to int64 flags a possible overflow",
+			srcType:    schema.Type{Name: "bit", Mods: []int64{64}},
+			spType:     ddl.Int64,
+			want:       ddl.Type{Name: ddl.Int64},
+			wantIssues: []internal.SchemaIssue{internal.PossibleOverflow},
+		},
+		{
+			name:    "blob with length maps to bytes of the same length",
+			srcType: schema.Type{Name: "blob", Mods: []int64{500}},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 500},
+		},
+		{
+			name:    "blob without length maps to the maximum blob size",
+			srcType: schema.Type{Name: "blob"},
+			want:    ddl.Type{Name: ddl.Bytes, Len: 65535},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, issues := toSpannerTypeInternal(tc.srcType, tc.spType)
+
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantIssues, issues)
+		})
+	}
+}
