@@ -225,6 +225,46 @@ class SyncDependabotAlertsTest(unittest.TestCase):
     closed_labels = [l["name"] for l in client.issues[0]["labels"]]
     self.assertIn("obsolete", closed_labels)
 
+  def test_cursor_pagination_follows_link_header_without_page_param(self):
+    calls: list[tuple[str, dict[str, str] | None]] = []
+
+    class CursorClient(sync_dependabot_alerts.GitHubClient):
+
+      def request(self, method, path, token, data=None, params=None):
+        if params and "page" in params:
+          raise AssertionError("`page` parameter must not be sent")
+        calls.append((path, params))
+        if len(calls) == 1:
+          return [{"number": 1}], {
+              "link": (
+                  '<https://api.github.com/repos/org/repo/dependabot/alerts?after=cursor123&per_page=100>;'
+                  ' rel="next"'
+              )
+          }
+        return [{"number": 2}], {}
+
+    client = CursorClient()
+    items = client.paginate(
+        "/repos/org/repo/dependabot/alerts",
+        token="tok",
+        params={"state": "open", "severity": "critical,high"},
+    )
+    self.assertEqual([i["number"] for i in items], [1, 2])
+    self.assertEqual(
+        calls[0],
+        (
+            "/repos/org/repo/dependabot/alerts",
+            {"state": "open", "severity": "critical,high", "per_page": "100"},
+        ),
+    )
+    self.assertEqual(
+        calls[1],
+        (
+            "https://api.github.com/repos/org/repo/dependabot/alerts?after=cursor123&per_page=100",
+            None,
+        ),
+    )
+
 
 if __name__ == "__main__":
   unittest.main()

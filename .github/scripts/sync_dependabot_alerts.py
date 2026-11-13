@@ -36,6 +36,7 @@ import urllib.parse
 import urllib.request
 
 GITHUB_API_BASE = "https://api.github.com"
+NEXT_LINK_REGEX = re.compile(r'<([^>]+)>;\s*rel="next"')
 ALERT_MARKER_TEMPLATE = "<!-- dependabot-alert-number: {} -->"
 ALERT_MARKER_REGEX = re.compile(r"<!--\s*dependabot-alert-number:\s*(\d+)\s*-->")
 TITLE_FALLBACK_REGEX = re.compile(r"\[Dependabot #(\d+)\]")
@@ -90,10 +91,14 @@ class GitHubClient:
       params: dict[str, str] | None = None,
   ) -> tuple[Any, dict[str, str]]:
     """Performs an HTTP request against the GitHub REST API."""
-    url = f"{self.api_base}{path}"
+    if path.startswith("http://") or path.startswith("https://"):
+      url = path
+    else:
+      url = f"{self.api_base}{path}"
     if params:
       query = urllib.parse.urlencode(params)
-      url = f"{url}?{query}"
+      separator = "&" if "?" in url else "?"
+      url = f"{url}{separator}{query}"
 
     headers = {
         "Accept": "application/vnd.github+json",
@@ -127,24 +132,27 @@ class GitHubClient:
       token: str,
       params: dict[str, str] | None = None,
   ) -> list[dict[str, Any]]:
-    """Fetches all pages for a paginated GitHub GET endpoint."""
+    """Fetches all pages for a paginated GitHub GET endpoint using Link headers."""
     results: list[dict[str, Any]] = []
-    page = 1
-    base_params = dict(params or {})
-    base_params["per_page"] = "100"
+    next_url: str | None = path
+    next_params: dict[str, str] | None = dict(params or {})
+    next_params["per_page"] = "100"
 
-    while True:
-      page_params = dict(base_params)
-      page_params["page"] = str(page)
-      items, _ = self.request("GET", path, token=token, params=page_params)
+    while next_url:
+      items, resp_headers = self.request(
+          "GET", next_url, token=token, params=next_params
+      )
+      next_params = None  # Subsequent requests use the full URL from Link header
       if not items:
         break
       if not isinstance(items, list):
-        raise RuntimeError(f"Expected list from {path}, got: {type(items)}")
+        raise RuntimeError(
+            f"Expected list from {next_url}, got: {type(items)}"
+        )
       results.extend(items)
-      if len(items) < 100:
-        break
-      page += 1
+      link_header = resp_headers.get("link", "")
+      match = NEXT_LINK_REGEX.search(link_header)
+      next_url = match.group(1) if match else None
     return results
 
 
@@ -557,17 +565,23 @@ def main(argv: list[str] | None = None) -> int:
   )
 
   client = GitHubClient()
-  summary = sync_dependabot_alerts(
-      client=client,
-      repo=args.repo,
-      alerts_token=alerts_token,
-      issues_token=issues_token,
-      severities=severities,
-      extra_labels=extra_labels,
-      dry_run=args.dry_run,
-  )
-  logging.info("Sync complete: %s", json.dumps(summary))
-  return 0
+  try:
+    summary = sync_dependabot_alerts(
+        client=client,
+        repo=args.repo,
+        alerts_token=alerts_token,
+        issues_token=issues_token,
+        severities=severities,
+        extra_labels=extra_labels,
+        dry_run=args.dry_run,
+    )
+    summary_json = json.dumps(summary)
+    logging.info("Sync complete: %s", summary_json)
+    print(f"::notice title=Dependabot Sync Summary::{summary_json}")
+    return 0
+  except Exception as e:
+    print(f"::error title=Dependabot Sync Error::{e}")
+    raise
 
 
 if __name__ == "__main__":
