@@ -1321,3 +1321,68 @@ func TestExpressionToString_ValueExprRestoreParity(t *testing.T) {
 		restored,
 	)
 }
+
+func TestProcessMySQLDump_DefaultTransactionIsolation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "SET GLOBAL transaction_isolation REPEATABLE-READ",
+			input:    "SET @@GLOBAL.transaction_isolation = 'REPEATABLE-READ';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "SET tx_isolation SERIALIZABLE",
+			input:    "SET tx_isolation = 'SERIALIZABLE';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET transaction_isolation READ-COMMITTED ignored",
+			input:    "SET transaction_isolation = 'READ-COMMITTED';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "subsequent unsupported SET resets earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'SERIALIZABLE';\nSET @@GLOBAL.transaction_isolation = 'READ-COMMITTED';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "SET DEFAULT resets earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'SERIALIZABLE';\nSET @@GLOBAL.transaction_isolation = DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "variable restore preserves earlier isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'REPEATABLE-READ';\nSET @@GLOBAL.transaction_isolation = @OLD_TX_ISOLATION;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "unquoted SET GLOBAL transaction_isolation SERIALIZABLE",
+			input:    "SET GLOBAL transaction_isolation = SERIALIZABLE;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "user-defined @tx_isolation and @transaction_isolation ignored",
+			input:    "SET @@GLOBAL.transaction_isolation = 'REPEATABLE-READ';\nSET @tx_isolation = 'SERIALIZABLE';\nSET @transaction_isolation = 'READ-COMMITTED';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "SET SESSION does not clobber explicit SET GLOBAL isolation",
+			input:    "SET @@GLOBAL.transaction_isolation = 'SERIALIZABLE';\nSET @@SESSION.transaction_isolation = 'READ-COMMITTED';\nSET SESSION transaction_isolation = DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET SESSION DEFAULT clears earlier session isolation when no GLOBAL set",
+			input:    "SET SESSION transaction_isolation = 'REPEATABLE-READ';\nSET SESSION transaction_isolation = DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(tc.input)
+			assert.Equal(t, tc.expected, conv.DatabaseOptions.DefaultTransactionIsolation)
+		})
+	}
+}

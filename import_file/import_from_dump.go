@@ -82,6 +82,7 @@ func (source *ImportFromDumpImpl) CreateSchema(ctx context.Context, dialect stri
 	conv.Source = source.SourceFormat
 	conv.SpProjectId = source.ProjectId
 	conv.SpInstanceId = source.InstanceId
+	conv.DatabaseOptions.DbName = source.DatabaseName
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
 	if err := source.dbDumpProcessor.ProcessDump(conv, r); err != nil {
