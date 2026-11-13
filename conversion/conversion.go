@@ -40,7 +40,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
 
@@ -60,16 +59,25 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER, constants.ORACLE, constants.CASSANDRA:
 		conv, err = schemaFromSource.schemaFromDatabase(migrationProjectId, sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
-		if err != nil {
-			fmt.Printf("Warning: failed to initialize expression verifier: %v\n", err)
+		ddlVerifier, verifierErr := expressions_api.NewDDLVerifierImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+		if verifierErr != nil {
+			fmt.Printf("Warning: failed to initialize expression verifier: %v\n", verifierErr)
 		}
 		conv, err = schemaFromSource.SchemaFromDump(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{ExpressionVerificationAccessor: ddlVerifier.Expressions, DdlVerifier: ddlVerifier}, targetProfile.DefaultIdentityOptions)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
-	conv.DatabaseOptions = ddl.DatabaseOptions{
-		DefaultTimezone: targetProfile.Conn.Sp.DefaultTimezone,
+	if err != nil || conv == nil {
+		return conv, err
+	}
+	if targetProfile.Conn.Sp.Dbname != "" {
+		conv.DatabaseOptions.DbName = targetProfile.Conn.Sp.Dbname
+	}
+	if targetProfile.Conn.Sp.DefaultTimezone != "" {
+		conv.DatabaseOptions.DefaultTimezone = targetProfile.Conn.Sp.DefaultTimezone
+	}
+	if targetProfile.Conn.Sp.DefaultTransactionIsolation != "" {
+		conv.DatabaseOptions.DefaultTransactionIsolation = targetProfile.Conn.Sp.DefaultTransactionIsolation
 	}
 	return conv, err
 }
