@@ -1,0 +1,68 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: sync-dependabot-alerts
+
+on:
+  schedule:
+    # Runs daily at 09:00 UTC to sync open Critical/High Dependabot alerts to GitHub Issues.
+    - cron: "0 9 * * *"
+  push:
+    branches:
+      - ci/sync-dependabot-alerts
+  workflow_dispatch:
+    inputs:
+      severities:
+        description: "Comma-separated Dependabot alert severities to sync"
+        required: false
+        default: "critical,high"
+      extra_labels:
+        description: "Optional comma-separated extra labels to attach to created GitHub Issues"
+        required: false
+        default: ""
+      dry_run:
+        description: "Run in dry-run mode without creating or closing issues"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  security-events: read
+
+jobs:
+  sync_alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+
+      - name: Sync Critical and High Dependabot alerts to GitHub Issues
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPENDABOT_ALERTS_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
+          INPUT_SEVERITIES: ${{ inputs.severities || 'critical,high' }}
+          INPUT_EXTRA_LABELS: ${{ inputs.extra_labels || '' }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${INPUT_DRY_RUN}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python3 .github/scripts/sync_dependabot_alerts.py \
+            --repo="${GITHUB_REPOSITORY}" \
+            --severities="${INPUT_SEVERITIES}" \
+            --extra-labels="${INPUT_EXTRA_LABELS}" \
+            ${DRY_RUN_FLAG}
