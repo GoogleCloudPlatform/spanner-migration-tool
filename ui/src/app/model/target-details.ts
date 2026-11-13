@@ -2,6 +2,7 @@ export default interface ITargetDetails {
     TargetDB: string
     GcsMetadataPath: GcsMetadataPath
     DefaultTimezone: string
+    DefaultTransactionIsolation?: string
 }
 
 export interface GcsMetadataPath {
