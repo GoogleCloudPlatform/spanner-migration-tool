@@ -136,12 +136,32 @@ func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error
 	return processMySQLDump(conv, r)
 }
 
+type mysqlDumpState struct {
+	globalIsolation     string
+	hasGlobalIsolation  bool
+	sessionIsolation    string
+	hasSessionIsolation bool
+}
+
+func (s *mysqlDumpState) syncIsolation(conv *internal.Conv) {
+	if s.hasGlobalIsolation {
+		conv.DatabaseOptions.DefaultTransactionIsolation = s.globalIsolation
+		return
+	}
+	if s.hasSessionIsolation {
+		conv.DatabaseOptions.DefaultTransactionIsolation = s.sessionIsolation
+		return
+	}
+	conv.DatabaseOptions.DefaultTransactionIsolation = ""
+}
+
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessMySQLDump incrementally builds a schema (updating conv).
 // In data mode, ProcessMySQLDump uses this schema to convert MySQL data
 // and writes it to Spanner, using the data sink specified in conv.
 func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
+	state := &mysqlDumpState{}
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -150,7 +170,7 @@ func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 			return err
 		}
 		for _, stmt := range stmts {
-			isInsert := processStatement(conv, stmt)
+			isInsert := processStatement(conv, stmt, state)
 			internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) Insert Statement=%v\n", startLine, startOffset, 1, r.LineNumber-startLine, len(b), isInsert)
 			logger.Log.Debug(fmt.Sprintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) Insert Statement=%v\n", startLine, startOffset, 1, r.LineNumber-startLine, len(b), isInsert))
 		}
@@ -226,7 +246,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 // processStatement extracts schema information from MySQL
 // statements, updating Conv with new schema information, and returning
 // true if INSERT statement is encountered.
-func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
+func processStatement(conv *internal.Conv, stmt ast.StmtNode, state *mysqlDumpState) bool {
 	switch s := stmt.(type) {
 	case *ast.CreateTableStmt:
 		if conv.SchemaMode() {
@@ -238,7 +258,7 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 		}
 	case *ast.SetStmt:
 		if conv.SchemaMode() {
-			processSetStmt(conv, s)
+			processSetStmt(conv, s, state)
 		}
 	case *ast.InsertStmt:
 		processInsertStmt(conv, s)
@@ -279,10 +299,11 @@ func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 	}
 }
 
-func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
+func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt, state *mysqlDumpState) {
 	if stmt.Variables != nil && len(stmt.Variables) > 0 {
 		for _, variable := range stmt.Variables {
-			if variable.Name == "TIME_ZONE" {
+			switch strings.ToLower(variable.Name) {
+			case "time_zone":
 				value := variable.Value
 				switch val := value.(type) {
 				case *driver.ValueExpr:
@@ -298,6 +319,45 @@ func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
 					// end of the dump file. We track the setting of TIME_ZONE, but
 					// ignore the restore statements.
 					return
+				}
+			case "transaction_isolation", "tx_isolation":
+				if !variable.IsSystem {
+					continue
+				}
+				switch val := variable.Value.(type) {
+				case *driver.ValueExpr:
+					if val.GetValue() != nil {
+						normalized := common.NormalizeSupportedIsolationLevel(fmt.Sprintf("%v", val.GetValue()))
+						if variable.IsGlobal {
+							state.globalIsolation = normalized
+							state.hasGlobalIsolation = true
+						} else {
+							state.sessionIsolation = normalized
+							state.hasSessionIsolation = true
+						}
+						state.syncIsolation(conv)
+					}
+				case *ast.ColumnNameExpr:
+					if val.Name != nil {
+						normalized := common.NormalizeSupportedIsolationLevel(val.Name.Name.O)
+						if variable.IsGlobal {
+							state.globalIsolation = normalized
+							state.hasGlobalIsolation = true
+						} else {
+							state.sessionIsolation = normalized
+							state.hasSessionIsolation = true
+						}
+						state.syncIsolation(conv)
+					}
+				case *ast.DefaultExpr:
+					if variable.IsGlobal {
+						state.globalIsolation = ""
+						state.hasGlobalIsolation = false
+					} else {
+						state.sessionIsolation = ""
+						state.hasSessionIsolation = false
+					}
+					state.syncIsolation(conv)
 				}
 			}
 		}
