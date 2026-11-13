@@ -294,6 +294,7 @@ def sync_dependabot_alerts(
     severities: tuple[str, ...] = ("critical", "high"),
     extra_labels: tuple[str, ...] = (),
     dry_run: bool = False,
+    simulate_open_alert: bool = False,
 ) -> dict[str, list[int]]:
   """Syncs open Dependabot alerts to GitHub Issues (1 issue per alert).
 
@@ -305,6 +306,9 @@ def sync_dependabot_alerts(
     severities: Lowercase alert severities to sync (e.g. ("critical", "high")).
     extra_labels: Any additional custom labels to attach to created issues.
     dry_run: If True, logs planned actions without mutating GitHub Issues.
+    simulate_open_alert: If True and no open alerts match, fetches 1 recently
+      fixed alert matching `severities` and treats it as open to test end-to-end
+      GitHub Issue creation.
 
   Returns:
     Summary dict with lists of alert numbers for "created", "reopened",
@@ -324,6 +328,23 @@ def sync_dependabot_alerts(
     sev = get_alert_severity(alert)
     if sev in target_severities:
       open_alerts_by_number[int(alert["number"])] = alert
+
+  if simulate_open_alert and not open_alerts_by_number:
+    fixed_alerts, _ = client.request(
+        "GET",
+        f"/repos/{repo}/dependabot/alerts",
+        token=alerts_token,
+        params={"state": "fixed", "severity": severity_param, "per_page": "1"},
+    )
+    if isinstance(fixed_alerts, list) and fixed_alerts:
+      sim_alert = fixed_alerts[0]
+      sim_num = int(sim_alert["number"])
+      logging.info(
+          "Simulating open state for fixed Dependabot Alert #%d to test issue"
+          " creation.",
+          sim_num,
+      )
+      open_alerts_by_number[sim_num] = sim_alert
 
   logging.info(
       "Found %d open Dependabot alert(s) with severity in %s.",
@@ -539,6 +560,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
       action="store_true",
       help="Log actions without creating or modifying GitHub Issues.",
   )
+  parser.add_argument(
+      "--simulate-open-alert",
+      action="store_true",
+      help=(
+          "If no open alerts exist, simulate 1 open alert using the most"
+          " recent fixed Critical/High Dependabot alert to test issue creation."
+      ),
+  )
   return parser.parse_args(argv)
 
 
@@ -574,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
         severities=severities,
         extra_labels=extra_labels,
         dry_run=args.dry_run,
+        simulate_open_alert=args.simulate_open_alert,
     )
     summary_json = json.dumps(summary)
     logging.info("Sync complete: %s", summary_json)

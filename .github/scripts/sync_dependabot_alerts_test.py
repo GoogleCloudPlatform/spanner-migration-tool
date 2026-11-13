@@ -110,6 +110,14 @@ class FakeGitHubClient(sync_dependabot_alerts.GitHubClient):
       }
       self.issues.append(new_issue)
       return new_issue, {}
+    if method == "GET" and path.endswith("/dependabot/alerts"):
+      if params and params.get("state") == "fixed":
+        return [
+            a
+            for a in self.all_alerts_by_num.values()
+            if a.get("state") == "fixed"
+        ][:1], {}
+      return list(self.open_alerts), {}
     if method == "GET" and "/dependabot/alerts/" in path:
       alert_num = int(path.rsplit("/", 1)[-1])
       return self.all_alerts_by_num[alert_num], {}
@@ -264,6 +272,25 @@ class SyncDependabotAlertsTest(unittest.TestCase):
             None,
         ),
     )
+
+  def test_simulate_open_alert_creates_issue_from_fixed_alert(self):
+    fixed_alert = _make_alert(150, severity="high", state="fixed")
+    client = FakeGitHubClient(
+        open_alerts=[],
+        all_alerts_by_num={150: fixed_alert},
+    )
+
+    summary = sync_dependabot_alerts.sync_dependabot_alerts(
+        client=client,
+        repo="GoogleCloudPlatform/spanner-migration-tool",
+        alerts_token="alert-tok",
+        issues_token="issue-tok",
+        simulate_open_alert=True,
+    )
+
+    self.assertEqual(summary["created"], [150])
+    self.assertEqual(len(client.issues), 1)
+    self.assertEqual(client.issues[0]["state"], "open")
 
 
 if __name__ == "__main__":
