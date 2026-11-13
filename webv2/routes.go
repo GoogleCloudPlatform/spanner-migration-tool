@@ -121,6 +121,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
+	router.HandleFunc("/UpdateDatabaseOptions", updateDatabaseOptions).Methods("POST")
 
 	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
 	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")

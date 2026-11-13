@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
@@ -295,4 +296,107 @@ func TestCreateDatabaseConnectionString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetSourceAndTargetProfiles_DatabaseOptionsSync(t *testing.T) {
+	t.Run("clears extracted DefaultTransactionIsolation when UI clears TargetDetails", func(t *testing.T) {
+		sessionState := &session.SessionState{
+			Conv:              internal.MakeConv(),
+			Driver:            constants.MYSQL,
+			SpannerProjectId:  "test-proj",
+			SpannerInstanceID: "test-inst",
+			Dialect:           constants.DIALECT_GOOGLESQL,
+			SourceDBConnDetails: session.SourceDBConnDetails{
+				ConnectionType: helpers.SESSION_FILE_MODE,
+			},
+		}
+		sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
+
+		details := types.MigrationDetails{
+			TargetDetails: types.TargetDetails{
+				TargetDB:                    "target-db",
+				DefaultTimezone:             "",
+				DefaultTransactionIsolation: "",
+			},
+		}
+
+		_, targetProfile, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+		assert.NoError(t, err)
+		assert.Equal(t, "", targetProfile.Conn.Sp.DefaultTransactionIsolation)
+		assert.Equal(t, "", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+		assert.Equal(t, "target-db", sessionState.Conv.DatabaseOptions.DbName)
+	})
+
+	t.Run("applies UI DefaultTransactionIsolation to Conv and TargetProfile", func(t *testing.T) {
+		sessionState := &session.SessionState{
+			Conv:              internal.MakeConv(),
+			Driver:            constants.MYSQL,
+			SpannerProjectId:  "test-proj",
+			SpannerInstanceID: "test-inst",
+			Dialect:           constants.DIALECT_GOOGLESQL,
+			SourceDBConnDetails: session.SourceDBConnDetails{
+				ConnectionType: helpers.SESSION_FILE_MODE,
+			},
+		}
+
+		details := types.MigrationDetails{
+			TargetDetails: types.TargetDetails{
+				TargetDB:                    "target-db",
+				DefaultTimezone:             "America/New_York",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+		}
+
+		_, targetProfile, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+		assert.NoError(t, err)
+		assert.Equal(t, "repeatable read", targetProfile.Conn.Sp.DefaultTransactionIsolation)
+		assert.Equal(t, "repeatable read", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+		assert.Equal(t, "America/New_York", sessionState.Conv.DatabaseOptions.DefaultTimezone)
+	})
+
+	t.Run("rejects invalid DefaultTransactionIsolation in SESSION_FILE_MODE without mutating Conv", func(t *testing.T) {
+		sessionState := &session.SessionState{
+			Conv:              internal.MakeConv(),
+			Driver:            constants.MYSQL,
+			SpannerProjectId:  "test-proj",
+			SpannerInstanceID: "test-inst",
+			Dialect:           constants.DIALECT_GOOGLESQL,
+			SourceDBConnDetails: session.SourceDBConnDetails{
+				ConnectionType: helpers.SESSION_FILE_MODE,
+			},
+		}
+		sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = "repeatable read"
+
+		details := types.MigrationDetails{
+			TargetDetails: types.TargetDetails{
+				TargetDB:                    "target-db",
+				DefaultTransactionIsolation: "read committed",
+			},
+		}
+
+		_, _, _, _, err := getSourceAndTargetProfiles(context.Background(), sessionState, details)
+		assert.Error(t, err)
+		assert.Equal(t, "repeatable read", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+	})
+
+	t.Run("UpdateDatabaseOptions endpoint validates and updates session Conv", func(t *testing.T) {
+		sessionState := session.GetSessionState()
+		sessionState.Conv = internal.MakeConv()
+
+		validBody := strings.NewReader(`{"TargetDB":"orders-db","DefaultTimezone":"UTC","DefaultTransactionIsolation":"REPEATABLE-READ"}`)
+		req := httptest.NewRequest(http.MethodPost, "/UpdateDatabaseOptions", validBody)
+		rr := httptest.NewRecorder()
+		updateDatabaseOptions(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "orders-db", sessionState.Conv.DatabaseOptions.DbName)
+		assert.Equal(t, "UTC", sessionState.Conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "repeatable read", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+
+		invalidBody := strings.NewReader(`{"TargetDB":"orders-db","DefaultTransactionIsolation":"read committed"}`)
+		reqInvalid := httptest.NewRequest(http.MethodPost, "/UpdateDatabaseOptions", invalidBody)
+		rrInvalid := httptest.NewRecorder()
+		updateDatabaseOptions(rrInvalid, reqInvalid)
+		assert.Equal(t, http.StatusBadRequest, rrInvalid.Code)
+		assert.Equal(t, "repeatable read", sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation)
+	})
 }

@@ -80,7 +80,7 @@ Spanner Omni can be used for local testing instead of the legacy emulator. It ru
 
 Start Spanner Omni:
 ```sh
-    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta start-single-server
+    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r4-lts.1 start-single-server --listen-addresses=0.0.0.0,[::]
 ```
 
 Set the following environment variables in the terminal from which you'll be running the tests:

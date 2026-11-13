@@ -16,12 +16,14 @@ package conversion
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -97,6 +99,82 @@ func TestSchemaConv(t *testing.T) {
 			m.AssertExpectations(t) 
 		}
 	}
+}
+
+func TestSchemaConv_DatabaseOptionsAndNilConvErrorGuard(t *testing.T) {
+	targetWithOverrides := profiles.TargetProfile{
+		Conn: profiles.TargetProfileConnection{
+			Sp: profiles.TargetProfileConnectionSpanner{
+				Dbname:                      "my-target-db",
+				DefaultTimezone:             "America/New_York",
+				DefaultTransactionIsolation: "repeatable read",
+			},
+		},
+	}
+
+	t.Run("returns error without nil-pointer panic when schemaFromDatabase fails", func(t *testing.T) {
+		m := MockSchemaFromSource{}
+		m.On("schemaFromDatabase", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return((*internal.Conv)(nil), fmt.Errorf("db connection failed"))
+		c := ConvImpl{}
+		assert.NotPanics(t, func() {
+			conv, err := c.SchemaConv("migration-project-id", profiles.SourceProfile{Driver: "mysql"}, targetWithOverrides, &utils.IOStreams{}, &m)
+			assert.Error(t, err)
+			assert.Nil(t, conv)
+		})
+		m.AssertExpectations(t)
+	})
+
+	t.Run("returns error without nil-pointer panic when SchemaFromDump fails", func(t *testing.T) {
+		m := MockSchemaFromSource{}
+		m.On("SchemaFromDump", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return((*internal.Conv)(nil), fmt.Errorf("failed to parse dump"))
+		c := ConvImpl{}
+		assert.NotPanics(t, func() {
+			conv, err := c.SchemaConv("migration-project-id", profiles.SourceProfile{Driver: "mysqldump"}, targetWithOverrides, &utils.IOStreams{}, &m)
+			assert.Error(t, err)
+			assert.Nil(t, conv)
+		})
+		m.AssertExpectations(t)
+	})
+
+	t.Run("applies targetProfile DatabaseOptions overrides over existing conv values", func(t *testing.T) {
+		m := MockSchemaFromSource{}
+		dumpConv := &internal.Conv{
+			DatabaseOptions: ddl.DatabaseOptions{
+				DefaultTransactionIsolation: "serializable",
+			},
+		}
+		m.On("SchemaFromDump", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(dumpConv, nil)
+		c := ConvImpl{}
+		conv, err := c.SchemaConv("migration-project-id", profiles.SourceProfile{Driver: "mysqldump"}, targetWithOverrides, &utils.IOStreams{}, &m)
+		assert.NoError(t, err)
+		assert.Equal(t, "my-target-db", conv.DatabaseOptions.DbName)
+		assert.Equal(t, "America/New_York", conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "repeatable read", conv.DatabaseOptions.DefaultTransactionIsolation)
+		m.AssertExpectations(t)
+	})
+
+	t.Run("preserves existing conv DatabaseOptions when targetProfile options are empty", func(t *testing.T) {
+		m := MockSchemaFromSource{}
+		dumpConv := &internal.Conv{
+			DatabaseOptions: ddl.DatabaseOptions{
+				DbName:                      "existing-db",
+				DefaultTimezone:             "UTC",
+				DefaultTransactionIsolation: "serializable",
+			},
+		}
+		m.On("SchemaFromDump", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(dumpConv, nil)
+		c := ConvImpl{}
+		conv, err := c.SchemaConv("migration-project-id", profiles.SourceProfile{Driver: "mysqldump"}, profiles.TargetProfile{}, &utils.IOStreams{}, &m)
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-db", conv.DatabaseOptions.DbName)
+		assert.Equal(t, "UTC", conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "serializable", conv.DatabaseOptions.DefaultTransactionIsolation)
+		m.AssertExpectations(t)
+	})
 }
 
 func TestDataConv(t *testing.T) {
