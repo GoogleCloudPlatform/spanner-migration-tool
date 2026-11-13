@@ -1218,3 +1218,32 @@ func TestUniqueColumnName(t *testing.T) {
 	colDefs["c3"] = ddl.ColumnDef{Name: "synth_id0"}
 	assert.Equal(t, "synth_id1", internal.UniqueColumnName(colDefs, "synth_id"))
 }
+
+func TestSchemaToSpannerDDLHelper_CaseInsensitiveColumnCollisionIssue(t *testing.T) {
+	conv := internal.MakeConv()
+	srcTable := schema.Table{
+		Name:        "ITEMS",
+		Id:          "t1",
+		ColIds:      []string{"c1", "c2", "c3"},
+		PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+			"c2": {Name: "Code", Id: "c2", Type: schema.Type{Name: "VARCHAR2"}},
+			"c3": {Name: "CODE", Id: "c3", Type: schema.Type{Name: "VARCHAR2"}},
+		},
+	}
+	conv.SrcSchema[srcTable.Id] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, true).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil))
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "VARCHAR2"}, false).Return(ddl.Type{Name: ddl.String, Len: 10}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "Code", conv.SpSchema["t1"].ColDefs["c2"].Name)
+	assert.Equal(t, "CODE_2", conv.SpSchema["t1"].ColDefs["c3"].Name)
+	assert.Empty(t, conv.SchemaIssues["t1"].ColumnLevelIssues["c2"])
+	assert.Equal(t, []internal.SchemaIssue{internal.IllegalName}, conv.SchemaIssues["t1"].ColumnLevelIssues["c3"])
+}
