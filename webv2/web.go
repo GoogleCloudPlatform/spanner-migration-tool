@@ -732,46 +732,92 @@ func getSourceAndTargetProfiles(ctx context.Context, sessionState *session.Sessi
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
 
-	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
-	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
-	if details.TargetDetails.DefaultTimezone != "" {
-		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
-	}
-		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
-		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
-		if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
-			if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath == "" {
-				sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
-				if !strings.HasSuffix(sessionState.Bucket, "/") {
-					sessionState.RootPath = "/"
-				} else {
-					sessionState.RootPath = ""
-				}
-			} else {
-				sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
-				if !strings.HasSuffix(sessionState.Bucket, "/") {
-					sessionState.Bucket = sessionState.Bucket + "/"
-				}
-				sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
-				if !strings.HasSuffix(sessionState.RootPath, "/") {
-					sessionState.RootPath = sessionState.RootPath + "/"
-				}
-			}
-		} else {
-			sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
-			sessionState.RootPath = "/"
-		}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
+	if details.TargetDetails.DefaultTimezone != "" {
+		targetProfileString = fmt.Sprintf("%v,defaultTimezone=%v", targetProfileString, details.TargetDetails.DefaultTimezone)
+	}
+	if details.TargetDetails.DefaultTransactionIsolation != "" {
+		targetProfileString = fmt.Sprintf("%v,defaultTransactionIsolation=%v", targetProfileString, details.TargetDetails.DefaultTransactionIsolation)
+	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source, false)
-	if err != nil && sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE {
+	if err != nil && (targetProfile.Ty == profiles.TargetProfileTypeUnset || sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE) {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
 
+	sessionState.SpannerDatabaseName = targetProfile.Conn.Sp.Dbname
+	sessionState.Conv.ConvLock.Lock()
+	sessionState.Conv.DatabaseOptions.DbName = targetProfile.Conn.Sp.Dbname
+	sessionState.Conv.DatabaseOptions.DefaultTimezone = targetProfile.Conn.Sp.DefaultTimezone
+	sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = targetProfile.Conn.Sp.DefaultTransactionIsolation
+	sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
+	migrationReqID := sessionState.Conv.Audit.MigrationRequestId
+	sessionState.Conv.ConvLock.Unlock()
+
+	if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
+		if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath == "" {
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			if !strings.HasSuffix(sessionState.Bucket, "/") {
+				sessionState.RootPath = "/"
+			} else {
+				sessionState.RootPath = ""
+			}
+		} else {
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			if !strings.HasSuffix(sessionState.Bucket, "/") {
+				sessionState.Bucket = sessionState.Bucket + "/"
+			}
+			sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
+			if !strings.HasSuffix(sessionState.RootPath, "/") {
+				sessionState.RootPath = sessionState.RootPath + "/"
+			}
+		}
+	} else {
+		sessionState.Bucket = strings.ToLower(migrationReqID)
+		sessionState.RootPath = "/"
+	}
+
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
+}
+
+func updateDatabaseOptions(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var targetDetails types.TargetDetails
+	if err := json.Unmarshal(reqBody, &targetDetails); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	targetProfileStr := "instance=placeholder"
+	if targetDetails.TargetDB != "" {
+		targetProfileStr = fmt.Sprintf("%s,dbName=%s", targetProfileStr, targetDetails.TargetDB)
+	}
+	if targetDetails.DefaultTimezone != "" {
+		targetProfileStr = fmt.Sprintf("%s,defaultTimezone=%s", targetProfileStr, targetDetails.DefaultTimezone)
+	}
+	if targetDetails.DefaultTransactionIsolation != "" {
+		targetProfileStr = fmt.Sprintf("%s,defaultTransactionIsolation=%s", targetProfileStr, targetDetails.DefaultTransactionIsolation)
+	}
+	tp, err := profiles.NewTargetProfile(targetProfileStr, true)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid target database options : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	sessionState.Conv.DatabaseOptions.DbName = tp.Conn.Sp.Dbname
+	sessionState.Conv.DatabaseOptions.DefaultTimezone = tp.Conn.Sp.DefaultTimezone
+	sessionState.Conv.DatabaseOptions.DefaultTransactionIsolation = tp.Conn.Sp.DefaultTransactionIsolation
+	sessionState.Conv.ConvLock.Unlock()
+	w.WriteHeader(http.StatusOK)
 }
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details types.MigrationDetails) (string, error) {
