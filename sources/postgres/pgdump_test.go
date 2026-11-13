@@ -2685,3 +2685,98 @@ func TestGetInheritedTableNames(t *testing.T) {
 	assert.Equal(t, map[string][]string{"child": {"archive.p1"}}, conv.NonPublicRefs)
 	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }
+
+func TestProcessPgDump_DefaultTransactionIsolation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "SET default_transaction_isolation repeatable read",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "ALTER DATABASE SET default_transaction_isolation serializable",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET default_transaction_isolation read committed ignored",
+			input:    "SET default_transaction_isolation = 'read committed';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "subsequent unsupported SET resets earlier isolation",
+			input:    "SET default_transaction_isolation = 'serializable';\nSET default_transaction_isolation = 'read committed';\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "RESET default_transaction_isolation clears earlier isolation",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nRESET default_transaction_isolation;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "session SET TO DEFAULT preserves ALTER DATABASE isolation",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nSET default_transaction_isolation TO DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "session RESET ALL preserves ALTER DATABASE isolation",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'repeatable read';\nRESET ALL;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "ALTER DATABASE RESET clears ALTER DATABASE isolation",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nALTER DATABASE testdb RESET default_transaction_isolation;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "ALTER DATABASE SET TO DEFAULT clears ALTER DATABASE isolation",
+			input:    "ALTER DATABASE testdb SET default_transaction_isolation TO 'serializable';\nALTER DATABASE testdb SET default_transaction_isolation TO DEFAULT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "pg_dump --create with \\connect and \\restrict meta-commands",
+			input:    "\\restrict d9k3a1\nCREATE DATABASE testdb;\nALTER DATABASE testdb SET default_transaction_isolation TO 'repeatable read';\n\n\\connect testdb\n\nSET statement_timeout = 0;\nCREATE TABLE t (a int PRIMARY KEY);\n\\unrestrict d9k3a1\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "multi-database script selects \\connect target database",
+			input:    "ALTER DATABASE appdb SET default_transaction_isolation TO 'repeatable read';\nALTER DATABASE otherdb SET default_transaction_isolation TO 'read committed';\n\\connect appdb\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL",
+			input:    "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "RESET ALL clears earlier session isolation",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nRESET ALL;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+		{
+			name:     "unquoted SET default_transaction_isolation serializable",
+			input:    "SET default_transaction_isolation = serializable;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "serializable",
+		},
+		{
+			name:     "SET LOCAL default_transaction_isolation does not mutate database default",
+			input:    "SET default_transaction_isolation = 'repeatable read';\nBEGIN;\nSET LOCAL default_transaction_isolation = 'read committed';\nCOMMIT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "repeatable read",
+		},
+		{
+			name:     "SET LOCAL serializable does not set database default when unset",
+			input:    "BEGIN;\nSET LOCAL default_transaction_isolation = 'serializable';\nCOMMIT;\nCREATE TABLE t (a int PRIMARY KEY);\n",
+			expected: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			assert.Equal(t, tc.expected, conv.DatabaseOptions.DefaultTransactionIsolation)
+		})
+	}
+}
