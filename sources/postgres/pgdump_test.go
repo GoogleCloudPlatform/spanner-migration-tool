@@ -2685,3 +2685,20 @@ func TestGetInheritedTableNames(t *testing.T) {
 	assert.Equal(t, map[string][]string{"child": {"archive.p1"}}, conv.NonPublicRefs)
 	assert.Len(t, conv.Stats.Unexpected, 2, "the non-RangeVar node and the unnamed relation are reported")
 }
+
+// Regression: a nextval() default whose argument is a bare string constant
+// (e.g. `nextval('myseq')`, not `nextval('myseq'::regclass)`) must not panic.
+// getSeqNameFromDefaultExpression previously dereferenced the raw .Arg field of
+// a nil TypeCast, crashing the whole dump import.
+func TestProcessPgDump_NextvalBareStringArgNoPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("ProcessDbDump panicked on a bare-string nextval default: %v", r)
+		}
+	}()
+	s := "CREATE TABLE public.t (id integer DEFAULT nextval('myseq'), c text);"
+	conv, _ := runProcessPgDump(s)
+	if conv == nil {
+		t.Fatal("expected a non-nil conv")
+	}
+}

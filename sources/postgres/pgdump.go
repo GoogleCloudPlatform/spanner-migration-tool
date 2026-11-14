@@ -837,7 +837,10 @@ func getSeqNameFromDefaultExpression(node *pg_query.Node) string {
 
 		if funcName == "nextval" {
 			for _, arg := range f.FuncCall.Args {
-				seqName := arg.GetTypeCast().Arg.GetAConst().GetSval().Sval
+				// Use nil-safe getters throughout: the nextval argument is not
+				// always a TypeCast (e.g. a bare string constant), so GetTypeCast()
+				// can be nil and the raw .Arg field would panic.
+				seqName := arg.GetTypeCast().GetArg().GetAConst().GetSval().GetSval()
 				if seqName != "" {
 					return seqName
 				}
