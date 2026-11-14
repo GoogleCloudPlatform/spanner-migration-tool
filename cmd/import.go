@@ -65,7 +65,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
 	set.StringVar(&cmd.databaseDialect, "database-dialect", constants.DIALECT_GOOGLESQL, fmt.Sprintf("Spanner database dialect. Defaults to %s. Valid values {%s, %s}", constants.DIALECT_GOOGLESQL, constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL))
-	set.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
+	set.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
