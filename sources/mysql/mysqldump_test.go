@@ -1030,6 +1030,35 @@ func bitReverse(i int64) int64 {
 	return int64(bits.Reverse64(uint64(i)))
 }
 
+// TestAlterTableModifyUniqueColumnUsesColId is a regression test: an
+// ALTER TABLE ... MODIFY <col> ... UNIQUE must key the resulting unique index
+// by the column's ID (as the sibling PK branch does), not its name. ColDefs is
+// keyed by ID, so a name-keyed index reference is dangling.
+func TestAlterTableModifyUniqueColumnUsesColId(t *testing.T) {
+	conv, _ := runProcessMySQLDump("CREATE TABLE test (a text, b text);\n" +
+		"ALTER TABLE test MODIFY b text UNIQUE;")
+	foundUnique := false
+	for _, st := range conv.SrcSchema {
+		if st.Name != "test" {
+			continue
+		}
+		for _, idx := range st.Indexes {
+			if !idx.Unique {
+				continue
+			}
+			foundUnique = true
+			for _, k := range idx.Keys {
+				if _, ok := st.ColDefs[k.ColId]; !ok {
+					t.Errorf("unique index key ColId %q is not a valid column id in ColDefs", k.ColId)
+				}
+			}
+		}
+	}
+	if !foundUnique {
+		t.Fatal("no unique index was created for the UNIQUE column")
+	}
+}
+
 func mustRat(t *testing.T, s string) *big.Rat {
 	t.Helper()
 	r, ok := new(big.Rat).SetString(s)
