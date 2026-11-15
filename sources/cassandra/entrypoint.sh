@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Generated configuration file from template using envsubst
 # envsubst does not support default values in the template (e.g. ${VAR:-default}).
@@ -9,6 +10,26 @@ export MAX_COMMIT_DELAY=${MAX_COMMIT_DELAY:-0}
 # Users should ensure SPANNER_PROJECT, SPANNER_INSTANCE, SPANNER_DATABASE are set.
 envsubst < /app/spanner-cassandra-config.yaml > /app/generated-config.yaml
 
+RUNTIME_ZDM_CONFIG="${ZDM_CONFIG}"
+if [ -n "${ORIGIN_PASSWORD_SECRET:-}" ]; then
+    echo "Fetching origin Cassandra password from Secret Manager (${ORIGIN_PASSWORD_SECRET})..."
+    ACCESS_TOKEN=$(curl -sSf -H "Metadata-Flavor: Google" \
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+        | jq -er '.access_token')
+    SECRET_RESPONSE=$(curl -sSf -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        "https://secretmanager.googleapis.com/v1/${ORIGIN_PASSWORD_SECRET}:access")
+
+    RUNTIME_ZDM_CONFIG="/dev/shm/zdm-config.yaml"
+    (
+        umask 077
+        { grep -v '^origin_password:' "${ZDM_CONFIG}" || true; } > "${RUNTIME_ZDM_CONFIG}"
+        printf '%s\n' "${SECRET_RESPONSE}" \
+            | jq -er '"origin_password: " + (.payload.data | gsub("-"; "+") | gsub("_"; "/") | @base64d | @json)' \
+            >> "${RUNTIME_ZDM_CONFIG}"
+    )
+    unset ACCESS_TOKEN SECRET_RESPONSE
+fi
+
 # Start Java Spanner Cassandra Proxy and store PID
 # We use the generated config file.
 mkdir -p /app/logs
@@ -18,16 +39,16 @@ cass_pid=$!
 sleep 5
 
 # Start ZDM Proxy
-/app/zdm-proxy --config="$ZDM_CONFIG" &
+/app/zdm-proxy --config="${RUNTIME_ZDM_CONFIG}" &
 zdm_pid=$!
 
 # Monitor specific PIDs, exit if either of the processes die.
 while true; do
-    if ! kill -0 $cass_pid 2>/dev/null; then
+    if ! kill -0 "$cass_pid" 2>/dev/null; then
         echo "java-spanner-cassandra-proxy (PID $cass_pid) died, shutting down container"
         exit 1
     fi
-    if ! kill -0 $zdm_pid 2>/dev/null; then
+    if ! kill -0 "$zdm_pid" 2>/dev/null; then
         echo "zdm-proxy (PID $zdm_pid) died, shutting down container"
         exit 1
     fi
