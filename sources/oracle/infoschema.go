@@ -142,12 +142,35 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	return count, err
 }
 
-// GetTables fetches all standard tables associated with the mapped DB owner.
-// This maps to ALL_TABLES tracking tables. It does not inherently filter out internal
-// Oracle tables or materialized views if they fall under the exact owner schema filter.
-// Therefore, it fetches both user-created tables and system tables for that owner.
+// GetTables fetches user base tables associated with the mapped DB owner from ALL_TABLES.
+// It filters out Oracle internal/backing tables and non-permanent tables:
+//   - Global temporary tables (TEMPORARY = 'Y') and updatable MV log tables (RUPD$_*)
+//   - Domain index secondary tables (SECONDARY = 'Y', e.g. Oracle Text DR$* and Spatial MDRT_*$)
+//   - Nested table storage tables (NESTED = 'YES')
+//   - Recycle bin dropped tables (DROPPED = 'YES')
+//   - Index-organized table overflow and mapping segments (IOT_TYPE IN ('IOT_OVERFLOW', 'IOT_MAPPING'))
+//   - Materialized view log tables (MLOG$_*, RUPD$_*), AQ internal tables (AQ$_*), and Flashback Archive tables (SYS_FBA_*)
+//   - Materialized view container tables (ALL_MVIEWS) and external tables (ALL_EXTERNAL_TABLES)
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	q := "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER(:1)"
+	q := `SELECT TABLE_NAME FROM ALL_TABLES T
+		WHERE OWNER = UPPER(:1)
+		AND TEMPORARY = 'N'
+		AND SECONDARY = 'N'
+		AND NESTED = 'NO'
+		AND DROPPED = 'NO'
+		AND (IOT_TYPE IS NULL OR IOT_TYPE = 'IOT')
+		AND TABLE_NAME NOT LIKE 'MLOG$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'RUPD$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'AQ$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'SYS_FBA\_%' ESCAPE '\'
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_MVIEWS MV
+			WHERE MV.OWNER = T.OWNER AND MV.CONTAINER_NAME = T.TABLE_NAME
+		)
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_EXTERNAL_TABLES ET
+			WHERE ET.OWNER = T.OWNER AND ET.TABLE_NAME = T.TABLE_NAME
+		)`
 	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, err
@@ -580,6 +603,10 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	// primary key is skipped when it has exactly the primary key columns (same columns in
 	// the same order). An existing wider index reused by Oracle to enforce the primary key
 	// (e.g. index on (ID, NAME) for PRIMARY KEY (ID)) is still migrated.
+	//
+	// Oracle also creates a system-generated unique index on the hidden set-ID column of
+	// each NESTED TABLE column, but ALL_IND_COLUMNS reports the parent nested-table column
+	// name as its key column. Those internal indexes are excluded via ALL_NESTED_TABLES.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -593,9 +620,13 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
 		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
 		AND NOT EXISTS (
+			SELECT 1 FROM all_nested_tables NT
+			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
+			AND NT.parent_table_column = IC.column_name)
+		AND NOT EXISTS (
 			SELECT 1 FROM all_constraints C
 			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
-			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND NVL(C.index_owner, C.owner) = IC.index_owner AND C.index_name = IC.index_name
 			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
 				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
 			AND NOT EXISTS (
