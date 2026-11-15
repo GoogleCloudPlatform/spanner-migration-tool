@@ -79,17 +79,17 @@ func GetSpannerCol(conv *Conv, tableId, colId string, spColDef map[string]ddl.Co
 	spColName, _ := FixName(srcColName)
 	usedColNames := map[string]bool{}
 	for _, spCol := range spColDef {
-		usedColNames[spCol.Name] = true
+		usedColNames[strings.ToLower(spCol.Name)] = true
 	}
-	if _, found := usedColNames[spColName]; found {
-		// spColName has been used before i.e. FixName caused a collision.
+	if _, found := usedColNames[strings.ToLower(spColName)]; found {
+		// spColName has been used before i.e. FixName or case-insensitive matching caused a collision.
 		// Add unique postfix: use number of cols in this table so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate
 		id := len(spColDef)
 		for {
 			c := spColName + "_" + strconv.Itoa(id)
-			if _, found := usedColNames[c]; !found {
+			if _, found := usedColNames[strings.ToLower(c)]; !found {
 				spColName = c
 				break
 			}
