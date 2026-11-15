@@ -204,6 +204,7 @@ func TestGetSpannerCol(t *testing.T) {
 				"c5": {Name: "c\tol", Id: "c5"},
 				"c6": {Name: "c\nol", Id: "c6"},
 				"c7": {Name: "c?ol", Id: "c7"},
+				"c8": {Name: "COL", Id: "c8"},
 			},
 		},
 	}
@@ -278,6 +279,7 @@ func TestGetSpannerCol(t *testing.T) {
 		{"table1 collision 1", "table1", "c\tol", false, "c_ol_4"},
 		{"table1 collision 2", "table1", "c\nol", false, "c_ol_7"}, // Skip c_ol_5 and c_ol_6.
 		{"table1 collision 3", "table1", "c?ol", false, "c_ol_8"},
+		{"table1 case-insensitive collision", "table1", "COL", false, "COL_7"},
 	}
 	for _, tc := range collisionTests {
 		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
