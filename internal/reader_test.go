@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"errors"
 	"bufio"
 	"strings"
 	"testing"
@@ -56,6 +57,32 @@ func TestReadLine(t *testing.T) {
 			assert.Equal(t, x.eof, r.EOF, tc.name)
 			assert.Equal(t, x.line, r.LineNumber, tc.name)
 			assert.Equal(t, x.offset, r.Offset, tc.name)
+		}
+	}
+}
+
+// errReader returns a non-EOF error on every read.
+type errReader struct{}
+
+func (errReader) Read(p []byte) (int, error) { return 0, errors.New("boom") }
+
+// A non-EOF read error must set EOF so consumers looping until EOF terminate
+// (the type treats read errors as end-of-input).
+func TestReadLine_NonEOFErrorSetsEOF(t *testing.T) {
+	r := NewReader(bufio.NewReader(errReader{}), nil)
+	got := r.ReadLine()
+	if len(got) != 0 {
+		t.Fatalf("ReadLine() on error = %q, want empty", got)
+	}
+	if !r.EOF {
+		t.Fatalf("r.EOF = false after a read error, want true")
+	}
+	// A consumer loop must terminate rather than spin forever.
+	iters := 0
+	for !r.EOF {
+		r.ReadLine()
+		if iters++; iters > 1000 {
+			t.Fatal("ReadLine loop did not terminate after a read error")
 		}
 	}
 }
