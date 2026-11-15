@@ -96,7 +96,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 	return tb, nil
 }
 
-// GetIndexes return a list of all indexes for the specified table.
+// GetIndexInfo returns assessment info for the specified index of a table.
 func (isi InfoSchemaImpl) GetIndexInfo(table string, index schema.Index) (utils.IndexAssessmentInfo, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
