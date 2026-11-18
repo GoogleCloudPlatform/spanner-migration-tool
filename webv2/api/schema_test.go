@@ -3190,3 +3190,53 @@ func TestHandleExpressionColError(t *testing.T) {
 	res2 := handler.HandleExpressionColErrorForTest(tc2, conv, internal.DefaultValueError)
 	assert.Equal(t, "", res2)
 }
+
+func TestDropTable_ClearsUniquePKeyAndCheckConstraintUsedNames(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+
+	sessionState.Conv = &internal.Conv{
+		UsedNames: map[string]bool{
+			"items":          true,
+			"ck_qty_enabled": true,
+			"CK_QTY_ENABLED": true,
+			"other_tbl":      true,
+		},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+		},
+		UniquePKey: map[string][]string{
+			"t1": {"c1"},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {Id: "t1", Name: "ITEMS"},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "ITEMS",
+				CheckConstraints: []ddl.CheckConstraint{
+					{Id: "ck1", Name: "CK_QTY_ENABLED", Expr: "(QTY > 0)", ExprId: "e1"},
+				},
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+		ToSpanner: map[string]internal.NameAndCols{
+			"ITEMS": {Name: "ITEMS"},
+		},
+	}
+
+	req, err := http.NewRequest("POST", "/drop/table?table=t1", strings.NewReader(`{}`))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.DropTable).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, sessionState.Conv.UniquePKey, "t1")
+	assert.NotContains(t, sessionState.Conv.UsedNames, "ck_qty_enabled")
+	assert.NotContains(t, sessionState.Conv.UsedNames, "CK_QTY_ENABLED")
+	assert.Contains(t, sessionState.Conv.UsedNames, "other_tbl")
+}

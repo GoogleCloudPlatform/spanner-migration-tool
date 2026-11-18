@@ -1353,6 +1353,10 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	for _, fk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 		delete(usedNames, fk.Name)
 	}
+	for _, cc := range sessionState.Conv.SpSchema[tableId].CheckConstraints {
+		delete(usedNames, cc.Name)
+		delete(usedNames, strings.ToLower(cc.Name))
+	}
 
 	delete(spSchema, tableId)
 	issues[tableId] = internal.TableIssues{
@@ -1360,6 +1364,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	delete(syntheticPkey, tableId)
+	delete(sessionState.Conv.UniquePKey, tableId)
 	if srcTable, ok := sessionState.Conv.SrcSchema[tableId]; ok {
 		delete(sessionState.Conv.ToSpanner, srcTable.Name)
 	}

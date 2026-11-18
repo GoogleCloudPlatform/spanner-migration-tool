@@ -129,6 +129,8 @@ func TestToType(t *testing.T) {
 		{"INTERVAL YEAR(4) TO MONTH", "INTERVAL YEAR(4) TO MONTH", val(0), val(4), val(0), schema.Type{Name: "INTERVAL YEAR(4) TO MONTH"}},
 		{"VARCHAR2(100 CHAR)", "VARCHAR2", val(100), null, null, schema.Type{Name: "VARCHAR2", Mods: []int64{100}}},
 		{"RAW(16)", "RAW", val(16), null, null, schema.Type{Name: "RAW", Mods: []int64{16}}},
+		{"UROWID(100)", "UROWID", val(100), null, null, schema.Type{Name: "UROWID", Mods: []int64{100}}},
+		{"ROWID has no length mod", "ROWID", val(10), null, null, schema.Type{Name: "ROWID"}},
 		{"BLOB has no length", "BLOB", val(4000), null, null, schema.Type{Name: "BLOB"}},
 	}
 	for _, tc := range tests {
@@ -182,7 +184,7 @@ func TestGenerateSrcSchema(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
@@ -377,7 +379,7 @@ func TestGetColumnsBatchDefaults(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
