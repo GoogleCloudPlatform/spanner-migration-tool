@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
@@ -370,7 +371,7 @@ func TestProcessSchema(t *testing.T) {
 				"SQLVariant":       {Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             {Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Time":             {Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: int64(8)}, NotNull: false},
 				"TinyInt":          {Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.UUID}, NotNull: false},
 				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
@@ -422,7 +423,7 @@ func TestProcessSchema(t *testing.T) {
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 2)
-	assert.Equal(t, 17, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
+	assert.Equal(t, 20, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }
@@ -638,6 +639,18 @@ func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
 	assert.Equal(t, "c_order_date", indexes[1].Keys[1].ColId)
 	assert.True(t, indexes[1].Keys[1].Desc)
 	assert.Equal(t, []string{"c_extra_info"}, indexes[1].StoredColumnIds)
+}
+
+// rowversion (reported as timestamp) is read as a number so that convScalar can
+// turn it back into its 8 bytes.
+func TestGetSelectQuery_RowVersion(t *testing.T) {
+	colDefs := map[string]schema.Column{
+		"c1": {Name: "id", Type: schema.Type{Name: "int"}},
+		"c2": {Name: "ts", Type: schema.Type{Name: "timestamp"}},
+		"c3": {Name: "rv", Type: schema.Type{Name: "rowversion"}},
+	}
+	q := getSelectQuery("db", "dbo", "t", []string{"c1", "c2", "c3"}, colDefs)
+	assert.Equal(t, "SELECT [id], CAST([ts] AS BIGINT) AS ts, CAST([rv] AS BIGINT) AS rv FROM [db].[dbo].[t]", q)
 }
 
 func TestGetTableName(t *testing.T) {
