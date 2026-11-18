@@ -86,7 +86,7 @@
           "issueList": [
             {
               "category": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
-              "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
+              "description": "Column 'b' in table 'default_value' has a default value which Spanner migration tool could not migrate. Please add the default constraint manually after the migration is complete"
             }
           ]
         }
