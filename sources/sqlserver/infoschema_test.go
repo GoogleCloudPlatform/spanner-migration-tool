@@ -468,10 +468,39 @@ func TestSanitizeSQLServerExpressionAndDefault(t *testing.T) {
 	assert.Equal(t, "first_name || ' ' || last_name", sanitizeSQLServerExpression("[first name] || ' ' || [last name]", false))
 
 	// Defaults
-	assert.Equal(t, "'active'", sanitizeSQLServerDefault("('active')", "varchar"))
-	assert.Equal(t, "'active'", sanitizeSQLServerDefault("(N'active')", "nvarchar"))
-	assert.Equal(t, "1", sanitizeSQLServerDefault("((1))", "int"))
-	assert.Equal(t, "getdate()", sanitizeSQLServerDefault("(getdate())", "datetime"))
+	gsql, pg := constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL
+	assert.Equal(t, "'active'", sanitizeSQLServerDefault("('active')", "varchar", gsql))
+	assert.Equal(t, "'active'", sanitizeSQLServerDefault("(N'active')", "nvarchar", gsql))
+	assert.Equal(t, "1", sanitizeSQLServerDefault("((1))", "int", gsql))
+	assert.Equal(t, "'5'", sanitizeSQLServerDefault("((5))", "varchar", gsql))
+
+	// Current-time functions on columns that map to TIMESTAMP.
+	for _, fn := range []string{"(getdate())", "(sysdatetime())", "(getutcdate())", "(sysutcdatetime())", "(sysdatetimeoffset())", "(GETDATE())"} {
+		for _, ty := range []string{"datetime", "datetime2", "smalldatetime", "datetimeoffset"} {
+			assert.Equal(t, "CURRENT_TIMESTAMP()", sanitizeSQLServerDefault(fn, ty, gsql), fn+" "+ty)
+			assert.Equal(t, "CURRENT_TIMESTAMP", sanitizeSQLServerDefault(fn, ty, pg), fn+" "+ty)
+		}
+	}
+	// Current-time functions on a date column.
+	assert.Equal(t, "CURRENT_DATE()", sanitizeSQLServerDefault("(getdate())", "date", gsql))
+	assert.Equal(t, "CURRENT_DATE", sanitizeSQLServerDefault("(sysdatetime())", "date", pg))
+	// Not translated for other column types.
+	assert.Equal(t, "getdate()", sanitizeSQLServerDefault("(getdate())", "varchar", gsql))
+	assert.Equal(t, "getdate()", sanitizeSQLServerDefault("(getdate())", "time", gsql))
+
+	// bit defaults become BOOL literals in both dialects.
+	for _, dialect := range []string{gsql, pg} {
+		assert.Equal(t, "TRUE", sanitizeSQLServerDefault("((1))", "bit", dialect))
+		assert.Equal(t, "FALSE", sanitizeSQLServerDefault("((0))", "bit", dialect))
+		assert.Equal(t, "TRUE", sanitizeSQLServerDefault("('true')", "bit", dialect))
+		assert.Equal(t, "FALSE", sanitizeSQLServerDefault("('False')", "bit", dialect))
+	}
+	// An unrecognised bit default is passed through unchanged.
+	assert.Equal(t, "2", sanitizeSQLServerDefault("((2))", "bit", gsql))
+
+	// Expression defaults are not wrapped in quotes on string columns.
+	assert.Equal(t, "upper('a')", sanitizeSQLServerDefault("(upper('a'))", "varchar", gsql))
+	assert.Equal(t, "(1)+(1)", sanitizeSQLServerDefault("((1)+(1))", "int", gsql))
 }
 
 func TestGetCheckConstraints(t *testing.T) {
@@ -522,6 +551,8 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 				{"status", "varchar", "YES", "('pending')", 20, nil, nil, 0},
 				{"virtual_col", "int", "YES", nil, nil, 10, 0, 0},
 				{"stored_col", "int", "YES", nil, nil, 10, 0, 0},
+				{"created", "datetime", "YES", "(getdate())", nil, nil, nil, 0},
+				{"label", "varchar", "YES", "(upper('a'))", 5, nil, nil, 0},
 			},
 		},
 	}
@@ -530,7 +561,17 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 	isi := InfoSchemaImpl{"testdb", db}
 	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "dbo", Name: "computed_test"}, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 5, len(colIds))
+	assert.Equal(t, 7, len(colIds))
+
+	// created: current-time function is translated for the target dialect.
+	cCreated := colDefs[colIds[5]]
+	assert.True(t, cCreated.DefaultValue.IsPresent)
+	assert.Equal(t, "CURRENT_TIMESTAMP()", cCreated.DefaultValue.Value.Statement)
+
+	// label: a function-call default on a string column is not quoted.
+	cLabel := colDefs[colIds[6]]
+	assert.True(t, cLabel.DefaultValue.IsPresent)
+	assert.Equal(t, "upper('a')", cLabel.DefaultValue.Value.Statement)
 
 	// col1: Default = 10
 	c1 := colDefs[colIds[0]]

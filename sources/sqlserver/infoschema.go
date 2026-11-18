@@ -82,7 +82,37 @@ func sanitizeSQLServerExpression(expr string, wrapParens bool) string {
 	return s
 }
 
-func sanitizeSQLServerDefault(defVal string, dataType string) string {
+// currentTimeDefaultReg matches the SQL Server functions that return the current
+// date and time. information_schema reports DEFAULT CURRENT_TIMESTAMP as getdate().
+var currentTimeDefaultReg = regexp.MustCompile(`(?i)^(getdate|sysdatetime|getutcdate|sysutcdatetime|sysdatetimeoffset)\(\s*\)$`)
+
+// isTimestampSourceType reports whether a SQL Server type maps to Spanner
+// TIMESTAMP by default.
+func isTimestampSourceType(dataType string) bool {
+	switch strings.ToLower(dataType) {
+	case dateTimeType, dateTime2Type, smallDateTimeType, dateTimeOffsetType:
+		return true
+	}
+	return false
+}
+
+// toSpannerBoolDefault converts the default of a bit column, which SQL Server
+// reports as a number or a quoted 'true'/'false', into a Spanner BOOL literal.
+// The second return value is false when the default is not a recognised literal.
+func toSpannerBoolDefault(s string) (string, bool) {
+	switch strings.ToLower(strings.Trim(s, "'")) {
+	case "1", "true":
+		return "TRUE", true
+	case "0", "false":
+		return "FALSE", true
+	}
+	return "", false
+}
+
+// sanitizeSQLServerDefault converts a SQL Server column default, as reported by
+// information_schema.COLUMNS.column_default, into a candidate Spanner default
+// expression. Spanner's DDL verifier decides whether the result is kept.
+func sanitizeSQLServerDefault(defVal string, dataType string, dialect string) string {
 	s := trimOuterParens(defVal)
 	if (strings.HasPrefix(s, "N'") || strings.HasPrefix(s, "n'")) && strings.HasSuffix(s, "'") {
 		s = s[1:]
@@ -92,6 +122,36 @@ func sanitizeSQLServerDefault(defVal string, dataType string) string {
 		fixed, _ := internal.FixName(inner)
 		return fixed
 	})
+	// A bit column maps to BOOL. Spanner does not accept a number as a BOOL
+	// default, so 0 and 1 are rewritten as FALSE and TRUE.
+	if strings.EqualFold(dataType, bitType) {
+		if b, ok := toSpannerBoolDefault(s); ok {
+			return b
+		}
+	}
+	// Current-time functions have no Spanner equivalent by name. They are
+	// translated to the function that matches the Spanner type of the column
+	// (TIMESTAMP or DATE), and left untouched for any other column type so that
+	// no type-mismatched default is produced.
+	if currentTimeDefaultReg.MatchString(s) {
+		pg := dialect == constants.DIALECT_POSTGRESQL
+		switch {
+		case isTimestampSourceType(dataType) && pg:
+			return "CURRENT_TIMESTAMP"
+		case isTimestampSourceType(dataType):
+			return "CURRENT_TIMESTAMP()"
+		case strings.EqualFold(dataType, dateType) && pg:
+			return "CURRENT_DATE"
+		case strings.EqualFold(dataType, dateType):
+			return "CURRENT_DATE()"
+		}
+	}
+	// SQL Server reports string literals already quoted, so an expression that
+	// contains a call or a parenthesised term (e.g. upper('a')) must not be
+	// wrapped in quotes by the common sanitizer.
+	if strings.Contains(s, "(") {
+		return s
+	}
 	return common.SanitizeExpressionsValue(s, dataType, false)
 }
 
@@ -107,6 +167,7 @@ const (
 	dateTimeOffsetType string = "datetimeoffset"
 	smallDateTimeType  string = "smalldatetime"
 	dateType           string = "date"
+	bitType            string = "bit"
 )
 
 type InfoSchemaImpl struct {
@@ -332,7 +393,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				IsPresent: true,
 				Value: ddl.Expression{
 					ExpressionId: internal.GenerateExpressionId(),
-					Statement:    sanitizeSQLServerDefault(colDefault.String, dataType),
+					Statement:    sanitizeSQLServerDefault(colDefault.String, dataType, conv.SpDialect),
 				},
 			}
 		}

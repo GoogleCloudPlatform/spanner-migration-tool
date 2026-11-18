@@ -381,7 +381,13 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				// on case of srcType.
 				spColType = strings.ToLower(spColType)
 				switch i {
-				case internal.DefaultValue, internal.GeneratedColumnValueError:
+				case internal.DefaultValue:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Column '%s' in table '%s' has a default value which Spanner migration tool could not migrate. Please add the default constraint manually after the migration is complete", spColName, conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.GeneratedColumnValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
@@ -710,7 +716,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:                         {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.DefaultValue:                         {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: false, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.GeneratedColumnValueError:            {Brief: "Some columns have generated expression which Spanner migration tool cannot not fix. Please add the expressions manually", Severity: warning, batch: false, Category: "MISSING_GENERATED_COL_VALUE_CONSTRAINTS"},
 	internal.PartitionedTable:                     {Brief: "Its partitioned tables are ignored", Severity: warning, batch: true, Category: "PARTITIONED_TABLE_IGNORED"},
 	internal.TypeMismatch:                         {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
