@@ -501,6 +501,10 @@ func TestSanitizeSQLServerExpressionAndDefault(t *testing.T) {
 	// Expression defaults are not wrapped in quotes on string columns.
 	assert.Equal(t, "upper('a')", sanitizeSQLServerDefault("(upper('a'))", "varchar", gsql))
 	assert.Equal(t, "(1)+(1)", sanitizeSQLServerDefault("((1)+(1))", "int", gsql))
+	assert.Equal(t, "upper('a')", sanitizeSQLServerDefault("(upper('a'))", "varchar", pg))
+	// A string literal that contains a parenthesis stays a single quoted literal.
+	assert.Equal(t, "'a (b)'", sanitizeSQLServerDefault("('a (b)')", "varchar", gsql))
+	assert.Equal(t, "'a (b)'", sanitizeSQLServerDefault("(N'a (b)')", "nvarchar", gsql))
 }
 
 func TestGetCheckConstraints(t *testing.T) {
@@ -553,6 +557,8 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 				{"stored_col", "int", "YES", nil, nil, 10, 0, 0},
 				{"created", "datetime", "YES", "(getdate())", nil, nil, nil, 0},
 				{"label", "varchar", "YES", "(upper('a'))", 5, nil, nil, 0},
+				{"day", "date", "YES", "(getdate())", nil, nil, nil, 0},
+				{"flag", "bit", "NO", "((1))", nil, nil, nil, 0},
 			},
 		},
 	}
@@ -561,7 +567,13 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 	isi := InfoSchemaImpl{"testdb", db}
 	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "dbo", Name: "computed_test"}, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 7, len(colIds))
+	assert.Equal(t, 9, len(colIds))
+
+	// day: current-time function on a date column.
+	assert.Equal(t, "CURRENT_DATE()", colDefs[colIds[7]].DefaultValue.Value.Statement)
+
+	// flag: bit default becomes a BOOL literal.
+	assert.Equal(t, "TRUE", colDefs[colIds[8]].DefaultValue.Value.Statement)
 
 	// created: current-time function is translated for the target dialect.
 	cCreated := colDefs[colIds[5]]
@@ -594,6 +606,43 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 	assert.True(t, cStored.GeneratedColumn.IsPresent)
 	assert.Equal(t, ddl.GeneratedColStored, cStored.GeneratedColumn.Type)
 	assert.Equal(t, "col1 * 2", cStored.GeneratedColumn.Value.Statement)
+}
+
+func TestGetColumns_DefaultsPostgreSQLDialect(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.computed_columns (.+)",
+			args:  []driver.Value{"dbo", "defaults_pg"},
+			cols:  []string{"name", "definition", "is_persisted"},
+			rows:  [][]driver.Value{},
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"dbo", "defaults_pg"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"},
+			rows: [][]driver.Value{
+				{"created", "datetime2", "YES", "(sysdatetime())", nil, nil, nil, 0},
+				{"day", "date", "YES", "(getdate())", nil, nil, nil, 0},
+				{"flag", "bit", "NO", "((0))", nil, nil, nil, 0},
+				{"label", "varchar", "YES", "(upper('a'))", 5, nil, nil, 0},
+				{"status", "nvarchar", "YES", "(N'pending')", 20, nil, nil, 0},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
+	isi := InfoSchemaImpl{"testdb", db}
+	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "dbo", Name: "defaults_pg"}, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 5, len(colIds))
+
+	want := []string{"CURRENT_TIMESTAMP", "CURRENT_DATE", "FALSE", "upper('a')", "'pending'"}
+	for i, w := range want {
+		c := colDefs[colIds[i]]
+		assert.True(t, c.DefaultValue.IsPresent, c.Name)
+		assert.Equal(t, w, c.DefaultValue.Value.Statement, c.Name)
+	}
 }
 
 func TestGetForeignKeys_CompositeOrder(t *testing.T) {

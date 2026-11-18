@@ -122,8 +122,9 @@ func sanitizeSQLServerDefault(defVal string, dataType string, dialect string) st
 		fixed, _ := internal.FixName(inner)
 		return fixed
 	})
-	// A bit column maps to BOOL. Spanner does not accept a number as a BOOL
-	// default, so 0 and 1 are rewritten as FALSE and TRUE.
+	// A bit column maps to BOOL. The PostgreSQL dialect does not accept 0 or 1
+	// as a BOOL default (GoogleSQL does, through the CAST in the generated DDL),
+	// so they are rewritten as FALSE and TRUE, which work in both dialects.
 	if strings.EqualFold(dataType, bitType) {
 		if b, ok := toSpannerBoolDefault(s); ok {
 			return b
