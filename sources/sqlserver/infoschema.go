@@ -102,6 +102,7 @@ const (
 	timeType           string = "time"
 	hierarchyIdType    string = "hierarchyid"
 	timestampType      string = "timestamp"
+	rowVersionType     string = "rowversion"
 	dateTimeType       string = "datetime"
 	dateTime2Type      string = "datetime2"
 	dateTimeOffsetType string = "datetimeoffset"
