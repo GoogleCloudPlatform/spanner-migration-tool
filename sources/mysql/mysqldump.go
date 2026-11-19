@@ -929,7 +929,17 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 	for _, item := range row {
 		switch valueNode := item.(type) {
 		case *driver.ValueExpr:
-			values = append(values, fmt.Sprintf("%v", valueNode.GetValue()))
+			var s string
+			if valueNode.Kind() == driver.KindBinaryLiteral {
+				// Hex and bit literals (e.g. 0x8950 as written by mysqldump
+				// --hex-blob, or b'101') denote binary strings. Use their raw
+				// bytes, the same value an equivalent _binary '...' literal
+				// gives, rather than the literal's "0x..." text form.
+				s = string(valueNode.GetBinaryLiteral())
+			} else {
+				s = fmt.Sprintf("%v", valueNode.GetValue())
+			}
+			values = append(values, s)
 		case *ast.UnaryOperationExpr:
 			if valueNode.Op != opcode.Minus {
 				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with opcode %v", valueNode.Op)
