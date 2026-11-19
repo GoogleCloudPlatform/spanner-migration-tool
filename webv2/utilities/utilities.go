@@ -291,7 +291,12 @@ func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, table
 	if pos == -1 {
 		return slice, nil
 	}
-	return append(slice[:pos], slice[pos+1:]...), nil
+	// Build a new slice so the caller's backing array (which may still be
+	// ranged over) is not shifted in place.
+	updated := make([]ddl.Foreignkey, 0, len(slice)-1)
+	updated = append(updated, slice[:pos]...)
+	updated = append(updated, slice[pos+1:]...)
+	return updated, nil
 }
 
 func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {

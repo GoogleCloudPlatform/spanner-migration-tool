@@ -195,3 +195,25 @@ func TestRemoveFk_ClearsDeferrableAndActionIssuesOnce(t *testing.T) {
 	assert.Equal(t, "fk2", updatedFks[0].Id)
 	assert.Equal(t, []internal.SchemaIssue{internal.ForeignKeyDeferrableNotSupported}, sessionState.Conv.SchemaIssues["t2"].TableLevelIssues)
 }
+
+func TestRemoveFk_DoesNotMutateInputSlice(t *testing.T) {
+	srcTable := schema.Table{
+		Id: "t1",
+		ForeignKeys: []schema.ForeignKey{
+			{Id: "fk1", Name: "FK_1"},
+			{Id: "fk2", Name: "FK_2"},
+			{Id: "fk3", Name: "FK_3"},
+		},
+	}
+	spFks := []ddl.Foreignkey{{Id: "fk1", Name: "FK_1"}, {Id: "fk2", Name: "FK_2"}, {Id: "fk3", Name: "FK_3"}}
+	session.GetSessionState().Conv = &internal.Conv{
+		SrcSchema:    map[string]schema.Table{"t1": srcTable},
+		SchemaIssues: map[string]internal.TableIssues{"t1": {}},
+	}
+
+	updatedFks, err := RemoveFk(spFks, "fk1", srcTable, "t1")
+	assert.NoError(t, err)
+	assert.Equal(t, []ddl.Foreignkey{{Id: "fk2", Name: "FK_2"}, {Id: "fk3", Name: "FK_3"}}, updatedFks)
+	// The caller's slice (which may still be ranged over) must be left unchanged.
+	assert.Equal(t, []ddl.Foreignkey{{Id: "fk1", Name: "FK_1"}, {Id: "fk2", Name: "FK_2"}, {Id: "fk3", Name: "FK_3"}}, spFks)
+}

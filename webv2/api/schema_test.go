@@ -3315,3 +3315,66 @@ func TestDropTable_CleansUpMultipleChildForeignKeysWithoutMutatingRemainingFks(t
 	assert.NotContains(t, sessionState.Conv.UsedNames, "fk_deferred")
 	assert.Contains(t, sessionState.Conv.UsedNames, "fk_other")
 }
+
+func TestUpdateForeignKeys_DropFirstOfThreeKeepsRemainingFks(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+
+	sessionState.Conv = &internal.Conv{
+		UsedNames: map[string]bool{"t1": true, "fk_1": true, "fk_2": true, "fk_3": true},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1": {internal.InterleavedAddColumn},
+				},
+			},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Id:   "t1",
+				Name: "CHILD",
+				ForeignKeys: []schema.ForeignKey{
+					{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+				},
+			},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "CHILD",
+				ForeignKeys: []ddl.Foreignkey{
+					{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+				},
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+		},
+	}
+
+	// Drop FK_1 (empty refer table/columns) and keep FK_2 and FK_3 unchanged.
+	input := []ddl.Foreignkey{
+		{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}},
+		{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+		{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+	}
+	inputBytes, err := json.Marshal(input)
+	assert.NoError(t, err)
+	req, err := http.NewRequest("POST", "/update/fks?table=t1", bytes.NewBuffer(inputBytes))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.UpdateForeignKeys).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []ddl.Foreignkey{
+		{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+		{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+	}, sessionState.Conv.SpSchema["t1"].ForeignKeys)
+	// Interleave suggestions are cleared from the dropped FK's own column.
+	assert.Empty(t, sessionState.Conv.SchemaIssues["t1"].ColumnLevelIssues["c1"])
+}

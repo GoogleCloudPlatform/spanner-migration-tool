@@ -246,12 +246,18 @@ func TestGenerateSrcSchema(t *testing.T) {
 			I.uniqueness,
 			IE.column_expression,
 			I.index_type,
-			I.status,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
 			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (:2)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_nested_tables NT
 			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
@@ -616,12 +622,18 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 			I.uniqueness,
 			IE.column_expression,
 			I.index_type,
-			I.status,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
 			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (:2)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_nested_tables NT
 			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
@@ -654,6 +666,10 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 				{"VCOLS", "IDX_UNUSABLE", "FIRST_NAME", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
 				{"VCOLS", "IDX_UNUSABLE", "LAST_NAME", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
 				{"VCOLS", "IDX_DESC_DISABLED", "SYS_NC00016$", "DESC", "NONUNIQUE", `"LAST_NAME"`, "FUNCTION-BASED NORMAL", "VALID", "DISABLED"},
+				// Partitioned index with no USABLE partition: the query reports its 'N/A' status as UNUSABLE.
+				{"VCOLS", "IDX_PART_UNUSABLE", "QTY", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
+				// Partitioned index with at least one USABLE partition keeps its 'N/A' status and is migrated.
+				{"VCOLS", "IDX_PART_USABLE", "PRICE", "ASC", "NONUNIQUE", nil, "NORMAL", "N/A", nil},
 			},
 		},
 	}
@@ -682,11 +698,12 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 	for _, idx := range result["VCOLS"].Indexes {
 		byName[idx.Name] = idx
 	}
-	assert.Equal(t, 3, len(byName))
+	assert.Equal(t, 4, len(byName))
 	assert.Equal(t, []schema.Key{{ColId: "c4", Desc: false}}, byName["IDX_NORM"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c1", Desc: true}, {ColId: "c4", Desc: false}}, byName["IDX_DESC"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c5", Desc: false}}, byName["IDX_VCOL"].Keys)
-	assert.Equal(t, []string{"IDX_UNUSABLE", "IDX_DESC_DISABLED"}, result["VCOLS"].DisabledIndexes)
+	assert.Equal(t, []schema.Key{{ColId: "c3", Desc: false}}, byName["IDX_PART_USABLE"].Keys)
+	assert.Equal(t, []string{"IDX_UNUSABLE", "IDX_DESC_DISABLED", "IDX_PART_UNUSABLE"}, result["VCOLS"].DisabledIndexes)
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_FUNC on table VCOLS"])
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_ARITH on table VCOLS"])
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_MIXED on table VCOLS"])

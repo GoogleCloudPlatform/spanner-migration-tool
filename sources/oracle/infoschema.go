@@ -660,6 +660,14 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	// Oracle also creates a system-generated unique index on the hidden set-ID column of
 	// each NESTED TABLE column, but ALL_IND_COLUMNS reports the parent nested-table column
 	// name as its key column. Those internal indexes are excluded via ALL_NESTED_TABLES.
+	//
+	// ALL_INDEXES.STATUS is 'N/A' for partitioned indexes, whose usability is tracked per
+	// partition (ALL_IND_PARTITIONS) or subpartition (ALL_IND_SUBPARTITIONS). A partitioned
+	// index with no USABLE partition or subpartition is reported as UNUSABLE so it is
+	// skipped like a non-partitioned unusable index.
+	//
+	// Only indexes on the user's own tables are read (IC.table_owner = IC.index_owner), so an
+	// index the user owns on another schema's table with the same name is not attached here.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -668,12 +676,18 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 			I.uniqueness,
 			IE.column_expression,
 			I.index_type,
-			I.status,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
 			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
 		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (%s)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_nested_tables NT
 			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
