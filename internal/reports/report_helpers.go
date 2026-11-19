@@ -141,7 +141,7 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		} else if pk, ok := conv.UniquePKey[tableId]; ok {
 			uniquePkCols := make([]string, 0, len(pk))
 			for _, colId := range pk {
-				if colDef, exists := spSchema.ColDefs[colId]; exists {
+				if colDef, exists := spSchema.ColDefs[colId]; exists && colDef.Name != "" {
 					uniquePkCols = append(uniquePkCols, colDef.Name)
 				} else if srcColDef, exists := srcSchema.ColDefs[colId]; exists && srcColDef.Name != "" {
 					uniquePkCols = append(uniquePkCols, srcColDef.Name)
