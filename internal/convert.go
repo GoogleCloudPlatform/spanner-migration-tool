@@ -468,6 +468,7 @@ func (conv *Conv) AddShardIdColumn() {
 func (conv *Conv) AddPrimaryKeys() {
 	for t, ct := range conv.SpSchema {
 		if len(ct.PrimaryKeys) == 0 {
+			delete(conv.UniquePKey, t)
 			primaryKeyPopulated := false
 			// Populating column with unique constraint as primary key in case
 			// table doesn't have primary key and removing the unique index.

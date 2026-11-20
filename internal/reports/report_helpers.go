@@ -139,7 +139,17 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
 			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil, schemaIssues)
 		} else if pk, ok := conv.UniquePKey[tableId]; ok {
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk, schemaIssues)
+			uniquePkCols := make([]string, 0, len(pk))
+			for _, colId := range pk {
+				if colDef, exists := spSchema.ColDefs[colId]; exists && colDef.Name != "" {
+					uniquePkCols = append(uniquePkCols, colDef.Name)
+				} else if srcColDef, exists := srcSchema.ColDefs[colId]; exists && srcColDef.Name != "" {
+					uniquePkCols = append(uniquePkCols, srcColDef.Name)
+				} else {
+					uniquePkCols = append(uniquePkCols, colId)
+				}
+			}
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, uniquePkCols, schemaIssues)
 		} else {
 			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil, schemaIssues)
 		}
@@ -333,6 +343,20 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					toAppend := Issue{
 						Category:    IssueDB[internal.IllegalName].Category,
 						Description: fmt.Sprintf("%s, Index '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcIdx.Name, spIdx.Name, conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				}
+			}
+			for _, spCc := range conv.SpSchema[tableId].CheckConstraints {
+				srcCc, err := internal.GetSrcCheckConstraintFromId(conv.SrcSchema[tableId].CheckConstraints, spCc.Id, spCc.ExprId)
+				if err != nil || srcCc.Name == "" || spCc.Name == "" {
+					continue
+				}
+				_, isChanged := internal.FixName(srcCc.Name)
+				if isChanged && srcCc.Name != spCc.Name {
+					toAppend := Issue{
+						Category:    IssueDB[internal.IllegalName].Category,
+						Description: fmt.Sprintf("%s, Check Constraint '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcCc.Name, spCc.Name, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				}
@@ -763,7 +787,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Shard id column is not a part of primary key. Please add it to primary key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, synthetic column created as a primary key"},
-	internal.UniqueIndexPrimaryKey: {Category: "UNIQUE_INDEX_PRIMARY_KEY",
+	internal.UniqueIndexPrimaryKey: {batch: true, Category: "UNIQUE_INDEX_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, unique column(s) used as primary key"},
 	internal.ArrayTypeNotSupported:        {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", Severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
 	internal.SequenceCreated:              {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},

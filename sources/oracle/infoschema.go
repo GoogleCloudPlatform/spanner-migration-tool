@@ -221,9 +221,9 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	var q string
 	// CHAR_LENGTH (declared length in characters) is used instead of DATA_LENGTH
 	// (length in bytes) so that VARCHAR2(n CHAR), NVARCHAR2(n), NCHAR(n) etc. map
-	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
-	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
-	// used instead, mapping it to Spanner BYTES(n).
+	// to Spanner STRING(n), which is also measured in characters. RAW(n) and
+	// UROWID(n) have no character length (CHAR_LENGTH is 0), so their declared
+	// length in bytes (DATA_LENGTH) is used instead.
 	//
 	// Hidden system generated columns are skipped (USER_GENERATED = 'YES' from 12c,
 	// HIDDEN_COLUMN = 'NO' in 11g), such as the SYS_NC...$ columns behind function based
@@ -231,12 +231,12 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	// This matches the MySQL and PostgreSQL sources (information_schema.COLUMNS), while
 	// keeping ALL_TAB_COLS for VIRTUAL_COLUMN and preserving user INVISIBLE columns (12c+).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND HIDDEN_COLUMN = 'NO' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
@@ -336,7 +336,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 // toType builds the source schema type of a column. length is the declared length
 // of the column: in characters for character types (CHAR_LENGTH) and in bytes for
-// RAW (DATA_LENGTH).
+// RAW and UROWID (DATA_LENGTH).
 func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
 	if strings.HasPrefix(dataType, "INTERVAL") {
@@ -353,7 +353,7 @@ func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt6
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW") {
+	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW" || dataType == "UROWID") {
 		return schema.Type{Name: dataType, Mods: []int64{length.Int64}}
 	}
 	return schema.Type{Name: dataType}

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -1246,4 +1247,150 @@ func TestSchemaToSpannerDDLHelper_CaseInsensitiveColumnCollisionIssue(t *testing
 	assert.Equal(t, "CODE_2", conv.SpSchema["t1"].ColDefs["c3"].Name)
 	assert.Empty(t, conv.SchemaIssues["t1"].ColumnLevelIssues["c2"])
 	assert.Equal(t, []internal.SchemaIssue{internal.IllegalName}, conv.SchemaIssues["t1"].ColumnLevelIssues["c3"])
+}
+
+func TestCheckConstraintRenameReportedInNameChangesAndTableIssues(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+
+	srcTable := schema.Table{
+		Name:        "ITEMS",
+		Id:          "t1",
+		ColIds:      []string{"c1", "c2"},
+		PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+			"c2": {Name: "QTY", Id: "c2", Type: schema.Type{Name: "NUMBER"}},
+		},
+		CheckConstraints: []schema.CheckConstraint{
+			{
+				Id:     "ck1",
+				Name:   "CK_QTY_ENABLED",
+				Expr:   "(QTY > 0)",
+				ExprId: "e1",
+			},
+			{
+				Id:     "ck_non_ascii",
+				Name:   "проверка_ck",
+				Expr:   "(QTY < 50)",
+				ExprId: "e2",
+			},
+			{
+				Id:     "ck_user_renamed",
+				Name:   "CK_QTY_LEGAL",
+				Expr:   "(QTY <> 10)",
+				ExprId: "e3",
+			},
+			{
+				Id:     "ck_unnamed",
+				Name:   "",
+				Expr:   "(QTY < 1000)",
+				ExprId: "e4",
+			},
+			{
+				Id:     "ck_cleared",
+				Name:   "CK_TO_CLEAR",
+				Expr:   "(QTY >= 1)",
+				ExprId: "e5",
+			},
+		},
+	}
+	conv.SrcSchema["t1"] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, mock.Anything).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false))
+
+	spCks := conv.SpSchema["t1"].CheckConstraints
+	assert.Equal(t, 5, len(spCks))
+	assert.Equal(t, "CK_QTY_ENABLED", spCks[0].Name)
+	assert.Equal(t, "A________ck", spCks[1].Name)
+
+	// Simulate WebV2 saveCc() overwriting CheckConstraint.Id with row index,
+	// user renaming a legal constraint, and user clearing a constraint name.
+	spTbl := conv.SpSchema["t1"]
+	spTbl.CheckConstraints[1].Id = "2"
+	spTbl.CheckConstraints[2].Name = "CK_QTY_RENAMED"
+	spTbl.CheckConstraints[4].Name = ""
+	conv.SpSchema["t1"] = spTbl
+
+	used := internal.ComputeUsedNames(conv)
+	assert.True(t, used["ck_qty_enabled"])
+	assert.True(t, used["a________ck"])
+	assert.True(t, used["ck_qty_renamed"])
+	assert.False(t, used[""])
+
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.ORACLE, "testdb", conv, nil, true, true)
+	assert.ElementsMatch(t, []reports.NameChange{
+		{
+			NameChangeType: "CheckConstraint",
+			SourceTable:    "ITEMS",
+			OldName:        "проверка_ck",
+			NewName:        "A________ck",
+		},
+		{
+			NameChangeType: "CheckConstraint",
+			SourceTable:    "ITEMS",
+			OldName:        "CK_QTY_LEGAL",
+			NewName:        "CK_QTY_RENAMED",
+		},
+	}, rep.NameChanges)
+	if assert.Equal(t, 1, len(rep.TableReports)) && assert.Equal(t, 1, len(rep.TableReports[0].Issues)) {
+		assert.Equal(t, []reports.Issue{
+			{
+				Category:    "ILLEGAL_NAME",
+				Description: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+], Check Constraint 'проверка_ck' is mapped to 'A________ck' for table 'ITEMS'",
+			},
+		}, rep.TableReports[0].Issues[0].IssueList)
+	}
+}
+
+func TestUniquePKeyReportUsesColumnNameInsteadOfColId(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+
+	srcTable := schema.Table{
+		Name:   "ITEMS",
+		Id:     "t1",
+		ColIds: []string{"c1", "c2", "c3"},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "NAME", Id: "c1", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{50}}},
+			"c2": {Name: "CODE", Id: "c2", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{10}}},
+			"c3": {Name: "REGION", Id: "c3", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{10}}},
+		},
+		Indexes: []schema.Index{
+			{
+				Id:     "idx1",
+				Name:   "ITEMS_CODE_REGION_UK",
+				Unique: true,
+				Keys: []schema.Key{
+					{ColId: "c2", Order: 1},
+					{ColId: "c3", Order: 2},
+				},
+			},
+		},
+	}
+	conv.SrcSchema["t1"] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", mock.Anything, false).Return(ddl.Type{Name: ddl.String, Len: 50}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false))
+	conv.AddPrimaryKeys()
+	// Simulate table restore re-running AddPrimaryKeys: UniquePKey should not duplicate columns.
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, true))
+	conv.AddPrimaryKeys()
+
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.ORACLE, "testdb", conv, nil, true, true)
+	if assert.Equal(t, 1, len(rep.TableReports)) && assert.Equal(t, 1, len(rep.TableReports[0].Issues)) {
+		assert.Equal(t, []reports.Issue{
+			{
+				Category:    "UNIQUE_INDEX_PRIMARY_KEY",
+				Description: "UNIQUE constraint on column(s) 'CODE, REGION' replaced with primary key since table 'ITEMS' didn't have one. Spanner requires a primary key for every table",
+			},
+		}, rep.TableReports[0].Issues[0].IssueList)
+	}
 }
