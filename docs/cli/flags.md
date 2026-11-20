@@ -76,6 +76,13 @@ the Spanner database, and the database will therefore default to `America/Los_An
 Spanner databases). Note, the default timezone can only be set on an empty Spanner database without any tables; a
 warning will be logged and this setting will be ignored if the database already includes tables.
 
+* **`defaultTransactionIsolation`**: Optional flag. Specifies the default transaction isolation level of the Spanner
+database, for example `--target-profile="instance=my-instance,defaultTransactionIsolation=repeatable read"`. Supported
+values (case-insensitive) are `serializable` and `repeatable read`. If not specified, the default transaction isolation
+level is not explicitly set when creating the Spanner database, and Spanner defaults to `serializable`. Note, if the
+target Spanner database already contains tables, a warning will be logged and this setting will be skipped to avoid
+altering the isolation level for existing tables.
+
 * **`defaultIdentitySkipRange`**: Optional flag. Specifies the default SKIP RANGE values to use for IDENTITY columns. Specified as `<min>-<max>`, where both `<min>` and `<max>` are positive integers and `<min>` must be less than `<max>`. For example, `defaultIdentitySkipRange=10-50`. For
   instructions on setting SKIP RANGE values for individual columns, see
   [here](../data-types/mysql.md#auto-increment-columns).

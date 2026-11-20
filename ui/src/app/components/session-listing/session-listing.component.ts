@@ -133,6 +133,7 @@ export class SessionListingComponent implements OnInit {
 
   resumeFromSessionFile(versionId: string) {
     this.data.resetStore()
+    localStorage.clear()
     this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res: IConv) => {
       localStorage.setItem(StorageKeys.Config, versionId)

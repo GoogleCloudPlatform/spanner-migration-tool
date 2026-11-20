@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core'
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core'
 import { MatDialog } from '@angular/material/dialog'
 import { TargetDetailsFormComponent } from '../target-details-form/target-details-form.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
@@ -25,7 +25,7 @@ import { GcsMetadataDetailsFormComponent } from '../gcs-metadata-details-form/gc
   styleUrls: ['./prepare-migration.component.scss'],
   standalone: false,
 })
-export class PrepareMigrationComponent implements OnInit {
+export class PrepareMigrationComponent implements OnInit, OnDestroy {
   conv!: IConv
   convObj!: Subscription
   displayedColumns = ['Title', 'Source', 'Destination']
@@ -102,6 +102,7 @@ export class PrepareMigrationComponent implements OnInit {
       GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) || '',
     },
     DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+    DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) || '',
   }
 
   gcsConfig: IGcsConfig = {
@@ -160,6 +161,20 @@ export class PrepareMigrationComponent implements OnInit {
     })
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
+      const rawIsolation = data?.DatabaseOptions?.DefaultTransactionIsolation || ''
+      const normalizedIsolation = rawIsolation.replace(/-/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase()
+      if (
+        !this.isTargetDetailSet &&
+        localStorage.getItem(MigrationDetails.IsTargetDetailSet) !== 'true' &&
+        localStorage.getItem(TargetDetails.DefaultTransactionIsolation) == null &&
+        (normalizedIsolation === 'repeatable read' || normalizedIsolation === 'serializable')
+      ) {
+        localStorage.setItem(
+          TargetDetails.DefaultTransactionIsolation,
+          normalizedIsolation
+        )
+        this.targetDetails.DefaultTransactionIsolation = normalizedIsolation
+      }
     })
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
@@ -399,9 +414,13 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
         DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+        DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) || '',
       }
       this.isTargetDetailSet =
         (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string) === 'true'
+      if (this.isTargetDetailSet) {
+        this.syncConvDatabaseOptions(true)
+      }
       if (
         this.isSourceDetailsSet &&
         this.isTargetDetailSet &&
@@ -440,6 +459,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
         DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
+        DefaultTransactionIsolation: localStorage.getItem(TargetDetails.DefaultTransactionIsolation) || '',
       }
     })
   }
@@ -707,12 +727,28 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.IsGcsMetadataPathSet, this.isGcsMetadataDetailSet.toString())
   }
 
+  private syncConvDatabaseOptions(persistBackend: boolean = false) {
+    if (this.conv) {
+      this.conv.DatabaseOptions = {
+        DbName: this.targetDetails.TargetDB || this.conv.DatabaseOptions?.DbName || '',
+        DefaultTimezone: this.targetDetails.DefaultTimezone || '',
+        DefaultTransactionIsolation: this.targetDetails.DefaultTransactionIsolation || '',
+      }
+    }
+    if (persistBackend) {
+      this.fetch.updateDatabaseOptions?.(this.targetDetails)?.subscribe({
+        error: () => {},
+      })
+    }
+  }
+
   openSaveSessionSidenav() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('saveSession')
     this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
+    this.syncConvDatabaseOptions(false)
     downloadSession(this.conv)
   }
 
@@ -731,5 +767,8 @@ export class PrepareMigrationComponent implements OnInit {
     this.displayedResourcesDataSource.paginator = this.paginator
   }
 
-  ngOnDestroy() { }
+  ngOnDestroy() {
+    this.convObj?.unsubscribe()
+    this.subscription?.unsubscribe()
+  }
 }
