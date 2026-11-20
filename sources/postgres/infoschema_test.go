@@ -1393,3 +1393,31 @@ func TestInheritanceLookupErrors(t *testing.T) {
 	assert.ErrorContains(t, err, "permission denied")
 	assert.Nil(t, mock.ExpectationsWereMet())
 }
+
+func TestGetDefaultTransactionIsolation(t *testing.T) {
+	t.Run("returns default_transaction_isolation on success", func(t *testing.T) {
+		ms := []mockSpec{
+			{
+				query: "SHOW default_transaction_isolation;",
+				cols:  []string{"default_transaction_isolation"},
+				rows:  [][]driver.Value{{"repeatable read"}},
+			},
+		}
+		isi := InfoSchemaImpl{mkMockDB(t, ms), "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+		got, err := isi.GetDefaultTransactionIsolation()
+		assert.NoError(t, err)
+		assert.Equal(t, "repeatable read", got)
+	})
+
+	t.Run("returns error when SHOW default_transaction_isolation fails", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		defer db.Close()
+		mock.ExpectQuery("SHOW default_transaction_isolation;").WillReturnError(errors.New("permission denied"))
+		isi := InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+		got, err := isi.GetDefaultTransactionIsolation()
+		assert.Error(t, err)
+		assert.Equal(t, "", got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}

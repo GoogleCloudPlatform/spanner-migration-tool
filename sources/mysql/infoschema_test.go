@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -821,4 +822,49 @@ func TestBuildColumn(t *testing.T) {
 	// Test case 4: Auto increment
 	c = buildColumn(conv, colId, colName, "int", "int(11)", "NO", sql.NullString{Valid: false}, sql.NullString{Valid: true, String: "auto_increment"}, sql.NullString{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false}, sql.NullInt64{Valid: false})
 	assert.Equal(t, constants.AUTO_INCREMENT, c.AutoGen.Name)
+}
+
+func TestGetDefaultTransactionIsolation(t *testing.T) {
+	t.Run("global transaction_isolation succeeds", func(t *testing.T) {
+		ms := []mockSpec{
+			{
+				query: regexp.QuoteMeta("SELECT @@global.transaction_isolation;"),
+				cols:  []string{"@@global.transaction_isolation"},
+				rows:  [][]driver.Value{{"REPEATABLE-READ"}},
+			},
+		}
+		db := mkMockDB(t, ms)
+		isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+		got, err := isi.GetDefaultTransactionIsolation()
+		assert.NoError(t, err)
+		assert.Equal(t, "REPEATABLE-READ", got)
+	})
+
+	t.Run("falls back to tx_isolation when transaction_isolation fails", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		defer db.Close()
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT @@global.transaction_isolation;")).WillReturnError(fmt.Errorf("Unknown system variable 'transaction_isolation'"))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT @@global.tx_isolation;")).WillReturnRows(sqlmock.NewRows([]string{"@@global.tx_isolation"}).AddRow("SERIALIZABLE"))
+
+		isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+		got, err := isi.GetDefaultTransactionIsolation()
+		assert.NoError(t, err)
+		assert.Equal(t, "SERIALIZABLE", got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error when both transaction_isolation and tx_isolation fail", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		assert.NoError(t, err)
+		defer db.Close()
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT @@global.transaction_isolation;")).WillReturnError(fmt.Errorf("access denied"))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT @@global.tx_isolation;")).WillReturnError(fmt.Errorf("access denied"))
+
+		isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+		got, err := isi.GetDefaultTransactionIsolation()
+		assert.Error(t, err)
+		assert.Equal(t, "", got)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
