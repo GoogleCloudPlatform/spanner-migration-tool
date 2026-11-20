@@ -97,10 +97,10 @@ that Spanner migration tool will not create directories as it writes these files
 ### Sample dump files
 
 If you don't have ready access to a MySQL database, some example
-dump files can be found [here](examples). The file
-[cart.mysqldump](examples/cart.mysqldump) contains mysqldump output
+dump files can be found [here](../../examples). The file
+[cart.mysqldump](../../examples/cart.mysqldump) contains mysqldump output
 for a very basic shopping cart application (just two tables, one for products
-and one for user carts). The file [singers.mysqldump](examples/singers.mysqldump) contain
+and one for user carts). The file [singers.mysqldump](../../examples/singers.mysqldump) contain
 mysqldump output for a version of the [Cloud Spanner
 singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_table)
 example.
