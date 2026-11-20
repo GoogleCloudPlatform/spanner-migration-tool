@@ -45,8 +45,11 @@ type Table struct {
 	CheckConstraints []CheckConstraint
 	Indexes          []Index
 	Id               string
-	InheritedFrom    []string `json:",omitempty"` // Direct parent table names (PostgreSQL INHERITS).
-	PartitionParent  string   // Parent table name if this is a child partition, empty otherwise.
+	InheritedFrom            []string `json:",omitempty"` // Direct parent table names (PostgreSQL INHERITS).
+	PartitionParent          string   // Parent table name if this is a child partition, empty otherwise.
+	DisabledForeignKeys      []string `json:",omitempty"` // Names of source foreign keys skipped because they were disabled.
+	DisabledCheckConstraints []string `json:",omitempty"` // Names of source check constraints skipped because they were disabled.
+	DisabledIndexes          []string `json:",omitempty"` // Names of source indexes skipped because they were disabled or unusable.
 }
 
 // Column represents a database column.
@@ -78,6 +81,7 @@ type ForeignKey struct {
 	ReferColumnNames []string `json:"-"`
 	OnDelete         string
 	OnUpdate         string
+	IsDeferrable     bool `json:",omitempty"`
 	Id               string
 }
 

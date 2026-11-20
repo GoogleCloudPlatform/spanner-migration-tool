@@ -324,6 +324,15 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					l = append(l, toAppend)
 				}
 
+				if srcFk.IsDeferrable {
+					issue := internal.ForeignKeyDeferrableNotSupported
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Foreign Key '%s' is deferrable in the source database - %s", conv.SpSchema[tableId].Name, srcFk.Name, IssueDB[issue].Brief),
+					}
+					l = append(l, toAppend)
+				}
+
 				_, isChanged := internal.FixName(srcFk.Name)
 				if isChanged && srcFk.Name != spFk.Name {
 					toAppend := Issue{
@@ -332,6 +341,30 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 					l = append(l, toAppend)
 				}
+			}
+			for _, fkName := range conv.SrcSchema[tableId].DisabledForeignKeys {
+				issue := internal.DisabledObjectSkipped
+				toAppend := Issue{
+					Category:    IssueDB[issue].Category,
+					Description: fmt.Sprintf("Table '%s': Foreign Key '%s' is disabled in the source database and has been skipped", conv.SpSchema[tableId].Name, fkName),
+				}
+				l = append(l, toAppend)
+			}
+			for _, ckName := range conv.SrcSchema[tableId].DisabledCheckConstraints {
+				issue := internal.DisabledObjectSkipped
+				toAppend := Issue{
+					Category:    IssueDB[issue].Category,
+					Description: fmt.Sprintf("Table '%s': Check constraint '%s' is disabled in the source database and has been skipped", conv.SpSchema[tableId].Name, ckName),
+				}
+				l = append(l, toAppend)
+			}
+			for _, idxName := range conv.SrcSchema[tableId].DisabledIndexes {
+				issue := internal.DisabledObjectSkipped
+				toAppend := Issue{
+					Category:    IssueDB[issue].Category,
+					Description: fmt.Sprintf("Table '%s': Index '%s' %s", conv.SpSchema[tableId].Name, idxName, IssueDB[issue].Brief),
+				}
+				l = append(l, toAppend)
 			}
 			for _, spIdx := range conv.SpSchema[tableId].Indexes {
 				srcIdx, err := internal.GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
@@ -793,7 +826,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.SequenceCreated:              {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},
 	internal.ForeignKeyOnDelete:           {Brief: "Spanner supports only ON DELETE CASCADE/NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.ForeignKeyOnUpdate:           {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
-	internal.ForeignKeyActionNotSupported: {Brief: "Spanner supports foreign key action migration only for MySQL and PostgreSQL", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyActionNotSupported: {Brief: "Spanner Migration Tool supports foreign key action migration only for MySQL, PostgreSQL, and Oracle sources", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.NumericPKNotSupported:        {Brief: "Spanner PostgreSQL does not support numeric primary keys / unique indices", Severity: warning, Category: "NUMERIC_PK_NOT_SUPPORTED"},
 	internal.DefaultValueError:            {Brief: "Some columns have default value expressions not supported by Spanner. Please fix them to continue migration.", Severity: Errors, batch: true, Category: "INCOMPATIBLE_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.PrecisionLoss:                {Brief: "Numeric only supports (38,9) precision. Be aware of potential precision loss due to type mapping.", Severity: warning, Category: "PRECISION_LOSS"},
@@ -808,6 +841,9 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Identity column type is not INT64, identity was not migrated"},
 	internal.IdentityPrimaryKeyAdded: {Brief: "column was added as the INT64 identity primary key because the source identity primary key column is not INT64. The source primary key columns are kept, with a unique index", Severity: warning, Category: "IDENTITY_PRIMARY_KEY_ADDED",
 		CategoryDescription: "Identity primary key column type is not INT64, INT64 identity column added as primary key"},
+	internal.ForeignKeyDeferrableNotSupported: {Brief: "Spanner does not support deferrable foreign keys, so it will be enforced immediately", Severity: warning, Category: "FOREIGN_KEY_DEFERRABLE_NOT_SUPPORTED"},
+	internal.DisabledObjectSkipped: {Brief: "is disabled or unusable in the source database and has been skipped", Severity: warning, Category: "DISABLED_OBJECT_SKIPPED",
+		CategoryDescription: "Disabled or unusable source database objects were skipped"},
 }
 
 type Severity int
@@ -824,9 +860,12 @@ const (
 func countActionableIssues(issues []internal.SchemaIssue) int64 {
 	var count int64
 	for _, issue := range issues {
-		if IssueDB[issue].Severity != note { // Notes are purely informational and are excluded.
-			count++
+		// Notes and warnings about skipped disabled/unusable source objects are
+		// informational and do not leave broken Spanner schema state.
+		if IssueDB[issue].Severity == note || issue == internal.DisabledObjectSkipped {
+			continue
 		}
+		count++
 	}
 	return count
 }
