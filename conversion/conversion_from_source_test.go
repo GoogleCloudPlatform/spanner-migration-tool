@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
@@ -145,4 +146,30 @@ func TestSchemaFromDatabase(t *testing.T) {
 		_, err := s.schemaFromDatabase("migration-project-id", tc.sourceProfile, targetProfile, &gim, &ps)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
+
+	t.Run("pre-populates conv.DatabaseOptions from targetProfile before ProcessSchema", func(t *testing.T) {
+		tpWithOptions := profiles.TargetProfile{
+			Conn: profiles.TargetProfileConnection{
+				Sp: profiles.TargetProfileConnectionSpanner{
+					Dialect:                     "google_standard_sql",
+					DefaultTimezone:             "America/New_York",
+					DefaultTransactionIsolation: "serializable",
+				},
+			},
+		}
+		gim := MockGetInfo{}
+		ps := common.MockProcessSchema{}
+		gim.On("GetInfoSchema", "migration-project-id", mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, nil)
+		ps.On("ProcessSchema", mock.MatchedBy(func(c *internal.Conv) bool {
+			return c.DatabaseOptions.DefaultTimezone == "America/New_York" &&
+				c.DatabaseOptions.DefaultTransactionIsolation == "serializable"
+		}), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		s := SchemaFromSourceImpl{DdlVerifier: &expressions_api.MockDDLVerifier{}}
+		conv, err := s.schemaFromDatabase("migration-project-id", sourceProfileCloudDefault, tpWithOptions, &gim, &ps)
+		assert.NoError(t, err)
+		assert.Equal(t, "America/New_York", conv.DatabaseOptions.DefaultTimezone)
+		assert.Equal(t, "serializable", conv.DatabaseOptions.DefaultTransactionIsolation)
+		ps.AssertExpectations(t)
+	})
 }

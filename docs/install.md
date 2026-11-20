@@ -115,7 +115,7 @@ To run migrations against a local instance without having to connect to Cloud Sp
 - **Start Spanner Omni:**
 
     ```sh
-    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r1-beta start-single-server
+    docker run -d -p 9010:15000 -p 9020:15026 --tmpfs /spanner us-docker.pkg.dev/spanner-omni/images/spanner-omni:2026.r4-lts.1 start-single-server --listen-addresses=0.0.0.0,[::]
     ```
 
 - **Set the SPANNER_EMULATOR_HOST:**
