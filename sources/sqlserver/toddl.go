@@ -72,6 +72,8 @@ const (
 	maxInt64SafeDigits  = 18
 	maxNumericIntDigits = 29
 	maxNumericScale     = 9
+	// rowVersionLength is the fixed size in bytes of a SQL Server rowversion.
+	rowVersionLength = 8
 )
 
 type numberFit int
@@ -125,7 +127,7 @@ func numericOverflowIssues(spDialect string, fit numberFit) []internal.SchemaIss
 // Spanner type for this source type will be used.
 func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
-	case "bigint", "tinyint", "smallint", "int":
+	case "bigint":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -133,6 +135,18 @@ func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string,
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "tinyint", "smallint", "int":
+		// These are 1, 2 and 4 bytes in SQL Server. Spanner only has the 8-byte
+		// INT64, so the default mapping is reported as widened, as it is for the
+		// MySQL and PostgreSQL sources.
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Float64:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "bit":
 		switch spType {
@@ -242,7 +256,7 @@ func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string,
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.StringMaxLength}, nil
 		}
-	case "ntext", "text", "xml":
+	case "ntext", "text":
 		// These hold up to 2^31-1 bytes (ntext: 2^30-1 characters), which exceeds
 		// Spanner's STRING(MAX)/BYTES(MAX) limits, whichever target is chosen.
 		switch spType {
@@ -250,6 +264,16 @@ func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string,
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
+		}
+	case "xml":
+		// Spanner has no XML type, so the column becomes a string and loses XML
+		// validation and the XML methods. Like ntext and text, a value can also
+		// exceed Spanner's STRING(MAX)/BYTES(MAX) limits.
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType, internal.PossibleOverflow}
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType, internal.StringOverflow}
 		}
 	case "binary", "varbinary":
 		switch spType {
@@ -293,7 +317,8 @@ func toSpannerTypeInternal(spDialect string, srcType schema.Type, spType string,
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+			// rowversion (and its synonym timestamp) is always exactly 8 bytes.
+			return ddl.Type{Name: ddl.Bytes, Len: rowVersionLength}, nil
 		}
 	case "uniqueidentifier":
 		switch spType {

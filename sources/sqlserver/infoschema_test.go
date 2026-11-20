@@ -370,7 +370,7 @@ func TestProcessSchema(t *testing.T) {
 				"SQLVariant":       {Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             {Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Time":             {Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, NotNull: false},
+				"TimeStamp":        {Name: "TimeStamp", T: ddl.Type{Name: ddl.Bytes, Len: int64(8)}, NotNull: false},
 				"TinyInt":          {Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"UniqueIdentifier": {Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.UUID}, NotNull: false},
 				"VarBinary":        {Name: "VarBinary", T: ddl.Type{Name: ddl.Bytes, Len: 50}, NotNull: false},
@@ -422,7 +422,7 @@ func TestProcessSchema(t *testing.T) {
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 2)
-	assert.Equal(t, 17, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
+	assert.Equal(t, 20, len(conv.SchemaIssues[testTableId].ColumnLevelIssues))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }
