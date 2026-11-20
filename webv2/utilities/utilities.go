@@ -248,36 +248,48 @@ func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, tableId string) ([]ddl.Foreignkey, error) {
+// RemoveFkIssues removes one instance of each table-level warning associated with
+// a dropped foreign key without mutating the caller's foreign key slice.
+func RemoveFkIssues(fk ddl.Foreignkey, srcSchema schema.Table, tableId string) error {
 	sessionState := session.GetSessionState()
 	tableIssues := sessionState.Conv.SchemaIssues[tableId].TableLevelIssues
 
+	// Issues ForeignKeyOnDelete, ForeignKeyOnUpdate, and ForeignKeyDeferrableNotSupported
+	// might be added to SchemaIssues[tableId] multiple times due to multiple FKs.
+	// Only delete one instance to preserve warnings for remaining FKs.
+	srcFk, err := internal.GetSrcFkFromId(srcSchema.ForeignKeys, fk.Id)
+	if err != nil {
+		return err
+	}
+	if srcFk.OnDelete != fk.OnDelete {
+		tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
+	}
+	if srcFk.OnUpdate != fk.OnUpdate {
+		tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnUpdate)
+	}
+	if srcFk.IsDeferrable {
+		tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyDeferrableNotSupported)
+	}
+	if issues, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
+		issues.TableLevelIssues = tableIssues
+		sessionState.Conv.SchemaIssues[tableId] = issues
+	}
+	return nil
+}
+
+func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, tableId string) ([]ddl.Foreignkey, error) {
 	pos := -1
 	for i, fk := range slice {
 		if fk.Id == fkId {
 			pos = i
-
-			// Remove foreign key action conversion warnings for dropped FK
-			//
-			// Issues ForeignKeyOnDelete and ForeignKeyOnUpdate might be added to SchemaIssues[tableId] multiple times
-			// due to existance of multiple FKs. We only delete one instance of these issues to maintain
-			// correct warnings for other FKs
-			srcFk, err := internal.GetSrcFkFromId(srcSchema.ForeignKeys, fk.Id)
-			if err != nil {
+			if err := RemoveFkIssues(fk, srcSchema, tableId); err != nil {
 				return nil, err
-			}
-			if srcFk.OnDelete != fk.OnDelete {
-				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
-			}
-			if srcFk.OnUpdate != fk.OnUpdate {
-				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnUpdate)
-			}
-			if issues, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
-				issues.TableLevelIssues = tableIssues
-				sessionState.Conv.SchemaIssues[tableId] = issues
 			}
 			break
 		}
+	}
+	if pos == -1 {
+		return slice, nil
 	}
 	return append(slice[:pos], slice[pos+1:]...), nil
 }

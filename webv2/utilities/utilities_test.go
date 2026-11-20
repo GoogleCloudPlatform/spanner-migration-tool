@@ -160,3 +160,38 @@ func TestIsParent(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveFk_ClearsDeferrableAndActionIssuesOnce(t *testing.T) {
+	srcTable := schema.Table{
+		Id:   "t2",
+		Name: "child",
+		ForeignKeys: []schema.ForeignKey{
+			{Id: "fk1", Name: "FK_DEF_1", OnDelete: constants.FK_SET_NULL, OnUpdate: constants.FK_NO_ACTION, IsDeferrable: true},
+			{Id: "fk2", Name: "FK_DEF_2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION, IsDeferrable: true},
+		},
+	}
+	spFks := []ddl.Foreignkey{
+		{Id: "fk1", Name: "FK_DEF_1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+		{Id: "fk2", Name: "FK_DEF_2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+	}
+
+	sessionState := session.GetSessionState()
+	sessionState.Conv = &internal.Conv{
+		SrcSchema: map[string]schema.Table{"t2": srcTable},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t2": {
+				TableLevelIssues: []internal.SchemaIssue{
+					internal.ForeignKeyOnDelete,
+					internal.ForeignKeyDeferrableNotSupported,
+					internal.ForeignKeyDeferrableNotSupported,
+				},
+			},
+		},
+	}
+
+	updatedFks, err := RemoveFk(spFks, "fk1", srcTable, "t2")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(updatedFks))
+	assert.Equal(t, "fk2", updatedFks[0].Id)
+	assert.Equal(t, []internal.SchemaIssue{internal.ForeignKeyDeferrableNotSupported}, sessionState.Conv.SchemaIssues["t2"].TableLevelIssues)
+}

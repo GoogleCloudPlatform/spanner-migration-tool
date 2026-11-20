@@ -168,6 +168,8 @@ const (
 	NonPublicSchemaRef
 	IdentityTypeNotSupported
 	IdentityPrimaryKeyAdded
+	ForeignKeyDeferrableNotSupported
+	DisabledObjectSkipped
 )
 
 const (

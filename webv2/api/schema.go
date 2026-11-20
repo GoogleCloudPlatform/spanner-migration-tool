@@ -1349,9 +1349,11 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	delete(usedNames, strings.ToLower(sessionState.Conv.SpSchema[tableId].Name))
 	for _, index := range sessionState.Conv.SpSchema[tableId].Indexes {
 		delete(usedNames, index.Name)
+		delete(usedNames, strings.ToLower(index.Name))
 	}
 	for _, fk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 		delete(usedNames, fk.Name)
+		delete(usedNames, strings.ToLower(fk.Name))
 	}
 	for _, cc := range sessionState.Conv.SpSchema[tableId].CheckConstraints {
 		delete(usedNames, cc.Name)
@@ -1370,17 +1372,19 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	}
 
 	// drop reference foreign key
-	for tableName, spTable := range spSchema {
+	for childTableId, spTable := range spSchema {
 		fks := []ddl.Foreignkey{}
 		for _, fk := range spTable.ForeignKeys {
 			if fk.ReferTableId != tableId {
 				fks = append(fks, fk)
 			} else {
 				delete(usedNames, fk.Name)
+				delete(usedNames, strings.ToLower(fk.Name))
+				_ = utilities.RemoveFkIssues(fk, sessionState.Conv.SrcSchema[childTableId], childTableId)
 			}
 		}
 		spTable.ForeignKeys = fks
-		spSchema[tableName] = spTable
+		spSchema[childTableId] = spTable
 	}
 
 	// remove interleave that are interleaved on the drop table as parent
