@@ -86,11 +86,24 @@ func sanitizeSQLServerExpression(expr string, wrapParens bool) string {
 // date and time. information_schema reports DEFAULT CURRENT_TIMESTAMP as getdate().
 var currentTimeDefaultReg = regexp.MustCompile(`(?i)^(getdate|sysdatetime|getutcdate|sysutcdatetime|sysdatetimeoffset)\(\s*\)$`)
 
+// utcTimeDefaultReg matches the current-time functions that return UTC.
+var utcTimeDefaultReg = regexp.MustCompile(`(?i)^(getutcdate|sysutcdatetime)\(\s*\)$`)
+
 // isTimestampSourceType reports whether a SQL Server type maps to Spanner
 // TIMESTAMP by default.
 func isTimestampSourceType(dataType string) bool {
 	switch strings.ToLower(dataType) {
 	case dateTimeType, dateTime2Type, smallDateTimeType, dateTimeOffsetType:
+		return true
+	}
+	return false
+}
+
+// isStringSourceType reports whether a SQL Server type is one whose plain
+// default values need quoting, the same types the common sanitizer quoted.
+func isStringSourceType(dataType string) bool {
+	switch strings.ToLower(dataType) {
+	case "char", "varchar", "text":
 		return true
 	}
 	return false
@@ -107,6 +120,14 @@ func toSpannerBoolDefault(s string) (string, bool) {
 		return "FALSE", true
 	}
 	return "", false
+}
+
+// isNullDefault reports whether a column default is an explicit NULL,
+// which SQL Server reports as (NULL). It is the same as having no default.
+// It must look at the raw value: after sanitizing, (NULL) and ('NULL') are the
+// same string on string columns.
+func isNullDefault(defVal string) bool {
+	return strings.EqualFold(trimOuterParens(defVal), "NULL")
 }
 
 // sanitizeSQLServerDefault converts a SQL Server column default, as reported by
@@ -143,6 +164,10 @@ func sanitizeSQLServerDefault(defVal string, dataType string, dialect string) st
 			return "CURRENT_TIMESTAMP()"
 		case strings.EqualFold(dataType, dateType) && pg:
 			return "CURRENT_DATE"
+		case strings.EqualFold(dataType, dateType) && utcTimeDefaultReg.MatchString(s):
+			// CURRENT_DATE() uses the database default time zone; the UTC
+			// functions return the UTC date, so pin it.
+			return "CURRENT_DATE('UTC')"
 		case strings.EqualFold(dataType, dateType):
 			return "CURRENT_DATE()"
 		}
@@ -150,10 +175,54 @@ func sanitizeSQLServerDefault(defVal string, dataType string, dialect string) st
 	// SQL Server reports string literals already quoted, so an expression that
 	// contains a call or a parenthesised term (e.g. upper('a')) must not be
 	// wrapped in quotes by the common sanitizer.
-	if strings.Contains(s, "(") {
-		return s
+	// A plain value on a string column is quoted if it is not already. The
+	// common sanitizer is not used: its MySQL-specific unescaping of \\ and \'
+	// would change SQL Server string values, where backslash is a plain character.
+	if !strings.Contains(s, "(") && isStringSourceType(dataType) && !strings.HasPrefix(s, "'") && !strings.HasSuffix(s, "'") {
+		s = "'" + s + "'"
 	}
-	return common.SanitizeExpressionsValue(s, dataType, false)
+	// SQL Server escapes a quote inside a string literal by doubling it ('') and
+	// treats backslashes as plain characters. GoogleSQL needs \' and \\ instead;
+	// the PostgreSQL dialect accepts the SQL Server form as is.
+	if dialect != constants.DIALECT_POSTGRESQL {
+		s = normalizeGSQLStringLiterals(s)
+	}
+	return s
+}
+
+// normalizeGSQLStringLiterals rewrites SQL doubled single quotes ('') and raw
+// backslashes inside single-quoted string literals to GoogleSQL escapes (\' and
+// \\). Same as the Oracle reader's helper of the same name.
+func normalizeGSQLStringLiterals(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inSingle := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if !inSingle {
+			if ch == '\'' {
+				inSingle = true
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\'' {
+			if i+1 < len(s) && s[i+1] == '\'' {
+				b.WriteString(`\'`)
+				i++
+				continue
+			}
+			inSingle = false
+			b.WriteByte(ch)
+			continue
+		}
+		if ch == '\\' {
+			b.WriteString(`\\`)
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
 
 const (
@@ -389,7 +458,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		var defaultVal ddl.DefaultValue
-		if colDefault.Valid && strings.TrimSpace(colDefault.String) != "" {
+		if colDefault.Valid && strings.TrimSpace(colDefault.String) != "" && !isNullDefault(colDefault.String) {
 			defaultVal = ddl.DefaultValue{
 				IsPresent: true,
 				Value: ddl.Expression{

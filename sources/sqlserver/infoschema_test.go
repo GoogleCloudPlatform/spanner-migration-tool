@@ -505,6 +505,36 @@ func TestSanitizeSQLServerExpressionAndDefault(t *testing.T) {
 	// A string literal that contains a parenthesis stays a single quoted literal.
 	assert.Equal(t, "'a (b)'", sanitizeSQLServerDefault("('a (b)')", "varchar", gsql))
 	assert.Equal(t, "'a (b)'", sanitizeSQLServerDefault("(N'a (b)')", "nvarchar", gsql))
+
+	// The UTC current-time functions pin the date to UTC in GoogleSQL. The
+	// PostgreSQL dialect has no way to do so (timezone() is not supported).
+	for _, fn := range []string{"(getutcdate())", "(sysutcdatetime())"} {
+		assert.Equal(t, "CURRENT_DATE('UTC')", sanitizeSQLServerDefault(fn, "date", gsql), fn)
+		assert.Equal(t, "CURRENT_DATE", sanitizeSQLServerDefault(fn, "date", pg), fn)
+	}
+
+	// String literals use GoogleSQL escapes in GoogleSQL; the PostgreSQL dialect
+	// accepts the SQL Server form.
+	assert.Equal(t, `'it\'s'`, sanitizeSQLServerDefault("('it''s')", "varchar", gsql))
+	assert.Equal(t, `'it''s'`, sanitizeSQLServerDefault("('it''s')", "varchar", pg))
+	assert.Equal(t, `'C:\\temp'`, sanitizeSQLServerDefault(`('C:\temp')`, "varchar", gsql))
+	assert.Equal(t, `'C:\temp'`, sanitizeSQLServerDefault(`('C:\temp')`, "varchar", pg))
+	assert.Equal(t, `'it\'s'`, sanitizeSQLServerDefault("(N'it''s')", "nvarchar", gsql))
+	assert.Equal(t, `upper('it\'s')`, sanitizeSQLServerDefault("(upper('it''s'))", "varchar", gsql))
+	// Backslashes are plain characters in SQL Server and are kept as they are.
+	assert.Equal(t, `'\\\\server\\share'`, sanitizeSQLServerDefault(`('\\server\share')`, "varchar", gsql))
+	assert.Equal(t, `'\\server\share'`, sanitizeSQLServerDefault(`('\\server\share')`, "varchar", pg))
+	assert.Equal(t, `'a\\\'b'`, sanitizeSQLServerDefault(`('a\''b')`, "varchar", gsql))
+	assert.Equal(t, `'a\''b'`, sanitizeSQLServerDefault(`('a\''b')`, "varchar", pg))
+}
+
+func TestIsNullDefault(t *testing.T) {
+	for _, d := range []string{"(NULL)", "(null)", "((NULL))", " ( NULL ) "} {
+		assert.True(t, isNullDefault(d), d)
+	}
+	for _, d := range []string{"('NULL')", "(N'NULL')", "((0))", "(getdate())"} {
+		assert.False(t, isNullDefault(d), d)
+	}
 }
 
 func TestGetCheckConstraints(t *testing.T) {
@@ -559,6 +589,9 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 				{"label", "varchar", "YES", "(upper('a'))", 5, nil, nil, 0},
 				{"day", "date", "YES", "(getdate())", nil, nil, nil, 0},
 				{"flag", "bit", "NO", "((1))", nil, nil, nil, 0},
+				{"v_null", "varchar", "YES", "(NULL)", 10, nil, nil, 0},
+				{"i_null", "int", "YES", "(NULL)", nil, 10, 0, 0},
+				{"v_null_text", "varchar", "YES", "('NULL')", 10, nil, nil, 0},
 			},
 		},
 	}
@@ -567,7 +600,14 @@ func TestGetColumns_DefaultsAndComputed(t *testing.T) {
 	isi := InfoSchemaImpl{"testdb", db}
 	colDefs, colIds, err := isi.GetColumns(conv, common.SchemaAndName{Schema: "dbo", Name: "computed_test"}, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 9, len(colIds))
+	assert.Equal(t, 12, len(colIds))
+
+	// An explicit DEFAULT NULL is no default, on any column type.
+	assert.False(t, colDefs[colIds[9]].DefaultValue.IsPresent)
+	assert.False(t, colDefs[colIds[10]].DefaultValue.IsPresent)
+	// DEFAULT 'NULL' is a string literal and is kept.
+	assert.True(t, colDefs[colIds[11]].DefaultValue.IsPresent)
+	assert.Equal(t, "'NULL'", colDefs[colIds[11]].DefaultValue.Value.Statement)
 
 	// day: current-time function on a date column.
 	assert.Equal(t, "CURRENT_DATE()", colDefs[colIds[7]].DefaultValue.Value.Statement)
