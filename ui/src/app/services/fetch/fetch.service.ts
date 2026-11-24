@@ -20,6 +20,7 @@ import IConnectionProfile, { ICreateConnectionProfileV2, IGcsConfig } from 'src/
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
 import ICreateSequence from 'src/app/model/auto-gen'
+import ITargetDetails from 'src/app/model/target-details'
 
 @Injectable({
   providedIn: 'root',
@@ -298,6 +299,9 @@ export class FetchService {
 
   migrate(payload: IMigrationDetails) {
     return this.http.post(`${this.url}/Migrate`, payload)
+  }
+  updateDatabaseOptions(payload: ITargetDetails) {
+    return this.http.post(`${this.url}/UpdateDatabaseOptions`, payload)
   }
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)

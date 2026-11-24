@@ -145,6 +145,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		if err != nil {
 			return subcommands.ExitFailure
 		}
+		applyTargetDatabaseOptions(conv, targetProfile.Conn.Sp)
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 		schemaToSpanner := common.SchemaToSpannerImpl{
 			ExpressionVerificationAccessor: expressionVerificationAccessor,
