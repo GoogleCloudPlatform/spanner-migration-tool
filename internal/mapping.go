@@ -79,17 +79,17 @@ func GetSpannerCol(conv *Conv, tableId, colId string, spColDef map[string]ddl.Co
 	spColName, _ := FixName(srcColName)
 	usedColNames := map[string]bool{}
 	for _, spCol := range spColDef {
-		usedColNames[spCol.Name] = true
+		usedColNames[strings.ToLower(spCol.Name)] = true
 	}
-	if _, found := usedColNames[spColName]; found {
-		// spColName has been used before i.e. FixName caused a collision.
+	if _, found := usedColNames[strings.ToLower(spColName)]; found {
+		// spColName has been used before i.e. FixName or case-insensitive matching caused a collision.
 		// Add unique postfix: use number of cols in this table so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate
 		id := len(spColDef)
 		for {
 			c := spColName + "_" + strconv.Itoa(id)
-			if _, found := usedColNames[c]; !found {
+			if _, found := usedColNames[strings.ToLower(c)]; !found {
 				spColName = c
 				break
 			}
@@ -153,7 +153,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
 //
-// Since only MySQL and PostgreSQL have this functionality
+// Since only MySQL, PostgreSQL, and Oracle have this functionality
 // as of yet, for other sources OnDelete fields are
 // kept empty i.e. "" is mapped to "" and an issue is appended
 // to generate warning message (prints only once for each table with FK Actions)
@@ -167,7 +167,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
-	// srcDeleteRule will only be empty for unsupported sources (Oracle, SQL Server)
+	// srcDeleteRule will only be empty for unsupported sources (SQL Server)
 	if srcDeleteRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
 		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
@@ -195,7 +195,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
 //
-// Since only MySQL and PostgreSQL have this functionality
+// Since only MySQL, PostgreSQL, and Oracle have this functionality
 // as of yet, for other sources OnUpdate fields are
 // kept empty i.e. "" is mapped to "" and an issue is appended
 // to generate warning message (prints only once for each table with FK Actions)
@@ -210,7 +210,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
-	// srcUpdateRule will only be empty for unsupported sources (Oracle, SQL Server)
+	// srcUpdateRule will only be empty for unsupported sources (SQL Server)
 	if srcUpdateRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
 		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {

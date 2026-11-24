@@ -142,12 +142,35 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	return count, err
 }
 
-// GetTables fetches all standard tables associated with the mapped DB owner.
-// This maps to ALL_TABLES tracking tables. It does not inherently filter out internal
-// Oracle tables or materialized views if they fall under the exact owner schema filter.
-// Therefore, it fetches both user-created tables and system tables for that owner.
+// GetTables fetches user base tables associated with the mapped DB owner from ALL_TABLES.
+// It filters out Oracle internal/backing tables and non-permanent tables:
+//   - Global temporary tables (TEMPORARY = 'Y') and updatable MV log tables (RUPD$_*)
+//   - Domain index secondary tables (SECONDARY = 'Y', e.g. Oracle Text DR$* and Spatial MDRT_*$)
+//   - Nested table storage tables (NESTED = 'YES')
+//   - Recycle bin dropped tables (DROPPED = 'YES')
+//   - Index-organized table overflow and mapping segments (IOT_TYPE IN ('IOT_OVERFLOW', 'IOT_MAPPING'))
+//   - Materialized view log tables (MLOG$_*, RUPD$_*), AQ internal tables (AQ$_*), and Flashback Archive tables (SYS_FBA_*)
+//   - Materialized view container tables (ALL_MVIEWS) and external tables (ALL_EXTERNAL_TABLES)
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	q := "SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER(:1)"
+	q := `SELECT TABLE_NAME FROM ALL_TABLES T
+		WHERE OWNER = UPPER(:1)
+		AND TEMPORARY = 'N'
+		AND SECONDARY = 'N'
+		AND NESTED = 'NO'
+		AND DROPPED = 'NO'
+		AND (IOT_TYPE IS NULL OR IOT_TYPE = 'IOT')
+		AND TABLE_NAME NOT LIKE 'MLOG$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'RUPD$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'AQ$\_%' ESCAPE '\'
+		AND TABLE_NAME NOT LIKE 'SYS_FBA\_%' ESCAPE '\'
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_MVIEWS MV
+			WHERE MV.OWNER = T.OWNER AND MV.CONTAINER_NAME = T.TABLE_NAME
+		)
+		AND NOT EXISTS (
+			SELECT 1 FROM ALL_EXTERNAL_TABLES ET
+			WHERE ET.OWNER = T.OWNER AND ET.TABLE_NAME = T.TABLE_NAME
+		)`
 	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, err
@@ -198,9 +221,9 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	var q string
 	// CHAR_LENGTH (declared length in characters) is used instead of DATA_LENGTH
 	// (length in bytes) so that VARCHAR2(n CHAR), NVARCHAR2(n), NCHAR(n) etc. map
-	// to Spanner STRING(n), which is also measured in characters. RAW(n) has no
-	// character length (CHAR_LENGTH is 0), so its length in bytes (DATA_LENGTH) is
-	// used instead, mapping it to Spanner BYTES(n).
+	// to Spanner STRING(n), which is also measured in characters. RAW(n) and
+	// UROWID(n) have no character length (CHAR_LENGTH is 0), so their declared
+	// length in bytes (DATA_LENGTH) is used instead.
 	//
 	// Hidden system generated columns are skipped (USER_GENERATED = 'YES' from 12c,
 	// HIDDEN_COLUMN = 'NO' in 11g), such as the SYS_NC...$ columns behind function based
@@ -208,12 +231,12 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 	// This matches the MySQL and PostgreSQL sources (information_schema.COLUMNS), while
 	// keeping ALL_TAB_COLS for VIRTUAL_COLUMN and preserving user INVISIBLE columns (12c+).
 	if hasIdentityColumn > 0 {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
 	} else {
-		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
+		q = fmt.Sprintf(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, 'NO' AS IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (%s) AND HIDDEN_COLUMN = 'NO' 
 		ORDER BY TABLE_NAME, COLUMN_ID`, strings.Join(placeholders, ","))
@@ -313,7 +336,7 @@ func (isi InfoSchemaImpl) GetColumnsBatch(conv *internal.Conv, tables []common.S
 
 // toType builds the source schema type of a column. length is the declared length
 // of the column: in characters for character types (CHAR_LENGTH) and in bytes for
-// RAW (DATA_LENGTH).
+// RAW and UROWID (DATA_LENGTH).
 func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt64, numericScale sql.NullInt64) schema.Type {
 	// Simple mapping for now
 	if strings.HasPrefix(dataType, "INTERVAL") {
@@ -330,7 +353,7 @@ func toType(dataType string, length sql.NullInt64, numericPrecision sql.NullInt6
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	} else if numericPrecision.Valid {
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW") {
+	} else if length.Valid && (strings.Contains(dataType, "CHAR") || dataType == "RAW" || dataType == "UROWID") {
 		return schema.Type{Name: dataType, Mods: []int64{length.Int64}}
 	}
 	return schema.Type{Name: dataType}
@@ -368,14 +391,15 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 			t.constraint_type,
 			t.search_condition,
 			t.constraint_name,
-			c.nullable
+			c.nullable,
+			t.status
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
 		LEFT JOIN all_tab_cols c
 		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (%s)
-		ORDER BY k.table_name, k.position`, strings.Join(placeholders, ","))
+		ORDER BY k.table_name, k.position, t.constraint_name`, strings.Join(placeholders, ","))
 
 	rows, err := isi.Db.Query(q, args...)
 	if err != nil {
@@ -386,12 +410,15 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	primaryKeys := make(map[string][]string)
 	m := make(map[string]map[string][]string)
 	checkKeys := make(map[string]map[string]schema.CheckConstraint)
+	checkKeyOrder := make(map[string][]string)
+	disabledChecks := make(map[string][]string)
+	disabledCheckSeen := make(map[string]map[string]bool)
 
 	var tableName, col, constraint, constraintName string
-	var condition, nullable sql.NullString
+	var condition, nullable, status sql.NullString
 
 	for rows.Next() {
-		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName, &nullable)
+		err := rows.Scan(&tableName, &col, &constraint, &condition, &constraintName, &nullable, &status)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -407,16 +434,27 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 			if _, ok := m[tableName]; !ok {
 				m[tableName] = make(map[string][]string)
 			}
-			if condition.Valid && strings.Contains(condition.String, "IS JSON") {
+			if status.String != "DISABLED" && condition.Valid && strings.Contains(condition.String, "IS JSON") {
 				m[tableName][col] = append(m[tableName][col], "J")
 			}
 			m[tableName][col] = append(m[tableName][col], constraint)
 
 			if condition.Valid && !isNotNullConstraint(condition.String, col, nullable.String) {
+				if status.String == "DISABLED" {
+					if _, ok := disabledCheckSeen[tableName]; !ok {
+						disabledCheckSeen[tableName] = make(map[string]bool)
+					}
+					if !disabledCheckSeen[tableName][constraintName] {
+						disabledCheckSeen[tableName][constraintName] = true
+						disabledChecks[tableName] = append(disabledChecks[tableName], constraintName)
+					}
+					continue
+				}
 				if _, ok := checkKeys[tableName]; !ok {
 					checkKeys[tableName] = make(map[string]schema.CheckConstraint)
 				}
 				if _, exists := checkKeys[tableName][constraintName]; !exists {
+					checkKeyOrder[tableName] = append(checkKeyOrder[tableName], constraintName)
 					checkKeys[tableName][constraintName] = schema.CheckConstraint{
 						Id:     internal.GenerateCheckConstrainstId(),
 						Name:   constraintName,
@@ -438,15 +476,16 @@ func (isi InfoSchemaImpl) GetConstraintsBatch(conv *internal.Conv, tables []comm
 	for _, t := range tables {
 		var checks []schema.CheckConstraint
 		if ckMap, ok := checkKeys[t.Name]; ok {
-			for _, chk := range ckMap {
-				checks = append(checks, chk)
+			for _, ckName := range checkKeyOrder[t.Name] {
+				checks = append(checks, ckMap[ckName])
 			}
 		}
 
 		result[t.Name] = common.TableConstraints{
-			PrimaryKeys:       primaryKeys[t.Name],
-			ColumnConstraints: m[t.Name],
-			CheckConstraints:  checks,
+			PrimaryKeys:              primaryKeys[t.Name],
+			ColumnConstraints:        m[t.Name],
+			CheckConstraints:         checks,
+			DisabledCheckConstraints: disabledChecks[t.Name],
 		}
 	}
 	return result, nil
@@ -462,8 +501,8 @@ func isNotNullConstraint(condition, col, nullable string) bool {
 }
 
 // GetForeignKeysBatch specifically pulls referential constraints by mapping R_CONSTRAINT_NAMEs
-// between referencing and referenced columns using ALL_CONS_COLUMNS joined structurally.
-// Information related to cascading deletes/updates is currently ignored in standard mapping phase.
+// between referencing and referenced columns using ALL_CONS_COLUMNS joined structurally,
+// including delete_rule, deferrable, and enabled/disabled status from ALL_CONSTRAINTS.
 // It uniquely captures cross-table multi-column foreign constraints by aggregating based on constraint name.
 func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []common.SchemaAndName) (map[string]common.TableForeignKeys, error) {
 	if len(tables) == 0 {
@@ -490,7 +529,10 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 			B.table_name AS ref_table, 
 			A.column_name AS col_name,
 			B.column_name AS ref_col_name,
-			A.constraint_name AS name
+			A.constraint_name AS name,
+			C.delete_rule,
+			C.deferrable,
+			C.status
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
 		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
@@ -504,12 +546,26 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 	defer rows.Close()
 
 	var tableName, col, refCol, refTable, fKeyName string
+	var deleteRule, deferrable, status sql.NullString
 	fKeys := make(map[string]map[string]common.FkConstraint)
+	fkOrder := make(map[string][]string)
+	disabledFks := make(map[string][]string)
+	disabledFkSeen := make(map[string]map[string]bool)
 
 	for rows.Next() {
-		err := rows.Scan(&tableName, &refTable, &col, &refCol, &fKeyName)
+		err := rows.Scan(&tableName, &refTable, &col, &refCol, &fKeyName, &deleteRule, &deferrable, &status)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if status.String == "DISABLED" {
+			if _, ok := disabledFkSeen[tableName]; !ok {
+				disabledFkSeen[tableName] = make(map[string]bool)
+			}
+			if !disabledFkSeen[tableName][fKeyName] {
+				disabledFkSeen[tableName][fKeyName] = true
+				disabledFks[tableName] = append(disabledFks[tableName], fKeyName)
+			}
 			continue
 		}
 		if _, ok := fKeys[tableName]; !ok {
@@ -522,24 +578,44 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 			fKeys[tableName][fKeyName] = fk
 			continue
 		}
-		fKeys[tableName][fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}}
+		onDelete := deleteRule.String
+		if onDelete == "" {
+			onDelete = constants.FK_NO_ACTION
+		}
+		fkOrder[tableName] = append(fkOrder[tableName], fKeyName)
+		fKeys[tableName][fKeyName] = common.FkConstraint{
+			Name:         fKeyName,
+			Table:        refTable,
+			Refcols:      []string{refCol},
+			Cols:         []string{col},
+			OnDelete:     onDelete,
+			OnUpdate:     constants.FK_NO_ACTION,
+			IsDeferrable: deferrable.String == "DEFERRABLE",
+		}
 	}
 
 	result := make(map[string]common.TableForeignKeys)
 	for _, t := range tables {
 		var fks []schema.ForeignKey
 		if tableFkeys, ok := fKeys[t.Name]; ok {
-			for fkName, fkData := range tableFkeys {
+			for _, fkName := range fkOrder[t.Name] {
+				fkData := tableFkeys[fkName]
 				fks = append(fks, schema.ForeignKey{
 					Id:               internal.GenerateForeignkeyId(),
 					Name:             fkName,
 					ColumnNames:      fkData.Cols,
 					ReferTableName:   fkData.Table,
 					ReferColumnNames: fkData.Refcols,
+					OnDelete:         fkData.OnDelete,
+					OnUpdate:         fkData.OnUpdate,
+					IsDeferrable:     fkData.IsDeferrable,
 				})
 			}
 		}
-		result[t.Name] = common.TableForeignKeys{ForeignKeys: fks}
+		result[t.Name] = common.TableForeignKeys{
+			ForeignKeys:         fks,
+			DisabledForeignKeys: disabledFks[t.Name],
+		}
 	}
 	return result, nil
 }
@@ -557,7 +633,7 @@ func (isi InfoSchemaImpl) GetForeignKeysBatch(conv *internal.Conv, tables []comm
 //   - FUNCTION-BASED INDICES: Automatically bypassed. If the index relies on an expression (e.g. UPPER(name)
 //     which introduces parenthesis parsing '(' and ')'), it skips generation because Spanner native
 //     indices do not support them functionally without explicit generated columns or search indices.
-func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string][]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string]common.TableIndexes, error) {
 	if len(tables) == 0 {
 		return nil, nil
 	}
@@ -580,6 +656,18 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	// primary key is skipped when it has exactly the primary key columns (same columns in
 	// the same order). An existing wider index reused by Oracle to enforce the primary key
 	// (e.g. index on (ID, NAME) for PRIMARY KEY (ID)) is still migrated.
+	//
+	// Oracle also creates a system-generated unique index on the hidden set-ID column of
+	// each NESTED TABLE column, but ALL_IND_COLUMNS reports the parent nested-table column
+	// name as its key column. Those internal indexes are excluded via ALL_NESTED_TABLES.
+	//
+	// ALL_INDEXES.STATUS is 'N/A' for partitioned indexes, whose usability is tracked per
+	// partition (ALL_IND_PARTITIONS) or subpartition (ALL_IND_SUBPARTITIONS). A partitioned
+	// index with no USABLE partition or subpartition is reported as UNUSABLE so it is
+	// skipped like a non-partitioned unusable index.
+	//
+	// Only indexes on the user's own tables are read (IC.table_owner = IC.index_owner), so an
+	// index the user owns on another schema's table with the same name is not attached here.
 	q := fmt.Sprintf(`SELECT 
 			IC.table_name,
 			IC.index_name,
@@ -587,15 +675,27 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 			IC.descend,
 			I.uniqueness,
 			IE.column_expression,
-			I.index_type
+			I.index_type,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
+			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
-		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (%s)
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (%s)
+		AND NOT EXISTS (
+			SELECT 1 FROM all_nested_tables NT
+			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
+			AND NT.parent_table_column = IC.column_name)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_constraints C
 			WHERE C.constraint_type = 'P' AND C.owner = IC.table_owner AND C.table_name = IC.table_name
-			AND C.index_owner = IC.index_owner AND C.index_name = IC.index_name
+			AND NVL(C.index_owner, C.owner) = IC.index_owner AND C.index_name = IC.index_name
 			AND (SELECT COUNT(*) FROM all_ind_columns X WHERE X.index_owner = IC.index_owner AND X.index_name = IC.index_name)
 				= (SELECT COUNT(*) FROM all_cons_columns CC WHERE CC.owner = C.owner AND CC.constraint_name = C.constraint_name)
 			AND NOT EXISTS (
@@ -622,14 +722,28 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	}
 
 	indexMap := make(map[string]map[string]schema.Index)
+	indexOrder := make(map[string][]string)
 	ignoredIndexes := make(map[string]map[string]bool)
+	disabledIndexes := make(map[string][]string)
+	disabledIndexSeen := make(map[string]map[string]bool)
 
 	var tableName, name, column, unique, indexType string
-	var collation, colexpression sql.NullString
+	var collation, colexpression, indexStatus, funcIdxStatus sql.NullString
 
 	for rows.Next() {
-		if err := rows.Scan(&tableName, &name, &column, &collation, &unique, &colexpression, &indexType); err != nil {
+		if err := rows.Scan(&tableName, &name, &column, &collation, &unique, &colexpression, &indexType, &indexStatus, &funcIdxStatus); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+
+		if indexStatus.String == "UNUSABLE" || funcIdxStatus.String == "DISABLED" {
+			if _, ok := disabledIndexSeen[tableName]; !ok {
+				disabledIndexSeen[tableName] = make(map[string]bool)
+			}
+			if !disabledIndexSeen[tableName][name] {
+				disabledIndexSeen[tableName][name] = true
+				disabledIndexes[tableName] = append(disabledIndexes[tableName], name)
+			}
 			continue
 		}
 
@@ -667,6 +781,7 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		}
 
 		if _, found := indexMap[tableName][name]; !found {
+			indexOrder[tableName] = append(indexOrder[tableName], name)
 			indexMap[tableName][name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
@@ -682,17 +797,20 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 		indexMap[tableName][name] = idx
 	}
 
-	result := make(map[string][]schema.Index)
+	result := make(map[string]common.TableIndexes)
 	for _, t := range tables {
 		var indexes []schema.Index
 		if tableIdxs, ok := indexMap[t.Name]; ok {
-			for idxName, idxData := range tableIdxs {
+			for _, idxName := range indexOrder[t.Name] {
 				if !ignoredIndexes[t.Name][idxName] {
-					indexes = append(indexes, idxData)
+					indexes = append(indexes, tableIdxs[idxName])
 				}
 			}
 		}
-		result[t.Name] = indexes
+		result[t.Name] = common.TableIndexes{
+			Indexes:         indexes,
+			DisabledIndexes: disabledIndexes[t.Name],
+		}
 	}
 	return result, nil
 }

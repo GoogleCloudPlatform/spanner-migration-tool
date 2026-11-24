@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -339,6 +340,18 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 			OnDelete:         constants.FK_RESTRICT,
 			OnUpdate:         constants.FK_CASCADE,
 		},
+		{
+			Name:             "fk2",
+			ColIds:           []string{"c1"},
+			ColumnNames:      []string{"a"},
+			ReferTableId:     "t2",
+			ReferTableName:   "table2",
+			ReferColumnIds:   []string{"c3"},
+			ReferColumnNames: []string{"c"},
+			Id:               "f2",
+			OnDelete:         constants.FK_RESTRICT,
+			OnUpdate:         constants.FK_CASCADE,
+		},
 	}
 	resultForeignKey := []ddl.Foreignkey{
 		{
@@ -351,11 +364,11 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 			OnUpdate:       constants.FK_NO_ACTION,
 		},
 		{
-			Name:           "fk1",
+			Name:           "fk2",
 			ColIds:         []string{"c1"},
 			ReferTableId:   "t2",
 			ReferColumnIds: []string{"c3"},
-			Id:             "f1",
+			Id:             "f2",
 			OnDelete:       constants.FK_NO_ACTION,
 			OnUpdate:       constants.FK_NO_ACTION,
 		},
@@ -1217,4 +1230,337 @@ func TestUniqueColumnName(t *testing.T) {
 	colDefs["c2"] = ddl.ColumnDef{Name: "SYNTH_ID"}
 	colDefs["c3"] = ddl.ColumnDef{Name: "synth_id0"}
 	assert.Equal(t, "synth_id1", internal.UniqueColumnName(colDefs, "synth_id"))
+}
+
+func TestSchemaToSpannerDDLHelper_CaseInsensitiveColumnCollisionIssue(t *testing.T) {
+	conv := internal.MakeConv()
+	srcTable := schema.Table{
+		Name:        "ITEMS",
+		Id:          "t1",
+		ColIds:      []string{"c1", "c2", "c3"},
+		PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+			"c2": {Name: "Code", Id: "c2", Type: schema.Type{Name: "VARCHAR2"}},
+			"c3": {Name: "CODE", Id: "c3", Type: schema.Type{Name: "VARCHAR2"}},
+		},
+	}
+	conv.SrcSchema[srcTable.Id] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, true).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil))
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "VARCHAR2"}, false).Return(ddl.Type{Name: ddl.String, Len: 10}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "Code", conv.SpSchema["t1"].ColDefs["c2"].Name)
+	assert.Equal(t, "CODE_2", conv.SpSchema["t1"].ColDefs["c3"].Name)
+	assert.Empty(t, conv.SchemaIssues["t1"].ColumnLevelIssues["c2"])
+	assert.Equal(t, []internal.SchemaIssue{internal.IllegalName}, conv.SchemaIssues["t1"].ColumnLevelIssues["c3"])
+}
+
+func TestCheckConstraintRenameReportedInNameChangesAndTableIssues(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+
+	srcTable := schema.Table{
+		Name:        "ITEMS",
+		Id:          "t1",
+		ColIds:      []string{"c1", "c2"},
+		PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+			"c2": {Name: "QTY", Id: "c2", Type: schema.Type{Name: "NUMBER"}},
+		},
+		CheckConstraints: []schema.CheckConstraint{
+			{
+				Id:     "ck1",
+				Name:   "CK_QTY_ENABLED",
+				Expr:   "(QTY > 0)",
+				ExprId: "e1",
+			},
+			{
+				Id:     "ck_non_ascii",
+				Name:   "проверка_ck",
+				Expr:   "(QTY < 50)",
+				ExprId: "e2",
+			},
+			{
+				Id:     "ck_user_renamed",
+				Name:   "CK_QTY_LEGAL",
+				Expr:   "(QTY <> 10)",
+				ExprId: "e3",
+			},
+			{
+				Id:     "ck_unnamed",
+				Name:   "",
+				Expr:   "(QTY < 1000)",
+				ExprId: "e4",
+			},
+			{
+				Id:     "ck_cleared",
+				Name:   "CK_TO_CLEAR",
+				Expr:   "(QTY >= 1)",
+				ExprId: "e5",
+			},
+		},
+	}
+	conv.SrcSchema["t1"] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, mock.Anything).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false))
+
+	spCks := conv.SpSchema["t1"].CheckConstraints
+	assert.Equal(t, 5, len(spCks))
+	assert.Equal(t, "CK_QTY_ENABLED", spCks[0].Name)
+	assert.Equal(t, "A________ck", spCks[1].Name)
+
+	// Simulate WebV2 saveCc() overwriting CheckConstraint.Id with row index,
+	// user renaming a legal constraint, and user clearing a constraint name.
+	spTbl := conv.SpSchema["t1"]
+	spTbl.CheckConstraints[1].Id = "2"
+	spTbl.CheckConstraints[2].Name = "CK_QTY_RENAMED"
+	spTbl.CheckConstraints[4].Name = ""
+	conv.SpSchema["t1"] = spTbl
+
+	used := internal.ComputeUsedNames(conv)
+	assert.True(t, used["ck_qty_enabled"])
+	assert.True(t, used["a________ck"])
+	assert.True(t, used["ck_qty_renamed"])
+	assert.False(t, used[""])
+
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.ORACLE, "testdb", conv, nil, true, true)
+	assert.ElementsMatch(t, []reports.NameChange{
+		{
+			NameChangeType: "CheckConstraint",
+			SourceTable:    "ITEMS",
+			OldName:        "проверка_ck",
+			NewName:        "A________ck",
+		},
+		{
+			NameChangeType: "CheckConstraint",
+			SourceTable:    "ITEMS",
+			OldName:        "CK_QTY_LEGAL",
+			NewName:        "CK_QTY_RENAMED",
+		},
+	}, rep.NameChanges)
+	if assert.Equal(t, 1, len(rep.TableReports)) && assert.Equal(t, 1, len(rep.TableReports[0].Issues)) {
+		assert.Equal(t, []reports.Issue{
+			{
+				Category:    "ILLEGAL_NAME",
+				Description: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+], Check Constraint 'проверка_ck' is mapped to 'A________ck' for table 'ITEMS'",
+			},
+		}, rep.TableReports[0].Issues[0].IssueList)
+	}
+}
+
+func TestUniquePKeyReportUsesColumnNameInsteadOfColId(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+
+	srcTable := schema.Table{
+		Name:   "ITEMS",
+		Id:     "t1",
+		ColIds: []string{"c1", "c2", "c3"},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "NAME", Id: "c1", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{50}}},
+			"c2": {Name: "CODE", Id: "c2", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{10}}},
+			"c3": {Name: "REGION", Id: "c3", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{10}}},
+		},
+		Indexes: []schema.Index{
+			{
+				Id:     "idx1",
+				Name:   "ITEMS_CODE_REGION_UK",
+				Unique: true,
+				Keys: []schema.Key{
+					{ColId: "c2", Order: 1},
+					{ColId: "c3", Order: 2},
+				},
+			},
+		},
+	}
+	conv.SrcSchema["t1"] = srcTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", mock.Anything, false).Return(ddl.Type{Name: ddl.String, Len: 50}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false))
+	conv.AddPrimaryKeys()
+	// Simulate table restore re-running AddPrimaryKeys: UniquePKey should not duplicate columns.
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, true))
+	conv.AddPrimaryKeys()
+
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.ORACLE, "testdb", conv, nil, true, true)
+	if assert.Equal(t, 1, len(rep.TableReports)) && assert.Equal(t, 1, len(rep.TableReports[0].Issues)) {
+		assert.Equal(t, []reports.Issue{
+			{
+				Category:    "UNIQUE_INDEX_PRIMARY_KEY",
+				Description: "UNIQUE constraint on column(s) 'CODE, REGION' replaced with primary key since table 'ITEMS' didn't have one. Spanner requires a primary key for every table",
+			},
+		}, rep.TableReports[0].Issues[0].IssueList)
+	}
+}
+
+func TestSchemaToSpannerDDLHelper_ForeignKeyAndCheckConstraintStates(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+
+	parentTable := schema.Table{
+		Name:        "PARENT",
+		Id:          "t1",
+		ColIds:      []string{"p1"},
+		PrimaryKeys: []schema.Key{{ColId: "p1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"p1": {Name: "ID", Id: "p1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+		},
+		DisabledForeignKeys:      []string{"PARENT_FK_DISABLED"},
+		DisabledCheckConstraints: []string{"PARENT_CK_DISABLED"},
+	}
+	childTable := schema.Table{
+		Name:        "CHILD",
+		Id:          "t2",
+		ColIds:      []string{"c1", "c2", "c3", "c4", "c5", "c6"},
+		PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "ID", Id: "c1", NotNull: true, Type: schema.Type{Name: "NUMBER"}},
+			"c2": {Name: "CASCADE_PID", Id: "c2", Type: schema.Type{Name: "NUMBER"}},
+			"c3": {Name: "SETNULL_PID", Id: "c3", Type: schema.Type{Name: "NUMBER"}},
+			"c4": {Name: "DEFER_PID", Id: "c4", Type: schema.Type{Name: "NUMBER"}},
+			"c5": {Name: "DISABLED_PID", Id: "c5", Type: schema.Type{Name: "NUMBER"}},
+			"c6": {Name: "QTY", Id: "c6", Type: schema.Type{Name: "NUMBER"}},
+		},
+		ForeignKeys: []schema.ForeignKey{
+			{
+				Id:             "fk1",
+				Name:           "FK_CASCADE",
+				ColIds:         []string{"c2"},
+				ReferTableId:   "t1",
+				ReferColumnIds: []string{"p1"},
+				OnDelete:       constants.FK_CASCADE,
+				OnUpdate:       constants.FK_NO_ACTION,
+			},
+			{
+				Id:             "fk2",
+				Name:           "FK_SET_NULL",
+				ColIds:         []string{"c3"},
+				ReferTableId:   "t1",
+				ReferColumnIds: []string{"p1"},
+				OnDelete:       constants.FK_SET_NULL,
+				OnUpdate:       constants.FK_NO_ACTION,
+			},
+			{
+				Id:             "fk3",
+				Name:           "FK_DEFERRED",
+				ColIds:         []string{"c4"},
+				ReferTableId:   "t1",
+				ReferColumnIds: []string{"p1"},
+				OnDelete:       constants.FK_NO_ACTION,
+				OnUpdate:       constants.FK_NO_ACTION,
+				IsDeferrable:   true,
+			},
+		},
+		DisabledForeignKeys: []string{"FK_DISABLED"},
+		DisabledIndexes:     []string{"IDX_UNUSABLE"},
+		CheckConstraints: []schema.CheckConstraint{
+			{
+				Id:     "ck1",
+				Name:   "CK_QTY_ENABLED",
+				Expr:   "(QTY > 0)",
+				ExprId: "e1",
+			},
+		},
+		DisabledCheckConstraints: []string{"CK_QTY_DISABLED"},
+	}
+	conv.SrcSchema["t1"] = parentTable
+	conv.SrcSchema["t2"] = childTable
+
+	mockToddl := new(MockToDdl)
+	mockToddl.On("ToSpannerType", mock.Anything, "", schema.Type{Name: "NUMBER"}, mock.Anything).Return(ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue(nil))
+
+	ss := SchemaToSpannerImpl{}
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, parentTable, false))
+	assert.Nil(t, ss.SchemaToSpannerDDLHelper(conv, mockToddl, childTable, false))
+
+	// Verify migrated ForeignKeys: FK_DISABLED is skipped; FK_CASCADE keeps CASCADE; FK_SET_NULL becomes NO ACTION.
+	spFks := conv.SpSchema["t2"].ForeignKeys
+	assert.Equal(t, 3, len(spFks))
+	assert.Equal(t, "FK_CASCADE", spFks[0].Name)
+	assert.Equal(t, constants.FK_CASCADE, spFks[0].OnDelete)
+	assert.Equal(t, "FK_SET_NULL", spFks[1].Name)
+	assert.Equal(t, constants.FK_NO_ACTION, spFks[1].OnDelete)
+	assert.Equal(t, "FK_DEFERRED", spFks[2].Name)
+	assert.Equal(t, constants.FK_NO_ACTION, spFks[2].OnDelete)
+
+	// Verify migrated CheckConstraints: CK_QTY_DISABLED is skipped.
+	spCks := conv.SpSchema["t2"].CheckConstraints
+	assert.Equal(t, 1, len(spCks))
+	assert.Equal(t, "CK_QTY_ENABLED", spCks[0].Name)
+
+	// Verify TableLevelIssues on CHILD.
+	assert.Equal(t, []internal.SchemaIssue{
+		internal.DisabledObjectSkipped,
+		internal.DisabledObjectSkipped,
+		internal.DisabledObjectSkipped,
+		internal.ForeignKeyOnDelete,
+		internal.ForeignKeyDeferrableNotSupported,
+	}, conv.SchemaIssues["t2"].TableLevelIssues)
+
+	// Verify StructuredReport warnings and table ratings.
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.ORACLE, "testdb", conv, nil, true, true)
+	var parentReport, childReport *reports.TableReport
+	for i := range rep.TableReports {
+		switch rep.TableReports[i].SrcTableName {
+		case "PARENT":
+			parentReport = &rep.TableReports[i]
+		case "CHILD":
+			childReport = &rep.TableReports[i]
+		}
+	}
+	// Skipped disabled objects emit warnings without downgrading a clean table to POOR.
+	if assert.NotNil(t, parentReport) && assert.Equal(t, 1, len(parentReport.Issues)) {
+		assert.Equal(t, "EXCELLENT", parentReport.SchemaReport.Rating)
+		assert.Equal(t, 2, len(parentReport.Issues[0].IssueList))
+	}
+	if assert.NotNil(t, childReport) && assert.Equal(t, 1, len(childReport.Issues)) {
+		assert.Equal(t, "POOR", childReport.SchemaReport.Rating)
+		assert.Equal(t, []reports.Issue{
+			{
+				Category:    "FOREIGN_KEY_ACTIONS",
+				Description: "Table 'CHILD': ON DELETE action of Foreign Key 'FK_SET_NULL' mapped from SET NULL to NO ACTION - Spanner supports only ON DELETE CASCADE/NO ACTION",
+			},
+			{
+				Category:    "FOREIGN_KEY_DEFERRABLE_NOT_SUPPORTED",
+				Description: "Table 'CHILD': Foreign Key 'FK_DEFERRED' is deferrable in the source database - Spanner does not support deferrable foreign keys, so it will be enforced immediately",
+			},
+			{
+				Category:    "DISABLED_OBJECT_SKIPPED",
+				Description: "Table 'CHILD': Foreign Key 'FK_DISABLED' is disabled in the source database and has been skipped",
+			},
+			{
+				Category:    "DISABLED_OBJECT_SKIPPED",
+				Description: "Table 'CHILD': Check constraint 'CK_QTY_DISABLED' is disabled in the source database and has been skipped",
+			},
+			{
+				Category:    "DISABLED_OBJECT_SKIPPED",
+				Description: "Table 'CHILD': Index 'IDX_UNUSABLE' is disabled or unusable in the source database and has been skipped",
+			},
+		}, childReport.Issues[0].IssueList)
+	}
+
+	// Verify restoring PARENT via SrcTableToSpannerDDL does not duplicate FKs or TableLevelIssues on CHILD.
+	assert.Nil(t, SrcTableToSpannerDDL(conv, mockToddl, parentTable, nil))
+	assert.Equal(t, 3, len(conv.SpSchema["t2"].ForeignKeys))
+	assert.Equal(t, []internal.SchemaIssue{
+		internal.DisabledObjectSkipped,
+		internal.DisabledObjectSkipped,
+		internal.DisabledObjectSkipped,
+		internal.ForeignKeyOnDelete,
+		internal.ForeignKeyDeferrableNotSupported,
+	}, conv.SchemaIssues["t2"].TableLevelIssues)
 }
