@@ -92,7 +92,7 @@ func TestGetType(t *testing.T) {
 			newType:    "",
 			wantType:   ddl.Type{Name: ddl.Int64},
 			wantErr:    false,
-			wantIssues: nil,
+			wantIssues: []internal.SchemaIssue{internal.Widened},
 		},
 		{
 			name:    "Oracle simple type",

@@ -102,6 +102,7 @@ const (
 	timeType           string = "time"
 	hierarchyIdType    string = "hierarchyid"
 	timestampType      string = "timestamp"
+	rowVersionType     string = "rowversion"
 	dateTimeType       string = "datetime"
 	dateTime2Type      string = "datetime2"
 	dateTimeOffsetType string = "datetimeoffset"
@@ -198,7 +199,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 			s = fmt.Sprintf("CAST([%s] AS VARCHAR(4000)) AS %s", cn, cn)
 		case timeType:
 			s = fmt.Sprintf("CAST([%s] AS VARCHAR(12)) AS %s", cn, cn)
-		case timestampType:
+		case timestampType, rowVersionType:
 			s = fmt.Sprintf("CAST([%s] AS BIGINT) AS %s", cn, cn)
 		case smallDateTimeType, dateTimeType, dateTime2Type, dateTimeOffsetType:
 			s = fmt.Sprintf("CONVERT(VARCHAR(33), [%s], 126) AS %s", cn, cn)

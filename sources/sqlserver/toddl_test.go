@@ -42,8 +42,9 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in tinyint of sptype string")
 	}
+	// tinyint is 1 byte, so even an explicit INT64 is a widening (as for MySQL).
 	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "tinyint", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "INT64", false)
-	if errCheck != nil {
+	if errCheck == nil {
 		t.Errorf("Error in tinyint of sptype int64")
 	}
 	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "real", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "STRING", false)
@@ -117,6 +118,29 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	_, errCheck = toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "DEFAULT", Mods: []int64{1, 2, 3}, ArrayBounds: []int64{1, 2, 3}}, "", false)
 	if errCheck == nil {
 		t.Errorf("Error in default case")
+	}
+
+	// tinyint, smallint and int are widened to INT64 and report it; bigint is not widened.
+	for _, it := range []string{"tinyint", "smallint", "int"} {
+		for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
+			spTy, issues := toSpannerTypeInternal(dialect, schema.Type{Name: it}, "", false)
+			assert.Equal(t, ddl.Type{Name: ddl.Int64}, spTy, it)
+			assert.Equal(t, []internal.SchemaIssue{internal.Widened}, issues, it)
+		}
+	}
+	// An explicit FLOAT64 for these types is also reported as widened.
+	floatTy, floatIssues := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "int"}, ddl.Float64, false)
+	assert.Equal(t, ddl.Type{Name: ddl.Float64}, floatTy)
+	assert.Equal(t, []internal.SchemaIssue{internal.Widened}, floatIssues)
+	bigintTy, bigintIssues := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: "bigint"}, "", false)
+	assert.Equal(t, ddl.Type{Name: ddl.Int64}, bigintTy)
+	assert.Nil(t, bigintIssues)
+
+	// rowversion and its synonym timestamp map to BYTES(8) with no issue.
+	for _, rv := range []string{"rowversion", "timestamp"} {
+		spTy, issues := toSpannerTypeInternal(constants.DIALECT_GOOGLESQL, schema.Type{Name: rv}, "", false)
+		assert.Equal(t, ddl.Type{Name: ddl.Bytes, Len: int64(8)}, spTy, rv)
+		assert.Nil(t, issues, rv)
 	}
 
 	// Tests for datetime types: datetime, datetime2, smalldatetime emit Datetime warning; datetimeoffset does not.
@@ -360,7 +384,7 @@ func TestToSpannerType(t *testing.T) {
 			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: int64(8)}},
 			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: int64(4000)}},
 			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Numeric}},
@@ -383,12 +407,44 @@ func TestToSpannerType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c1":  {internal.Widened},
+			"c3":  {internal.Widened},
 			"c10": {internal.Datetime},
 			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
 		},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+}
+
+// An xml column maps to STRING(MAX) with only the size warning, so a NOT NULL
+// source column stays NOT NULL.
+func TestToSpannerType_XmlNotNullStaysNotNull(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	tableId := "t1"
+	conv.SrcSchema[tableId] = schema.Table{
+		Name:   "items",
+		Id:     tableId,
+		ColIds: []string{"c1", "c2"},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "id", Id: "c1", Type: schema.Type{Name: "bigint"}, NotNull: true},
+			"c2": {Name: "doc", Id: "c2", Type: schema.Type{Name: "xml"}, NotNull: true},
+		},
+		PrimaryKeys: []schema.Key{{ColId: "c1"}},
+	}
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("VerifyExpressions", context.Background(), mock.Anything).Return(internal.VerifyExpressionsOutput{})
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: mockAccessor,
+		DdlV:                           &expressions_api.MockDDLVerifier{},
+	}
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
+	doc := conv.SpSchema[tableId].ColDefs["c2"]
+	assert.Equal(t, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, doc.T)
+	assert.True(t, doc.NotNull)
+	assert.True(t, conv.SpSchema[tableId].ColDefs["c1"].NotNull)
+	assert.Equal(t, []internal.SchemaIssue{internal.StringOverflow}, conv.SchemaIssues[tableId].ColumnLevelIssues["c2"])
 }
 
 // This is just a very basic smoke-test for toSpannerPostgreSQLDialectType.
@@ -473,7 +529,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Bytes, Len: int64(8)}},
 			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.Bytes, Len: int64(4000)}},
 			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Numeric}},
@@ -496,6 +552,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expectedIssues := internal.TableIssues{
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c1":  {internal.Widened},
+			"c3":  {internal.Widened},
 			"c10": {internal.Datetime},
 			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},
