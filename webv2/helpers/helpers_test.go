@@ -16,10 +16,13 @@ package helpers
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSourceDatabaseFromDriver(t *testing.T) {
@@ -90,6 +93,64 @@ func TestGetSourceDatabaseFromDriver(t *testing.T) {
 			} else {
 				assert.NoError(t, gotErr)
 			}
+		})
+	}
+}
+
+func TestResolveUploadFilePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	uploadDir := filepath.Join(tmpDir, constants.UPLOAD_FILE_DIR)
+	require.NoError(t, os.MkdirAll(uploadDir, os.ModePerm))
+
+	outsideFile := filepath.Join(tmpDir, "secret.txt")
+	require.NoError(t, os.WriteFile(outsideFile, []byte("SECRET_DATA"), 0600))
+
+	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "valid.sql"), []byte("SELECT 1;"), 0600))
+	require.NoError(t, os.Symlink(outsideFile, filepath.Join(uploadDir, "symlink.sql")))
+	require.NoError(t, os.MkdirAll(filepath.Join(uploadDir, "subdir"), os.ModePerm))
+
+	validCases := []string{
+		"valid.sql",
+		"nonexistent.sql",
+		"my dump (1).sql",
+		".hidden.json",
+		"backup..2026.sql",
+		"..leading.sql",
+	}
+	for _, filename := range validCases {
+		t.Run("valid/"+filename, func(t *testing.T) {
+			got, err := ResolveUploadFilePath(filename)
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(constants.UPLOAD_FILE_DIR, filename), got)
+		})
+	}
+
+	invalidCases := []struct {
+		name     string
+		filename string
+	}{
+		{name: "empty", filename: ""},
+		{name: "dot", filename: "."},
+		{name: "dotdot", filename: ".."},
+		{name: "parent traversal", filename: "../secret.txt"},
+		{name: "deep traversal", filename: "../../../../etc/passwd"},
+		{name: "absolute path", filename: "/etc/passwd"},
+		{name: "subdirectory slash", filename: "sub/file.sql"},
+		{name: "backslash separator", filename: `sub\file.sql`},
+		{name: "windows traversal", filename: `..\..\etc\passwd`},
+		{name: "embedded traversal", filename: "foo/../valid.sql"},
+		{name: "trailing traversal", filename: "foo/.."},
+		{name: "null byte", filename: "valid.sql\x00.txt"},
+		{name: "symlink inside upload dir", filename: "symlink.sql"},
+		{name: "directory inside upload dir", filename: "subdir"},
+	}
+	for _, tc := range invalidCases {
+		t.Run("invalid/"+tc.name, func(t *testing.T) {
+			got, err := ResolveUploadFilePath(tc.filename)
+			assert.Error(t, err)
+			assert.Empty(t, got)
 		})
 	}
 }

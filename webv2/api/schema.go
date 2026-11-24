@@ -178,11 +178,18 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath)
+	dumpFilePath, err := helpers.ResolveUploadFilePath(dc.Config.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.Config.FilePath), http.StatusNotFound)
+		http.Error(w, "Invalid dump file path", http.StatusBadRequest)
 		return
 	}
+	dumpBaseName := filepath.Base(dumpFilePath)
+	f, err := os.OpenInRoot(constants.UPLOAD_FILE_DIR, dumpBaseName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dumpBaseName), http.StatusNotFound)
+		return
+	}
+	defer f.Close()
 	n := profiles.NewSourceProfileImpl{}
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
@@ -199,7 +206,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: dc.Config.Driver,
-		DatabaseName: filepath.Base(dc.Config.FilePath),
+		DatabaseName: dumpBaseName,
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
@@ -217,7 +224,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState.SourceDB = nil
 	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath,
+		Path:           dumpFilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
 

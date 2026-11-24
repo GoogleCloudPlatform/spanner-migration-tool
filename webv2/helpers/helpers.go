@@ -17,7 +17,8 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -150,4 +152,41 @@ func GetDialectDisplayStringFromDialect(dialect string) string {
 		return POSTGRESQL_DIALECT
 	}
 	return GOOGLE_SQL_DIALECT
+}
+
+// ResolveUploadFilePath validates that filename is a plain single filename
+// without directory separators or traversal components, and returns a path
+// strictly confined within constants.UPLOAD_FILE_DIR.
+func ResolveUploadFilePath(filename string) (string, error) {
+	if filename == "" || filename == "." || filename == ".." {
+		return "", fmt.Errorf("invalid file path")
+	}
+	if strings.ContainsRune(filename, 0) || strings.ContainsAny(filename, "/\\") || filepath.VolumeName(filename) != "" {
+		return "", fmt.Errorf("invalid file path")
+	}
+	base := filepath.Base(filename)
+	if base != filename || filepath.Clean(filename) != filename {
+		return "", fmt.Errorf("invalid file path")
+	}
+
+	uploadDirAbs, err := filepath.Abs(constants.UPLOAD_FILE_DIR)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve upload directory: %w", err)
+	}
+	targetAbs := filepath.Join(uploadDirAbs, base)
+	rel, err := filepath.Rel(uploadDirAbs, targetAbs)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.Dir(targetAbs) != uploadDirAbs {
+		return "", fmt.Errorf("file path escapes upload directory")
+	}
+
+	if info, err := os.Lstat(targetAbs); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("symlinks are not allowed in upload directory")
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("file path refers to a directory")
+		}
+	}
+
+	return filepath.Join(constants.UPLOAD_FILE_DIR, base), nil
 }
