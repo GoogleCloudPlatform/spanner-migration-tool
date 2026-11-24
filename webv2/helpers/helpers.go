@@ -175,16 +175,19 @@ func ResolveUploadFilePath(filename string) (string, error) {
 	}
 	targetAbs := filepath.Join(uploadDirAbs, base)
 	rel, err := filepath.Rel(uploadDirAbs, targetAbs)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.Dir(targetAbs) != uploadDirAbs {
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || !strings.HasPrefix(targetAbs, uploadDirAbs+string(filepath.Separator)) || filepath.Dir(targetAbs) != uploadDirAbs {
 		return "", fmt.Errorf("file path escapes upload directory")
 	}
 
-	if info, err := os.Lstat(targetAbs); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 {
-			return "", fmt.Errorf("symlinks are not allowed in upload directory")
-		}
-		if info.IsDir() {
-			return "", fmt.Errorf("file path refers to a directory")
+	if root, err := os.OpenRoot(constants.UPLOAD_FILE_DIR); err == nil {
+		defer root.Close()
+		if info, err := root.Lstat(base); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return "", fmt.Errorf("symlinks are not allowed in upload directory")
+			}
+			if info.IsDir() {
+				return "", fmt.Errorf("file path refers to a directory")
+			}
 		}
 	}
 
