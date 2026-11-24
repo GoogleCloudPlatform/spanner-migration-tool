@@ -745,6 +745,23 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), true, int64(42), "x", []byte{0x89, 0x50}}}},
 		},
 		{
+			// mysqldump --hex-blob writes BINARY, VARBINARY, BLOB and BIT values as hex literals.
+			name: "Data conversion: blob, varbinary as hex literals (mysqldump --hex-blob)",
+			input: `
+		CREATE TABLE test (id integer PRIMARY KEY, a blob, b varbinary(4));
+		INSERT INTO test (id, a, b) VALUES (1, 0x8950, 0x00FF);`,
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"id", "a", "b"}, vals: []interface{}{int64(1), []byte{0x89, 0x50}, []byte{0x00, 0xff}}}},
+		},
+		{
+			name: "Data conversion: bit as hex and bit literals",
+			input: `
+		CREATE TABLE test (id integer PRIMARY KEY, a bit(1), b bit(1), c bit(8));
+		INSERT INTO test (id, a, b, c) VALUES (1, 0x01, 0x00, b'101');`,
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), true, false, []byte{0x05}}}},
+		},
+		{
 			name: "Data conversion: date, float, decimal, mediumint",
 			input: `
 		CREATE TABLE test (id integer PRIMARY KEY, a date, b float, c decimal(3,5));
