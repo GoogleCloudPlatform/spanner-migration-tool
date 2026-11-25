@@ -380,9 +380,10 @@ func TestLoadSession_PathTraversal(t *testing.T) {
 	require.NoError(t, os.WriteFile(outsideFile, []byte("A_SECRET_KEY"), 0600))
 	require.NoError(t, os.Symlink(outsideFile, filepath.Join(uploadDir, "evil_session.json")))
 
-	validSessionJSON := `{"DatabaseType":"mysql","DatabaseName":"testdb","SpDialect":"google_standard_sql"}`
+	validSessionJSON := `{"DatabaseType":"mysql","SpDialect":"google_standard_sql"}`
 	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "valid_session.json"), []byte(validSessionJSON), 0600))
 	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "malformed.json"), []byte("not-json"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "invalid_conv.json"), []byte(`{"DatabaseType":"mysql","SpSchema":"invalid"}`), 0600))
 
 	traversalPaths := []string{
 		"../secret_token.txt",
@@ -426,6 +427,18 @@ func TestLoadSession_PathTraversal(t *testing.T) {
 		assert.Contains(t, rr.Body.String(), "Failed to parse session file")
 	})
 
+	t.Run("invalid_conv_json_inside_upload_dir_returns_400", func(t *testing.T) {
+		body, err := json.Marshal(session.SessionParams{Driver: constants.MYSQL, FilePath: "invalid_conv.json"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/convert/session", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+		loadSession(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Failed to parse session file")
+	})
+
 	t.Run("valid_session_returns_200", func(t *testing.T) {
 		body, err := json.Marshal(session.SessionParams{Driver: constants.MYSQL, FilePath: "valid_session.json"})
 		require.NoError(t, err)
@@ -439,6 +452,7 @@ func TestLoadSession_PathTraversal(t *testing.T) {
 		expectedPath := filepath.Join(constants.UPLOAD_FILE_DIR, "valid_session.json")
 		assert.Equal(t, expectedPath, sessionState.SessionFile)
 		assert.Equal(t, expectedPath, sessionState.SourceDBConnDetails.Path)
+		assert.NotEmpty(t, sessionState.SessionMetadata.DatabaseName)
 	})
 }
 
