@@ -56,6 +56,16 @@ type StandardInfoSchema interface {
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 }
 
+// DisabledObjectsProvider is an optional interface for StandardInfoSchema
+// sources that skip disabled source objects. ProcessTable records the returned
+// names on the table (DisabledForeignKeys, DisabledCheckConstraints,
+// DisabledIndexes), so that they are reported the same way as for the batched
+// sources. It runs in the parallel per-table workers, so it must return the
+// names rather than record them on conv.
+type DisabledObjectsProvider interface {
+	GetDisabledObjects(conv *internal.Conv, table SchemaAndName) (foreignKeys, checkConstraints, indexes []string, err error)
+}
+
 // TableColumns contains column definitions and IDs for a table.
 type TableColumns struct {
 	ColDefs map[string]schema.Column
@@ -436,7 +446,17 @@ func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName,
 
 	partitionParent := partitionParentName(infoSchema, table.Schema, table.Name)
 	name := infoSchema.GetTableName(table.Schema, table.Name)
-	return BuildSchemaTable(table, name, colDefs, colIds, primaryKeys, checkConstraints, indexes, foreignKeys, partitionParent), nil
+	t = BuildSchemaTable(table, name, colDefs, colIds, primaryKeys, checkConstraints, indexes, foreignKeys, partitionParent)
+	if dp, ok := infoSchema.(DisabledObjectsProvider); ok {
+		disabledFks, disabledChecks, disabledIndexes, err := dp.GetDisabledObjects(conv, table)
+		if err != nil {
+			return t, fmt.Errorf("couldn't get disabled objects for table %s.%s: %s", table.Schema, table.Name, err)
+		}
+		t.DisabledForeignKeys = disabledFks
+		t.DisabledCheckConstraints = disabledChecks
+		t.DisabledIndexes = disabledIndexes
+	}
+	return t, nil
 }
 
 // BuildSchemaTable constructs a schema.Table struct from fetched metadata.

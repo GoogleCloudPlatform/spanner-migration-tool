@@ -601,10 +601,11 @@ func (isi InfoSchemaImpl) getCheckConstraints(conv *internal.Conv, table common.
 		if name == "" || definition == "" {
 			continue
 		}
-		fixedName, _ := internal.FixName(name)
+		// The source name is kept as is: the Spanner name is fixed when the
+		// constraint is converted, so the report can list the rename.
 		checkConstraints = append(checkConstraints, schema.CheckConstraint{
 			Id:     internal.GenerateCheckConstrainstId(),
-			Name:   fixedName,
+			Name:   name,
 			Expr:   sanitizeSQLServerExpression(definition, true),
 			ExprId: internal.GenerateExpressionId(),
 		})
@@ -620,11 +621,14 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		OBJECT_NAME (FK.referenced_object_id) AS [referenced_table],
 		COL_NAME(FKC.parent_object_id, FKC.parent_column_id) AS [column],  
 		COL_NAME(FKC.referenced_object_id, FKC.referenced_column_id) AS [referenced_column],  
-		FK.name AS [foreign_key_name]
+		FK.name AS [foreign_key_name],
+		FK.delete_referential_action_desc,
+		FK.update_referential_action_desc
 	FROM sys.foreign_keys AS FK  
 	INNER JOIN sys.foreign_key_columns AS FKC   
     ON FK.object_id = FKC.constraint_object_id  
 	WHERE FK.parent_object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2))
+		AND FK.is_disabled = 0 -- disabled foreign keys are reported by GetDisabledObjects
 	ORDER BY FK.name, FKC.constraint_column_id;
 	`
 
@@ -634,11 +638,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	}
 	defer rows.Close()
 	var refTable common.SchemaAndName
-	var col, refCol, fKeyName string
+	var col, refCol, fKeyName, onDelete, onUpdate string
 	fKeys := make(map[string]common.FkConstraint)
 	var keyNames []string
 	for rows.Next() {
-		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName)
+		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName, &onDelete, &onUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -651,7 +655,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			fKeys[fKeyName] = fk
 			continue
 		}
-		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}}
+		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: toFkAction(onDelete), OnUpdate: toFkAction(onUpdate)}
 		keyNames = append(keyNames, fKeyName)
 	}
 
@@ -663,9 +667,61 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 				Name:             fKeys[k].Name,
 				ColumnNames:      fKeys[k].Cols,
 				ReferTableName:   fKeys[k].Table,
-				ReferColumnNames: fKeys[k].Refcols})
+				ReferColumnNames: fKeys[k].Refcols,
+				OnDelete:         fKeys[k].OnDelete,
+				OnUpdate:         fKeys[k].OnUpdate})
 	}
 	return foreignKeys, nil
+}
+
+// toFkAction converts a referential action as reported by
+// sys.foreign_keys.*_referential_action_desc (NO_ACTION, CASCADE, SET_NULL,
+// SET_DEFAULT) to the form used by the other sources (constants.FK_*).
+func toFkAction(desc string) string {
+	switch strings.ToUpper(strings.TrimSpace(desc)) {
+	case "NO_ACTION":
+		return constants.FK_NO_ACTION
+	case "CASCADE":
+		return constants.FK_CASCADE
+	case "SET_NULL":
+		return constants.FK_SET_NULL
+	case "SET_DEFAULT":
+		return constants.FK_SET_DEFAULT
+	}
+	return strings.ReplaceAll(strings.ToUpper(strings.TrimSpace(desc)), "_", " ")
+}
+
+// GetDisabledObjects returns the names of the table's disabled foreign keys and
+// CHECK constraints. They are not migrated (GetForeignKeys and GetConstraints
+// skip them) and are reported instead. Disabled indexes are not returned yet.
+func (isi InfoSchemaImpl) GetDisabledObjects(conv *internal.Conv, table common.SchemaAndName) (foreignKeys, checkConstraints, indexes []string, err error) {
+	q := `
+		SELECT 'FK' AS kind, fk.name FROM sys.foreign_keys fk
+		WHERE fk.parent_object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2)) AND fk.is_disabled = 1
+		UNION ALL
+		SELECT 'CHECK' AS kind, cc.name FROM sys.check_constraints cc
+		WHERE cc.parent_object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2)) AND cc.is_disabled = 1
+		ORDER BY kind, name;
+	`
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer rows.Close()
+	var kind, name string
+	for rows.Next() {
+		if err := rows.Scan(&kind, &name); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan disabled object: %v", err))
+			continue
+		}
+		switch kind {
+		case "FK":
+			foreignKeys = append(foreignKeys, name)
+		case "CHECK":
+			checkConstraints = append(checkConstraints, name)
+		}
+	}
+	return foreignKeys, checkConstraints, nil, rows.Err()
 }
 
 // GetIndexes return a list of all indexes for the specified table.

@@ -826,7 +826,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.SequenceCreated:              {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},
 	internal.ForeignKeyOnDelete:           {Brief: "Spanner supports only ON DELETE CASCADE/NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.ForeignKeyOnUpdate:           {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
-	internal.ForeignKeyActionNotSupported: {Brief: "Spanner Migration Tool supports foreign key action migration only for MySQL, PostgreSQL, and Oracle sources", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyActionNotSupported: {Brief: "Spanner Migration Tool supports foreign key action migration only for MySQL, PostgreSQL, Oracle, and SQL Server sources", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.NumericPKNotSupported:        {Brief: "Spanner PostgreSQL does not support numeric primary keys / unique indices", Severity: warning, Category: "NUMERIC_PK_NOT_SUPPORTED"},
 	internal.DefaultValueError:            {Brief: "Some columns have default value expressions not supported by Spanner. Please fix them to continue migration.", Severity: Errors, batch: true, Category: "INCOMPATIBLE_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.PrecisionLoss:                {Brief: "Numeric only supports (38,9) precision. Be aware of potential precision loss due to type mapping.", Severity: warning, Category: "PRECISION_LOSS"},

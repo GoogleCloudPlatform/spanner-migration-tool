@@ -153,7 +153,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
 //
-// Since only MySQL, PostgreSQL, and Oracle have this functionality
+// Since only MySQL, PostgreSQL, Oracle, and SQL Server have this functionality
 // as of yet, for other sources OnDelete fields are
 // kept empty i.e. "" is mapped to "" and an issue is appended
 // to generate warning message (prints only once for each table with FK Actions)
@@ -167,7 +167,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
-	// srcDeleteRule will only be empty for unsupported sources (SQL Server)
+	// srcDeleteRule will only be empty for sources that do not read FK actions (e.g. the Spanner source)
 	if srcDeleteRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
 		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
@@ -195,7 +195,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
 //
-// Since only MySQL, PostgreSQL, and Oracle have this functionality
+// Since only MySQL, PostgreSQL, Oracle, and SQL Server have this functionality
 // as of yet, for other sources OnUpdate fields are
 // kept empty i.e. "" is mapped to "" and an issue is appended
 // to generate warning message (prints only once for each table with FK Actions)
@@ -210,7 +210,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
-	// srcUpdateRule will only be empty for unsupported sources (SQL Server)
+	// srcUpdateRule will only be empty for sources that do not read FK actions (e.g. the Spanner source)
 	if srcUpdateRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
 		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
