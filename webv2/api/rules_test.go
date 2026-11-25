@@ -799,3 +799,53 @@ func TestDropRule(t *testing.T) {
 	}
 
 }
+
+// #1557: a max-length rule with scope "All tables" (the value the UI sends) must
+// change matching MAX columns in every table, and older "All table" rules must still work.
+func TestApplyRule_EditColumnMaxLengthAllTables(t *testing.T) {
+	for _, scope := range []string{"All tables", "All table"} {
+		t.Run(scope, func(t *testing.T) {
+			sessionState := session.GetSessionState()
+			sessionState.Driver = constants.ORACLE
+			sessionState.Conv = &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {Id: "t1", Name: "ITEMS", ColIds: []string{"c1", "c2"}, ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Id: "c1", Name: "ID", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Id: "c2", Name: "NOTE", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					}},
+					"t2": {Id: "t2", Name: "ORDERS", ColIds: []string{"c3", "c4"}, ColDefs: map[string]ddl.ColumnDef{
+						"c3": {Id: "c3", Name: "CODE", T: ddl.Type{Name: ddl.String, Len: 10}},
+						"c4": {Id: "c4", Name: "DESCR", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					}},
+				},
+				SrcSchema:    map[string]schema.Table{"t1": {Id: "t1", Name: "ITEMS"}, "t2": {Id: "t2", Name: "ORDERS"}},
+				SchemaIssues: map[string]internal.TableIssues{"t1": {ColumnLevelIssues: map[string][]internal.SchemaIssue{}}, "t2": {ColumnLevelIssues: map[string][]internal.SchemaIssue{}}},
+				Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum()},
+			}
+			rule := internal.Rule{
+				Name:              "max-len",
+				Type:              constants.EditColumnMaxLength,
+				ObjectType:        "Column",
+				AssociatedObjects: scope,
+				Enabled:           true,
+				Data:              map[string]string{"spDataType": ddl.String, "spColMaxLength": "100"},
+			}
+			body, err := json.Marshal(rule)
+			assert.NoError(t, err)
+			req, err := http.NewRequest("POST", "/applyrule", bytes.NewBuffer(body))
+			assert.NoError(t, err)
+			rr := httptest.NewRecorder()
+			http.HandlerFunc(api.ApplyRule).ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+
+			sp := sessionState.Conv.SpSchema
+			assert.Equal(t, int64(100), sp["t1"].ColDefs["c2"].T.Len)
+			assert.Equal(t, int64(100), sp["t2"].ColDefs["c4"].T.Len)
+			assert.Equal(t, int64(10), sp["t2"].ColDefs["c3"].T.Len, "columns with an explicit length are unchanged")
+			assert.Equal(t, ddl.Int64, sp["t1"].ColDefs["c1"].T.Name)
+			if assert.Equal(t, 1, len(sessionState.Conv.Rules)) {
+				assert.Equal(t, scope, sessionState.Conv.Rules[0].AssociatedObjects)
+			}
+		})
+	}
+}

@@ -285,9 +285,18 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 	return newIndexes[0], nil
 }
 
+// allTablesScope is the AssociatedObjects value the UI sends for a rule that
+// applies to every table. Earlier versions checked for "All table", so that
+// value is still accepted for rules saved in existing session files.
+const allTablesScope = "All tables"
+
+func isAllTablesScope(associatedObjects string) bool {
+	return associatedObjects == allTablesScope || associatedObjects == "All table"
+}
+
 func setSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
-	if associatedObjects == "All table" {
+	if isAllTablesScope(associatedObjects) {
 		for tId := range sessionState.Conv.SpSchema {
 			for _, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {
@@ -316,7 +325,7 @@ func setSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects stri
 func revertSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
 	spColLen, _ := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
-	if associatedObjects == "All tables" {
+	if isAllTablesScope(associatedObjects) {
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {

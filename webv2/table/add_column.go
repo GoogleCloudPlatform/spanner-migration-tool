@@ -106,16 +106,25 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	ct := sessionState.Conv.SpSchema[tableId]
 	columnId := internal.GenerateColumnId()
 	ct.ColIds = append(ct.ColIds, columnId)
+	// In the PostgreSQL dialect the UI offers PostgreSQL type names (VARCHAR, INT8, ...),
+	// while the Spanner schema stores the standard names (STRING, INT64, ...). Store the
+	// standard name so the DDL prints the type with its length, like converted columns.
+	typeName := details.Datatype
+	if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if stdType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[strings.ToUpper(typeName)]; ok {
+			typeName = stdType
+		}
+	}
 	colDef := ddl.ColumnDef{
 		Name:    details.Name,
 		Id:      columnId,
-		T:       ddl.Type{Name: details.Datatype, Len: int64(details.Length)},
+		T:       ddl.Type{Name: typeName, Len: int64(details.Length)},
 		NotNull: !details.IsNullable,
 		AutoGen: details.AutoGen,
 	}
 	if sessionState.Conv.Source == constants.CASSANDRA {
 		colDef.Opts = make(map[string]string)
-		colDef.Opts["cassandra_type"] = GetCassandraType(details.Datatype)
+		colDef.Opts["cassandra_type"] = GetCassandraType(typeName)
 	}
 	ct.ColDefs[columnId] = colDef
 	sessionState.Conv.SpSchema[tableId] = ct

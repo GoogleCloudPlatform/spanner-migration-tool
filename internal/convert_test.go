@@ -231,7 +231,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: "STRING", Len: 50, IsArray: false}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: "STRING", Len: 50, IsArray: false}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
 					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: false, Keys: []ddl.IndexKey{{ColId: "b", Order: 1}}}},
@@ -261,7 +261,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50, IsArray: false}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50, IsArray: false}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}}},
 			},
