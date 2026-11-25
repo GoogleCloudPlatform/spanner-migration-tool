@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -97,20 +98,7 @@ func TestGetSourceDatabaseFromDriver(t *testing.T) {
 	}
 }
 
-func TestResolveUploadFilePath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Chdir(tmpDir)
-
-	uploadDir := filepath.Join(tmpDir, constants.UPLOAD_FILE_DIR)
-	require.NoError(t, os.MkdirAll(uploadDir, os.ModePerm))
-
-	outsideFile := filepath.Join(tmpDir, "secret.txt")
-	require.NoError(t, os.WriteFile(outsideFile, []byte("SECRET_DATA"), 0600))
-
-	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "valid.sql"), []byte("SELECT 1;"), 0600))
-	require.NoError(t, os.Symlink(outsideFile, filepath.Join(uploadDir, "symlink.sql")))
-	require.NoError(t, os.MkdirAll(filepath.Join(uploadDir, "subdir"), os.ModePerm))
-
+func TestValidateUploadFilename(t *testing.T) {
 	validCases := []string{
 		"valid.sql",
 		"nonexistent.sql",
@@ -121,9 +109,7 @@ func TestResolveUploadFilePath(t *testing.T) {
 	}
 	for _, filename := range validCases {
 		t.Run("valid/"+filename, func(t *testing.T) {
-			got, err := ResolveUploadFilePath(filename)
-			require.NoError(t, err)
-			assert.Equal(t, filepath.Join(constants.UPLOAD_FILE_DIR, filename), got)
+			assert.NoError(t, ValidateUploadFilename(filename))
 		})
 	}
 
@@ -143,14 +129,68 @@ func TestResolveUploadFilePath(t *testing.T) {
 		{name: "embedded traversal", filename: "foo/../valid.sql"},
 		{name: "trailing traversal", filename: "foo/.."},
 		{name: "null byte", filename: "valid.sql\x00.txt"},
-		{name: "symlink inside upload dir", filename: "symlink.sql"},
-		{name: "directory inside upload dir", filename: "subdir"},
 	}
 	for _, tc := range invalidCases {
 		t.Run("invalid/"+tc.name, func(t *testing.T) {
-			got, err := ResolveUploadFilePath(tc.filename)
-			assert.Error(t, err)
-			assert.Empty(t, got)
+			err := ValidateUploadFilename(tc.filename)
+			assert.ErrorIs(t, err, ErrInvalidUploadPath)
 		})
 	}
+}
+
+func TestOpenUploadFile(t *testing.T) {
+	t.Run("missing upload directory returns ErrNotExist", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		f, err := OpenUploadFile("valid.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+		assert.NotErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	uploadDir := filepath.Join(tmpDir, constants.UPLOAD_FILE_DIR)
+	require.NoError(t, os.MkdirAll(uploadDir, os.ModePerm))
+
+	outsideFile := filepath.Join(tmpDir, "secret.txt")
+	require.NoError(t, os.WriteFile(outsideFile, []byte("SECRET_DATA"), 0600))
+
+	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "valid.sql"), []byte("SELECT 1;"), 0600))
+	require.NoError(t, os.Symlink(outsideFile, filepath.Join(uploadDir, "symlink.sql")))
+	require.NoError(t, os.MkdirAll(filepath.Join(uploadDir, "subdir"), os.ModePerm))
+
+	t.Run("valid regular file opens cleanly", func(t *testing.T) {
+		f, err := OpenUploadFile("valid.sql")
+		require.NoError(t, err)
+		defer f.Close()
+		data, err := io.ReadAll(f)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT 1;", string(data))
+	})
+
+	t.Run("missing file returns ErrNotExist", func(t *testing.T) {
+		f, err := OpenUploadFile("missing.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+		assert.NotErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("traversal rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("../secret.txt")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("symlink inside upload dir rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("symlink.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("directory inside upload dir rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("subdir")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
 }

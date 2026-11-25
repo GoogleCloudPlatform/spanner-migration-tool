@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,42 +155,40 @@ func GetDialectDisplayStringFromDialect(dialect string) string {
 	return GOOGLE_SQL_DIALECT
 }
 
-// ResolveUploadFilePath validates that filename is a plain single filename
-// without directory separators or traversal components, and returns a path
-// strictly confined within constants.UPLOAD_FILE_DIR.
-func ResolveUploadFilePath(filename string) (string, error) {
-	if filename == "" || filename == "." || filename == ".." {
-		return "", fmt.Errorf("invalid file path")
-	}
-	if strings.ContainsRune(filename, 0) || strings.ContainsAny(filename, "/\\") || filepath.VolumeName(filename) != "" {
-		return "", fmt.Errorf("invalid file path")
-	}
-	base := filepath.Base(filename)
-	if base != filename || filepath.Clean(filename) != filename {
-		return "", fmt.Errorf("invalid file path")
-	}
+// ErrInvalidUploadPath is returned when an upload filename fails lexical
+// validation or refers to a disallowed entry such as a symlink or directory.
+var ErrInvalidUploadPath = errors.New("invalid upload file path")
 
-	uploadDirAbs, err := filepath.Abs(constants.UPLOAD_FILE_DIR)
+// ValidateUploadFilename checks that filename is a plain single filename
+// without directory separators, traversal components, NUL bytes, or reserved
+// platform device names.
+func ValidateUploadFilename(filename string) error {
+	if filename == "" || filename == "." || filename == ".." ||
+		strings.ContainsAny(filename, "/\\\x00") ||
+		!filepath.IsLocal(filename) {
+		return ErrInvalidUploadPath
+	}
+	return nil
+}
+
+// OpenUploadFile validates filename and opens the regular file inside
+// constants.UPLOAD_FILE_DIR via os.Root, rejecting symlinks and directories.
+func OpenUploadFile(filename string) (*os.File, error) {
+	if err := ValidateUploadFilename(filename); err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(constants.UPLOAD_FILE_DIR)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve upload directory: %w", err)
+		return nil, err
 	}
-	targetAbs := filepath.Join(uploadDirAbs, base)
-	rel, err := filepath.Rel(uploadDirAbs, targetAbs)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || !strings.HasPrefix(targetAbs, uploadDirAbs+string(filepath.Separator)) || filepath.Dir(targetAbs) != uploadDirAbs {
-		return "", fmt.Errorf("file path escapes upload directory")
-	}
+	defer root.Close()
 
-	if root, err := os.OpenRoot(constants.UPLOAD_FILE_DIR); err == nil {
-		defer root.Close()
-		if info, err := root.Lstat(base); err == nil {
-			if info.Mode()&os.ModeSymlink != 0 {
-				return "", fmt.Errorf("symlinks are not allowed in upload directory")
-			}
-			if info.IsDir() {
-				return "", fmt.Errorf("file path refers to a directory")
-			}
-		}
+	info, err := root.Lstat(filename)
+	if err != nil {
+		return nil, err
 	}
-
-	return filepath.Join(constants.UPLOAD_FILE_DIR, base), nil
+	if info.Mode()&os.ModeSymlink != 0 || info.IsDir() {
+		return nil, ErrInvalidUploadPath
+	}
+	return root.Open(filename)
 }
