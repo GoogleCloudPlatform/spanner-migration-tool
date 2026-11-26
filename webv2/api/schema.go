@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -178,11 +179,16 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath)
+	f, err := helpers.OpenUploadFile(dc.Config.FilePath)
 	if err != nil {
+		if errors.Is(err, helpers.ErrInvalidUploadPath) {
+			http.Error(w, "Invalid dump file path", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.Config.FilePath), http.StatusNotFound)
 		return
 	}
+	defer f.Close()
 	n := profiles.NewSourceProfileImpl{}
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
@@ -199,7 +205,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: dc.Config.Driver,
-		DatabaseName: filepath.Base(dc.Config.FilePath),
+		DatabaseName: dc.Config.FilePath,
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
@@ -217,7 +223,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState.SourceDB = nil
 	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath,
+		Path:           filepath.Join(constants.UPLOAD_FILE_DIR, dc.Config.FilePath),
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
