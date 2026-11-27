@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -97,15 +96,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			oldName := conv.SpSchema[tableId].ColDefs[colId].Name
-			// Using a regular expression to match the exact column name
-			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
-
-			for i := range conv.SpSchema[tableId].CheckConstraints {
-				originalString := conv.SpSchema[tableId].CheckConstraints[i].Expr
-				updatedValue := re.ReplaceAllString(originalString, v.Rename)
-				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
-			}
+			renameColumnInCheckConstraints(conv, tableId, colId, v.Rename)
 
 			sp := conv.SpSchema[tableId]
 			column, ok := sp.ColDefs[colId]

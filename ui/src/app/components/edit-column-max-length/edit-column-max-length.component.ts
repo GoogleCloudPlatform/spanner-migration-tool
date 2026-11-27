@@ -91,11 +91,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
 
   formSubmit(): void {
     const ruleValue = this.editColMaxLengthForm.value
-    if ((ruleValue.spDataType === 'STRING' || ruleValue.spDataType === 'VARCHAR') && ruleValue.spColMaxLength > ColLength.StringMaxLength) {
-      ruleValue.spColMaxLength = ColLength.StorageMaxLength
-    } else if (ruleValue.spDataType === 'BYTES' && ruleValue.spColMaxLength > ColLength.ByteMaxLength) {
-      ruleValue.spColMaxLength = ColLength.StorageMaxLength
-    }
+    // The backend treats a length above the type limit as MAX.
     const data: IColMaxLength = {
       spDataType: ruleValue.spDataType,
       spColMaxLength: ruleValue.maxColLength

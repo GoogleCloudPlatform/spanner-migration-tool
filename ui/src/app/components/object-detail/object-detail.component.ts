@@ -1772,11 +1772,15 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   saveIndex() {
     let payload: ICreateIndex[] = []
     this.setIndexOrder()
+    // Keep the index's uniqueness: the index pane edits keys only and has no unique control.
+    const existingIndex = this.conv?.SpSchema?.[this.currentObject?.parentId || '']?.Indexes?.find(
+      (ind: ICreateIndex) => ind.Id === this.currentObject?.id
+    )
 
     payload.push({
       Name: this.currentObject?.name || '',
       TableId: this.currentObject?.parentId || '',
-      Unique: false,
+      Unique: existingIndex?.Unique ?? false,
       Keys: this.localIndexData
         .filter((idx: IIndexData) => {
           if (idx.spColId) return true

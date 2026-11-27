@@ -81,6 +81,13 @@ func ApplyRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
+		length, ok := normalizeColMaxLength(colMaxLength.SpDataType, colMaxLength.SpColMaxLength)
+		if !ok {
+			http.Error(w, fmt.Sprintf("Invalid max column length %q: use a positive number or MAX", colMaxLength.SpColMaxLength), http.StatusBadRequest)
+			return
+		}
+		colMaxLength.SpColMaxLength = length
+		rule.Data = colMaxLength
 		setSpColMaxLength(colMaxLength, rule.AssociatedObjects)
 	} else if rule.Type == constants.AddShardIdPrimaryKey {
 		d, err := json.Marshal(rule.Data)
@@ -285,17 +292,45 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 	return newIndexes[0], nil
 }
 
+// allTablesScope is the AssociatedObjects value the UI sends for a rule that
+// applies to every table. Earlier versions checked for "All table", so that
+// value is still accepted for rules saved in existing session files.
+const allTablesScope = "All tables"
+
+func isAllTablesScope(associatedObjects string) bool {
+	return associatedObjects == allTablesScope || associatedObjects == "All table"
+}
+
+// normalizeColMaxLength checks the length of an edit-column-max-length rule.
+// The UI accepts a positive integer or MAX. A length above the largest length
+// of the type means MAX, as it does in the UI. It returns "MAX" or the length,
+// and false when the value is not valid.
+func normalizeColMaxLength(dataType, length string) (string, bool) {
+	length = strings.TrimSpace(length)
+	if strings.EqualFold(length, "max") {
+		return "MAX", true
+	}
+	n, err := strconv.ParseInt(length, 10, 64)
+	if err != nil || n <= 0 {
+		return "", false
+	}
+	limit := int64(ddl.StringMaxLength)
+	if dataType == ddl.Bytes {
+		limit = ddl.BytesMaxLength
+	}
+	if n > limit {
+		return "MAX", true
+	}
+	return strconv.FormatInt(n, 10), true
+}
+
 func setSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
-	if associatedObjects == "All table" {
+	if isAllTablesScope(associatedObjects) {
 		for tId := range sessionState.Conv.SpSchema {
 			for _, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
-				if colDef.T.Name == spColMaxLength.SpDataType {
-					spColDef := colDef
-					if spColDef.T.Len == ddl.MaxLength {
-						spColDef.T.Len, _ = strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
-					}
-					sessionState.Conv.SpSchema[tId].ColDefs[colDef.Id] = spColDef
+				if colDef.T.Name == spColMaxLength.SpDataType && colDef.T.Len == ddl.MaxLength {
+					table.UpdateColumnSize(spColMaxLength.SpColMaxLength, tId, colDef.Id, sessionState.Conv)
 				}
 			}
 			common.ComputeNonKeyColumnSize(sessionState.Conv, tId)
@@ -315,8 +350,13 @@ func setSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects stri
 
 func revertSpColMaxLength(spColMaxLength types.ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
-	spColLen, _ := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
-	if associatedObjects == "All tables" {
+	spColLen, err := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
+	if err != nil || spColLen <= 0 {
+		// A MAX rule only applies to columns that are already MAX, so there
+		// is nothing to revert. Other values were never applied.
+		return
+	}
+	if isAllTablesScope(associatedObjects) {
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {

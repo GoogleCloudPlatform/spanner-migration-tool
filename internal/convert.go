@@ -492,7 +492,9 @@ func (conv *Conv) AddPrimaryKeys() {
 				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
-				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
+				// The synthetic key is always populated (UUID) and is the primary key,
+				// so declare it NOT NULL like any primary key column mapped from a source.
+				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 				addMissingPrimaryKeyWarning(ct.Id, columnId, conv, MissingPrimaryKey)
