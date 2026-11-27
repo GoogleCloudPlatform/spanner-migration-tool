@@ -21,9 +21,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-sql-driver/mysql"
-	"io/fs"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -207,14 +208,18 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	dc.FilePath = "upload-file/" + dc.FilePath
-	_, err = os.Open(dc.FilePath)
+	f, err := helpers.OpenUploadFile(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
+		if errors.Is(err, helpers.ErrInvalidUploadPath) {
+			http.Error(w, "Invalid dump file path", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", filepath.Join(constants.UPLOAD_FILE_DIR, dc.FilePath)), http.StatusNotFound)
 		return
 	}
+	f.Close()
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           dc.FilePath,
+		Path:           filepath.Join(constants.UPLOAD_FILE_DIR, dc.FilePath),
 		ConnectionType: helpers.DUMP_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -411,17 +416,27 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	f, err := helpers.OpenUploadFile(s.FilePath)
+	if err != nil {
+		if errors.Is(err, helpers.ErrInvalidUploadPath) {
+			http.Error(w, "Invalid session file path", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		return
+	}
+	sessionBytes, err := io.ReadAll(f)
+	f.Close()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read session file : %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	conv := internal.MakeConv()
 	metadata := session.SessionMetadata{}
 
-	err = session.ReadSessionFileForSessionMetadata(&metadata, constants.UPLOAD_FILE_DIR+"/"+s.FilePath)
-	if err != nil {
-		switch err.(type) {
-		case *fs.PathError:
-			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
-		default:
-			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
-		}
+	if err := json.Unmarshal(sessionBytes, &metadata); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -437,14 +452,8 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = conversion.ReadSessionFile(conv, constants.UPLOAD_FILE_DIR+"/"+s.FilePath)
-	if err != nil {
-		switch err.(type) {
-		case *fs.PathError:
-			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
-		default:
-			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
-		}
+	if err := json.Unmarshal(sessionBytes, &conv); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -456,7 +465,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sessionMetadata.DatabaseName == "" {
-		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
+		sessionMetadata.DatabaseName = strings.TrimRight(s.FilePath, filepath.Ext(s.FilePath))
 	}
 
 	sessionState.Conv.ConvLock.Lock()
@@ -469,11 +478,12 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.UsedNames = internal.ComputeUsedNames(sessionState.Conv)
 
+	sessionFilePath := filepath.Join(constants.UPLOAD_FILE_DIR, s.FilePath)
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
-	sessionState.SessionFile = constants.UPLOAD_FILE_DIR + s.FilePath
+	sessionState.SessionFile = sessionFilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.UPLOAD_FILE_DIR + "/" + s.FilePath,
+		Path:           sessionFilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 	sessionState.Dialect = conv.SpDialect
@@ -856,24 +866,37 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	if err := helpers.ValidateUploadFilename(handlers.Filename); err != nil {
+		http.Error(w, "invalid file name", http.StatusBadRequest)
+		return
+	}
+
 	// Remove the existing files
-	err = os.RemoveAll("upload-file/")
+	err = os.RemoveAll(constants.UPLOAD_FILE_DIR)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error removing existing files"), http.StatusBadRequest)
 		return
 	}
 
-	err = os.MkdirAll("upload-file", os.ModePerm)
+	err = os.MkdirAll(constants.UPLOAD_FILE_DIR, os.ModePerm)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error while creating directory"), http.StatusBadRequest)
 		return
 	}
 
-	f, err := os.Create("upload-file/" + handlers.Filename)
+	root, err := os.OpenRoot(constants.UPLOAD_FILE_DIR)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("not able to open upload directory"), http.StatusBadRequest)
+		return
+	}
+	defer root.Close()
+
+	f, err := root.Create(handlers.Filename)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("not able to create file"), http.StatusBadRequest)
 		return
 	}
+	defer f.Close()
 
 	// read all of the contents of our uploaded file into a byte array
 	fileBytes, err := ioutil.ReadAll(file)

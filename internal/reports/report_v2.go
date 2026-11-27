@@ -156,6 +156,15 @@ func fetchNameChanges(conv *internal.Conv) (nameChanges []NameChange) {
 				nameChanges = append(nameChanges, NameChange{NameChangeType: "Index", SourceTable: srcTable.Name, OldName: srcIdx.Name, NewName: spIdx.Name})
 			}
 		}
+		for _, spCc := range conv.SpSchema[tableId].CheckConstraints {
+			srcCc, err := internal.GetSrcCheckConstraintFromId(conv.SrcSchema[tableId].CheckConstraints, spCc.Id, spCc.ExprId)
+			if err != nil || srcCc.Name == "" || spCc.Name == "" {
+				continue
+			}
+			if srcCc.Name != spCc.Name {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "CheckConstraint", SourceTable: srcTable.Name, OldName: srcCc.Name, NewName: spCc.Name})
+			}
+		}
 	}
 	return nameChanges
 }
