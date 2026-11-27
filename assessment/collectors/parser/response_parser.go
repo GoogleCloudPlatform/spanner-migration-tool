@@ -121,7 +121,8 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath s
 	}
 	snippets := []Snippet{}
 	codeSnippetIndex := 0
-	for _, codeImpactResponse := range result["file_modifications"].([]any) {
+	fileModifications, _ := result["file_modifications"].([]any)
+	for _, codeImpactResponse := range fileModifications {
 		codeImpact, err := ParseCodeImpact(codeImpactResponse.(map[string]any), projectPath, filePath)
 		if err != nil {
 			return nil, nil, err
@@ -134,10 +135,10 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath s
 			logger.Log.Debug("not emmitting as code snippets are equal")
 		}
 	}
-	generalWarnings := []string{}
-	if result["general_warnings"] != nil {
-		generalWarnings = ParseStringArrayInterface(result["general_warnings"].([]any))
-	}
+	// ParseStringArrayInterface accepts any (nil, string, []string, []any), so
+	// pass the raw value instead of asserting .([]any), which panicked when
+	// general_warnings was a single string.
+	generalWarnings := ParseStringArrayInterface(result["general_warnings"])
 	return snippets, generalWarnings, nil
 }
 
