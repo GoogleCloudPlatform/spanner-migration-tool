@@ -885,6 +885,33 @@ func TestGetIndexes_SkippedAndFilteredIndexes(t *testing.T) {
 	}
 }
 
+// Hypothetical indexes (e.g. left by the Database Engine Tuning Advisor) hold
+// no data, so the query must filter them out. The mock only matches a query
+// that has the filter.
+func TestGetIndexes_SkipsHypotheticalIndexes(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+) AND IX.is_hypothetical = 0 (.+)",
+			args:  []driver.Value{"items", "dbo"},
+			cols:  []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column", "IX.type_desc", "IX.is_disabled", "IX.filter_definition"},
+			rows:  [][]driver.Value{{"ix_real", "a", "0", "0", "0", "NONCLUSTERED", "0", nil}},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "items"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	indexes, err := isi.GetIndexes(conv, common.SchemaAndName{Schema: "dbo", Name: "items"}, map[string]string{"a": "c_a"})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(indexes))
+	assert.Equal(t, "ix_real", indexes[0].Name)
+}
+
 func TestGetTableName(t *testing.T) {
 	isi := InfoSchemaImpl{}
 	assert.Equal(t, "orders", isi.GetTableName("dbo", "orders"))

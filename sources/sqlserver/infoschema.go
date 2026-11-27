@@ -691,6 +691,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			AND TAB.name=@p1
 			AND TAB.schema_id = SCHEMA_ID(@p2)
 			AND IX.type NOT IN (0, 5)      -- 0: heap, 5: clustered columnstore (table storage, not a secondary index)
+			AND IX.is_hypothetical = 0     -- hypothetical indexes (e.g. left by the Database Engine Tuning Advisor) hold no data
 		ORDER BY IX.name, IXC.is_included_column, IXC.key_ordinal, IXC.index_column_id;
 	`
 	rows, err := isi.Db.Query(q2, table.Name, table.Schema)
