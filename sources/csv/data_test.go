@@ -351,3 +351,15 @@ func getDate(s string) civil.Date {
 	d, _ := civil.ParseDate(s)
 	return d
 }
+
+// TestConvArrayEmptyValue is a regression test: an empty or whitespace-only
+// value for an array column must map to an empty Spanner array rather than
+// panicking with a slice-bounds-out-of-range.
+func TestConvArrayEmptyValue(t *testing.T) {
+	ty := ddl.Type{Name: ddl.String, IsArray: true}
+	for _, in := range []string{"", "   ", "{}", "[]"} {
+		got, err := convArray(ty, in)
+		assert.Nil(t, err, "input %q", in)
+		assert.Equal(t, []spanner.NullString{}, got, "input %q", in)
+	}
+}
