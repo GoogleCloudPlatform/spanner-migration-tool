@@ -54,7 +54,7 @@
           "issueList": [
             {
               "category": "STORAGE_WARNING",
-              "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'a', source DB type int(11) is mapped to Spanner data type int64"
+              "description": "Table 'bad_schema': Some columns will consume more storage in Spanner: columns 'a', 'b' of type int(11) are mapped to int64"
             },
             {
               "category": "MISSING_PRIMARY_KEY",
@@ -86,7 +86,7 @@
           "issueList": [
             {
               "category": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
-              "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
+              "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value': column 'b'"
             }
           ]
         }
@@ -164,7 +164,7 @@
           "issueList": [
             {
               "category": "STORAGE_WARNING",
-              "description": "Table 'no_pk': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
+              "description": "Table 'no_pk': Some columns will consume more storage in Spanner: column 'b' of type int(11) is mapped to int64"
             },
             {
               "category": "MISSING_PRIMARY_KEY",

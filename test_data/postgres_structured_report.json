@@ -54,7 +54,7 @@
           "issueList": [
             {
               "category": "STORAGE_WARNING",
-              "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
+              "description": "Table 'bad_schema': Some columns will consume more storage in Spanner: columns 'b' (int4 mapped to int64), 'c' (int4[4][2] mapped to string(max))"
             },
             {
               "category": "MULTI_DIMENSIONAL_ARRAY_USES",
@@ -165,7 +165,7 @@
             },
             {
               "category": "STORAGE_WARNING",
-              "description": "Table 'no_pk': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
+              "description": "Table 'no_pk': Some columns will consume more storage in Spanner: column 'b' of type int4 is mapped to int64"
             },
             {
               "category": "MISSING_PRIMARY_KEY",

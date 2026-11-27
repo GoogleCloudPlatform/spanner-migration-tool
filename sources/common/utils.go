@@ -175,6 +175,11 @@ func ToPGDialectType(standardType ddl.Type, isPk bool) (ddl.Type, []internal.Sch
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
 			[]internal.SchemaIssue{internal.NumericPKNotSupported}
 	}
+	// PostgreSQL dialect bytea takes no length, so a BYTES(n) below the Spanner
+	// maximum loses its limit.
+	if standardType.Name == ddl.Bytes && standardType.Len != ddl.MaxLength && standardType.Len < ddl.BytesMaxLength {
+		return standardType, []internal.SchemaIssue{internal.PGBytesLengthNotSupported}
+	}
 	return standardType, nil
 }
 
