@@ -849,3 +849,143 @@ func TestApplyRule_EditColumnMaxLengthAllTables(t *testing.T) {
 		})
 	}
 }
+
+func maxLengthTestConv() *internal.Conv {
+	return &internal.Conv{
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {Id: "t1", Name: "ITEMS", ColIds: []string{"c1", "c2"}, ColDefs: map[string]ddl.ColumnDef{
+				"c1": {Id: "c1", Name: "ID", T: ddl.Type{Name: ddl.Int64}},
+				"c2": {Id: "c2", Name: "NOTE", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			}},
+			"t2": {Id: "t2", Name: "ORDERS", ColIds: []string{"c3", "c4"}, ColDefs: map[string]ddl.ColumnDef{
+				"c3": {Id: "c3", Name: "CODE", T: ddl.Type{Name: ddl.String, Len: 10}},
+				"c4": {Id: "c4", Name: "DESCR", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			}},
+		},
+		SrcSchema:    map[string]schema.Table{"t1": {Id: "t1", Name: "ITEMS"}, "t2": {Id: "t2", Name: "ORDERS"}},
+		SchemaIssues: map[string]internal.TableIssues{"t1": {ColumnLevelIssues: map[string][]internal.SchemaIssue{}}, "t2": {ColumnLevelIssues: map[string][]internal.SchemaIssue{}}},
+		Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum()},
+	}
+}
+
+func applyMaxLengthRule(t *testing.T, scope, length string) *httptest.ResponseRecorder {
+	rule := internal.Rule{
+		Name:              "max-len",
+		Type:              constants.EditColumnMaxLength,
+		ObjectType:        "Column",
+		AssociatedObjects: scope,
+		Enabled:           true,
+		Data:              map[string]string{"spDataType": ddl.String, "spColMaxLength": length},
+	}
+	body, err := json.Marshal(rule)
+	assert.NoError(t, err)
+	req, err := http.NewRequest("POST", "/applyrule", bytes.NewBuffer(body))
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.ApplyRule).ServeHTTP(rr, req)
+	return rr
+}
+
+// #1559 review: the UI accepts MAX as the length. Applying and dropping a MAX
+// rule must leave MAX columns as MAX, not set them to 0.
+func TestApplyAndDropRule_EditColumnMaxLengthMax(t *testing.T) {
+	for _, scope := range []string{"All tables", "t1", "t2"} {
+		for _, length := range []string{"MAX", "max", "2621441", "99999999999"} {
+			t.Run(scope+"/"+length, func(t *testing.T) {
+				sessionState := session.GetSessionState()
+				sessionState.Driver = constants.ORACLE
+				sessionState.Conv = maxLengthTestConv()
+				rr := applyMaxLengthRule(t, scope, length)
+				assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+				check := func() {
+					sp := sessionState.Conv.SpSchema
+					assert.Equal(t, int64(ddl.MaxLength), sp["t1"].ColDefs["c2"].T.Len)
+					assert.Equal(t, int64(ddl.MaxLength), sp["t2"].ColDefs["c4"].T.Len)
+					assert.Equal(t, int64(10), sp["t2"].ColDefs["c3"].T.Len)
+				}
+				check()
+				if !assert.Equal(t, 1, len(sessionState.Conv.Rules)) {
+					return
+				}
+				req, err := http.NewRequest("POST", "/dropRule?id="+sessionState.Conv.Rules[0].Id, nil)
+				assert.NoError(t, err)
+				rr = httptest.NewRecorder()
+				http.HandlerFunc(api.DropRule).ServeHTTP(rr, req)
+				assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+				assert.Equal(t, 0, len(sessionState.Conv.Rules))
+				check()
+			})
+		}
+	}
+}
+
+// The stored rule keeps the normalized length: MAX, or a number within the
+// type limit. Larger numbers mean MAX, as in the UI.
+func TestApplyRule_EditColumnMaxLengthStoredValue(t *testing.T) {
+	tests := []struct{ dataType, length, stored string }{
+		{ddl.String, "100", "100"},
+		{ddl.String, "max", "MAX"},
+		{ddl.String, "2621440", "2621440"},
+		{ddl.String, "2621441", "MAX"},
+		{ddl.Bytes, "3000000", "3000000"},
+		{ddl.Bytes, "10485761", "MAX"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.dataType+"/"+tc.length, func(t *testing.T) {
+			sessionState := session.GetSessionState()
+			sessionState.Driver = constants.ORACLE
+			sessionState.Conv = maxLengthTestConv()
+			rule := internal.Rule{Name: "max-len", Type: constants.EditColumnMaxLength, ObjectType: "Column", AssociatedObjects: "All tables",
+				Enabled: true, Data: map[string]string{"spDataType": tc.dataType, "spColMaxLength": tc.length}}
+			body, err := json.Marshal(rule)
+			assert.NoError(t, err)
+			req, err := http.NewRequest("POST", "/applyrule", bytes.NewBuffer(body))
+			assert.NoError(t, err)
+			rr := httptest.NewRecorder()
+			http.HandlerFunc(api.ApplyRule).ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+			if assert.Equal(t, 1, len(sessionState.Conv.Rules)) {
+				d, err := json.Marshal(sessionState.Conv.Rules[0].Data)
+				assert.NoError(t, err)
+				assert.JSONEq(t, `{"spDataType": "`+tc.dataType+`", "spColMaxLength": "`+tc.stored+`"}`, string(d))
+			}
+		})
+	}
+}
+
+func TestApplyRule_EditColumnMaxLengthRejectsInvalidLength(t *testing.T) {
+	for _, length := range []string{"", "0", "-5", "abc", "10.5"} {
+		t.Run(length, func(t *testing.T) {
+			sessionState := session.GetSessionState()
+			sessionState.Driver = constants.ORACLE
+			sessionState.Conv = maxLengthTestConv()
+			rr := applyMaxLengthRule(t, "All tables", length)
+			assert.Equal(t, http.StatusBadRequest, rr.Code)
+			assert.Equal(t, int64(ddl.MaxLength), sessionState.Conv.SpSchema["t1"].ColDefs["c2"].T.Len)
+			assert.Equal(t, int64(ddl.MaxLength), sessionState.Conv.SpSchema["t2"].ColDefs["c4"].T.Len)
+			assert.Equal(t, 0, len(sessionState.Conv.Rules))
+		})
+	}
+}
+
+// Dropping an "All tables" rule with a number restores the MAX columns it changed.
+func TestApplyAndDropRule_EditColumnMaxLengthAllTablesNumber(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+	sessionState.Conv = maxLengthTestConv()
+	rr := applyMaxLengthRule(t, "All tables", "100")
+	assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	assert.Equal(t, int64(100), sessionState.Conv.SpSchema["t1"].ColDefs["c2"].T.Len)
+	if !assert.Equal(t, 1, len(sessionState.Conv.Rules)) {
+		return
+	}
+	req, err := http.NewRequest("POST", "/dropRule?id="+sessionState.Conv.Rules[0].Id, nil)
+	assert.NoError(t, err)
+	rr = httptest.NewRecorder()
+	http.HandlerFunc(api.DropRule).ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	sp := sessionState.Conv.SpSchema
+	assert.Equal(t, int64(ddl.MaxLength), sp["t1"].ColDefs["c2"].T.Len)
+	assert.Equal(t, int64(ddl.MaxLength), sp["t2"].ColDefs["c4"].T.Len)
+	assert.Equal(t, int64(10), sp["t2"].ColDefs["c3"].T.Len)
+}
