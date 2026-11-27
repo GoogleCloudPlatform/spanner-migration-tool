@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -178,11 +179,16 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath)
+	f, err := helpers.OpenUploadFile(dc.Config.FilePath)
 	if err != nil {
+		if errors.Is(err, helpers.ErrInvalidUploadPath) {
+			http.Error(w, "Invalid dump file path", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.Config.FilePath), http.StatusNotFound)
 		return
 	}
+	defer f.Close()
 	n := profiles.NewSourceProfileImpl{}
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
@@ -199,7 +205,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: dc.Config.Driver,
-		DatabaseName: filepath.Base(dc.Config.FilePath),
+		DatabaseName: dc.Config.FilePath,
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
@@ -217,7 +223,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState.SourceDB = nil
 	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath,
+		Path:           filepath.Join(constants.UPLOAD_FILE_DIR, dc.Config.FilePath),
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
@@ -795,7 +801,7 @@ func UpdateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	updatedFKs := []ddl.Foreignkey{}
 
 	for _, foreignKey := range sp.ForeignKeys {
-		for i, updatedForeignkey := range newFKs {
+		for _, updatedForeignkey := range newFKs {
 			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ColIds) != 0 && updatedForeignkey.ReferTableId != "" {
 				delete(usedNames, strings.ToLower(foreignKey.Name))
 				foreignKey.Name = updatedForeignkey.Name
@@ -804,16 +810,19 @@ func UpdateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ReferColumnIds) == 0 && updatedForeignkey.ReferTableId == "" {
 				dropFkId := updatedForeignkey.Id
 
-				// To remove the interleavable suggestions if they exist on dropping fk
-				colId := sp.ForeignKeys[i].ColIds[0]
-				schemaIssue := []internal.SchemaIssue{}
-				for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
-					if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
-						schemaIssue = append(schemaIssue, v)
+				// To remove the interleavable suggestions if they exist on dropping fk.
+				// Use the FK being dropped (not the request index) to find its column.
+				if len(foreignKey.ColIds) > 0 {
+					colId := foreignKey.ColIds[0]
+					schemaIssue := []internal.SchemaIssue{}
+					for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
+						if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
+							schemaIssue = append(schemaIssue, v)
+						}
 					}
-				}
-				if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
-					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
+					if tableIssues, ok := sessionState.Conv.SchemaIssues[tableId]; ok && tableIssues.ColumnLevelIssues != nil {
+						tableIssues.ColumnLevelIssues[colId] = schemaIssue
+					}
 				}
 				var err error
 				sp.ForeignKeys, err = utilities.RemoveFk(sp.ForeignKeys, dropFkId, sessionState.Conv.SrcSchema[tableId], tableId)
@@ -1349,9 +1358,15 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	delete(usedNames, strings.ToLower(sessionState.Conv.SpSchema[tableId].Name))
 	for _, index := range sessionState.Conv.SpSchema[tableId].Indexes {
 		delete(usedNames, index.Name)
+		delete(usedNames, strings.ToLower(index.Name))
 	}
 	for _, fk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 		delete(usedNames, fk.Name)
+		delete(usedNames, strings.ToLower(fk.Name))
+	}
+	for _, cc := range sessionState.Conv.SpSchema[tableId].CheckConstraints {
+		delete(usedNames, cc.Name)
+		delete(usedNames, strings.ToLower(cc.Name))
 	}
 
 	delete(spSchema, tableId)
@@ -1360,22 +1375,25 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	delete(syntheticPkey, tableId)
+	delete(sessionState.Conv.UniquePKey, tableId)
 	if srcTable, ok := sessionState.Conv.SrcSchema[tableId]; ok {
 		delete(sessionState.Conv.ToSpanner, srcTable.Name)
 	}
 
 	// drop reference foreign key
-	for tableName, spTable := range spSchema {
+	for childTableId, spTable := range spSchema {
 		fks := []ddl.Foreignkey{}
 		for _, fk := range spTable.ForeignKeys {
 			if fk.ReferTableId != tableId {
 				fks = append(fks, fk)
 			} else {
 				delete(usedNames, fk.Name)
+				delete(usedNames, strings.ToLower(fk.Name))
+				_ = utilities.RemoveFkIssues(fk, sessionState.Conv.SrcSchema[childTableId], childTableId)
 			}
 		}
 		spTable.ForeignKeys = fks
-		spSchema[tableName] = spTable
+		spSchema[childTableId] = spTable
 	}
 
 	// remove interleave that are interleaved on the drop table as parent
