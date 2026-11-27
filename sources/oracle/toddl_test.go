@@ -490,6 +490,12 @@ func TestToSpannerTypeWarnings(t *testing.T) {
 		// Types split out of the LOB/XMLTYPE branches keep their previous behaviour.
 		{"URITYPE unchanged", typ("URITYPE"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil},
 		{"ANYDATA unchanged", typ("ANYDATA"), "", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		// #1514: UROWID(n) emits Widened warning; ROWID remains STRING(MAX) without warning.
+		{"UROWID(100)", typ("UROWID", 100), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		{"UROWID(4000)", typ("UROWID", 4000), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		{"UROWID(100) -> STRING", typ("UROWID", 100), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, widened},
+		{"ROWID unchanged", typ("ROWID"), "", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil},
+		{"ROWID -> STRING", typ("ROWID"), ddl.String, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil},
 	}
 	for _, dialect := range []string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL} {
 		for _, tc := range tests {

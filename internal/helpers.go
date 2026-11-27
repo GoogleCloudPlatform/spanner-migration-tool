@@ -156,6 +156,22 @@ func GetSrcIndexFromId(indexes []schema.Index, indexId string) (schema.Index, er
 	return schema.Index{}, fmt.Errorf("index not found")
 }
 
+func GetSrcCheckConstraintFromId(checkConstraints []schema.CheckConstraint, checkConstraintId, exprId string) (schema.CheckConstraint, error) {
+	for _, v := range checkConstraints {
+		if v.Id != "" && v.Id == checkConstraintId {
+			return v, nil
+		}
+	}
+	if exprId != "" {
+		for _, v := range checkConstraints {
+			if v.ExprId == exprId {
+				return v, nil
+			}
+		}
+	}
+	return schema.CheckConstraint{}, fmt.Errorf("check constraint not found")
+}
+
 func ComputeUsedNames(conv *Conv) map[string]bool {
 	usedNames := make(map[string]bool)
 	for _, table := range conv.SpSchema {
@@ -165,6 +181,11 @@ func ComputeUsedNames(conv *Conv) map[string]bool {
 		}
 		for _, fk := range table.ForeignKeys {
 			usedNames[strings.ToLower(fk.Name)] = true
+		}
+		for _, cc := range table.CheckConstraints {
+			if cc.Name != "" {
+				usedNames[strings.ToLower(cc.Name)] = true
+			}
 		}
 	}
 	return usedNames

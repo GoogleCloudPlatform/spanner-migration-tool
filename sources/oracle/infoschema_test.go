@@ -129,6 +129,8 @@ func TestToType(t *testing.T) {
 		{"INTERVAL YEAR(4) TO MONTH", "INTERVAL YEAR(4) TO MONTH", val(0), val(4), val(0), schema.Type{Name: "INTERVAL YEAR(4) TO MONTH"}},
 		{"VARCHAR2(100 CHAR)", "VARCHAR2", val(100), null, null, schema.Type{Name: "VARCHAR2", Mods: []int64{100}}},
 		{"RAW(16)", "RAW", val(16), null, null, schema.Type{Name: "RAW", Mods: []int64{16}}},
+		{"UROWID(100)", "UROWID", val(100), null, null, schema.Type{Name: "UROWID", Mods: []int64{100}}},
+		{"ROWID has no length mod", "ROWID", val(10), null, null, schema.Type{Name: "ROWID"}},
 		{"BLOB has no length", "BLOB", val(4000), null, null, schema.Type{Name: "BLOB"}},
 	}
 	for _, tc := range tests {
@@ -182,7 +184,7 @@ func TestGenerateSrcSchema(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
@@ -200,19 +202,20 @@ func TestGenerateSrcSchema(t *testing.T) {
 			t.constraint_type,
 			t.search_condition,
 			t.constraint_name,
-			c.nullable
+			c.nullable,
+			t.status
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
 		LEFT JOIN all_tab_cols c
 		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (:2)
-		ORDER BY k.table_name, k.position`),
+		ORDER BY k.table_name, k.position, t.constraint_name`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
-			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
+			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable", "status"},
 			rows: [][]driver.Value{
-				{"TEST_TABLE", "ID", "P", nil, "PK_TEST", "N"},
-				{"TEST_TABLE", "NAME", "C", "IS JSON", "SYS_C1", "Y"},
+				{"TEST_TABLE", "ID", "P", nil, "PK_TEST", "N", "ENABLED"},
+				{"TEST_TABLE", "NAME", "C", "IS JSON", "SYS_C1", "Y", "ENABLED"},
 			},
 		},
 		{
@@ -221,14 +224,17 @@ func TestGenerateSrcSchema(t *testing.T) {
 			B.table_name AS ref_table, 
 			A.column_name AS col_name,
 			B.column_name AS ref_col_name,
-			A.constraint_name AS name
+			A.constraint_name AS name,
+			C.delete_rule,
+			C.deferrable,
+			C.status
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
 		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
 		WHERE A.owner = :1 AND A.table_name IN (:2)
 		ORDER BY A.table_name, A.constraint_name, A.position`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
-			cols: []string{"table_name", "ref_table", "col_name", "ref_col_name", "name"},
+			cols: []string{"table_name", "ref_table", "col_name", "ref_col_name", "name", "delete_rule", "deferrable", "status"},
 			rows: [][]driver.Value{},
 		},
 		{
@@ -239,11 +245,19 @@ func TestGenerateSrcSchema(t *testing.T) {
 			IC.descend,
 			I.uniqueness,
 			IE.column_expression,
-			I.index_type
+			I.index_type,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
+			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
-		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (:2)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_nested_tables NT
 			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
@@ -263,9 +277,9 @@ func TestGenerateSrcSchema(t *testing.T) {
 					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`),
 			args: []driver.Value{"TESTDB", "TEST_TABLE"},
-			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type"},
+			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type", "status", "funcidx_status"},
 			rows: [][]driver.Value{
-				{"TEST_TABLE", "IDX_NAME", "NAME", "ASC", "NONUNIQUE", nil, "NORMAL"},
+				{"TEST_TABLE", "IDX_NAME", "NAME", "ASC", "NONUNIQUE", nil, "NORMAL", "VALID", nil},
 			},
 		},
 	}
@@ -377,7 +391,7 @@ func TestGetColumnsBatchDefaults(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE = 'RAW' THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
+			query: regexp.QuoteMeta(`SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE, DATA_DEFAULT, CASE WHEN DATA_TYPE IN ('RAW', 'UROWID') THEN DATA_LENGTH ELSE CHAR_LENGTH END AS COL_LENGTH, DATA_PRECISION, DATA_SCALE, IDENTITY_COLUMN, VIRTUAL_COLUMN 
 		FROM ALL_TAB_COLS 
 		WHERE OWNER = :1 AND TABLE_NAME IN (:2) AND USER_GENERATED = 'YES' 
 		ORDER BY TABLE_NAME, COLUMN_ID`),
@@ -470,32 +484,33 @@ func TestGetConstraintsBatchNotNullChecks(t *testing.T) {
 			t.constraint_type,
 			t.search_condition,
 			t.constraint_name,
-			c.nullable
+			c.nullable,
+			t.status
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
 		LEFT JOIN all_tab_cols c
 		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (:2)
-		ORDER BY k.table_name, k.position`),
+		ORDER BY k.table_name, k.position, t.constraint_name`),
 			args: []driver.Value{"TESTDB", "CONTACTS"},
-			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
+			cols: []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable", "status"},
 			rows: [][]driver.Value{
-				{"CONTACTS", "ID", "P", nil, "CONTACTS_PK", "N"},
+				{"CONTACTS", "ID", "P", nil, "CONTACTS_PK", "N", "ENABLED"},
 				// System NOT NULL constraint of a NOT NULL column: skipped.
-				{"CONTACTS", "ID", "C", `"ID" IS NOT NULL`, "SYS_C001", "N"},
+				{"CONTACTS", "ID", "C", `"ID" IS NOT NULL`, "SYS_C001", "N", "ENABLED"},
 				// Named NOT NULL constraint (CONSTRAINT NN_EMAIL NOT NULL): skipped.
-				{"CONTACTS", "EMAIL", "C", `"EMAIL" IS NOT NULL`, "NN_EMAIL", "N"},
+				{"CONTACTS", "EMAIL", "C", `"EMAIL" IS NOT NULL`, "NN_EMAIL", "N", "ENABLED"},
 				// Multi-column checks: one row per column, kept once.
-				{"CONTACTS", "EMAIL", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "N"},
-				{"CONTACTS", "PHONE", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "Y"},
-				{"CONTACTS", "STATUS", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y"},
-				{"CONTACTS", "END_DATE", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y"},
+				{"CONTACTS", "EMAIL", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "N", "ENABLED"},
+				{"CONTACTS", "PHONE", "C", "email IS NOT NULL OR phone IS NOT NULL", "CK_CONTACT", "Y", "ENABLED"},
+				{"CONTACTS", "STATUS", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y", "ENABLED"},
+				{"CONTACTS", "END_DATE", "C", "status <> 'X' AND end_date IS NOT NULL", "CK_STATUS", "Y", "ENABLED"},
 				// User-written single-column checks on nullable columns: kept.
-				{"CONTACTS", "NICK", "C", "nick IS NOT NULL", "CK_NICK", "Y"},
-				{"CONTACTS", "CODE", "C", `"CODE" IS NOT NULL`, "CK_CODE", "Y"},
+				{"CONTACTS", "NICK", "C", "nick IS NOT NULL", "CK_NICK", "Y", "ENABLED"},
+				{"CONTACTS", "CODE", "C", `"CODE" IS NOT NULL`, "CK_CODE", "Y", "ENABLED"},
 				// Unrelated check on a NOT NULL column: kept.
-				{"CONTACTS", "AGE", "C", "age > 0", "CK_AGE", "N"},
+				{"CONTACTS", "AGE", "C", "age > 0", "CK_AGE", "N", "ENABLED"},
 			},
 		},
 	}
@@ -548,18 +563,24 @@ func TestGetForeignKeysBatchComposite(t *testing.T) {
 			B.table_name AS ref_table, 
 			A.column_name AS col_name,
 			B.column_name AS ref_col_name,
-			A.constraint_name AS name
+			A.constraint_name AS name,
+			C.delete_rule,
+			C.deferrable,
+			C.status
 		FROM all_cons_columns A 
 		JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
 		JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name AND B.position = A.position
 		WHERE A.owner = :1 AND A.table_name IN (:2)
 		ORDER BY A.table_name, A.constraint_name, A.position`),
 			args: []driver.Value{"TESTDB", "CHILD"},
-			cols: []string{"table_name", "ref_table", "col_name", "ref_col_name", "name"},
+			cols: []string{"table_name", "ref_table", "col_name", "ref_col_name", "name", "delete_rule", "deferrable", "status"},
 			rows: [][]driver.Value{
-				{"CHILD", "PARENT", "REGION_ID", "REGION_ID", "CHILD_FK"},
-				{"CHILD", "PARENT", "ITEM_ID", "ITEM_ID", "CHILD_FK"},
-				{"CHILD", "OTHER", "OTHER_ID", "ID", "CHILD_OTHER_FK"},
+				{"CHILD", "PARENT", "REGION_ID", "REGION_ID", "CHILD_FK", "CASCADE", "NOT DEFERRABLE", "ENABLED"},
+				{"CHILD", "PARENT", "ITEM_ID", "ITEM_ID", "CHILD_FK", "CASCADE", "NOT DEFERRABLE", "ENABLED"},
+				{"CHILD", "OTHER", "OTHER_ID", "ID", "CHILD_OTHER_FK", "SET NULL", "DEFERRABLE", "ENABLED"},
+				{"CHILD", "DEFAULT_REF", "DEF_ID", "ID", "CHILD_NULL_RULE_FK", nil, "NOT DEFERRABLE", "ENABLED"},
+				{"CHILD", "DISABLED_REF", "DIS_A", "A", "CHILD_DISABLED_FK", "NO ACTION", "NOT DEFERRABLE", "DISABLED"},
+				{"CHILD", "DISABLED_REF", "DIS_B", "B", "CHILD_DISABLED_FK", "NO ACTION", "NOT DEFERRABLE", "DISABLED"},
 			},
 		},
 	}
@@ -572,12 +593,22 @@ func TestGetForeignKeysBatchComposite(t *testing.T) {
 	for _, fk := range result["CHILD"].ForeignKeys {
 		fks[fk.Name] = fk
 	}
-	assert.Equal(t, 2, len(fks))
+	assert.Equal(t, 3, len(fks))
 	assert.Equal(t, []string{"REGION_ID", "ITEM_ID"}, fks["CHILD_FK"].ColumnNames)
 	assert.Equal(t, []string{"REGION_ID", "ITEM_ID"}, fks["CHILD_FK"].ReferColumnNames)
 	assert.Equal(t, "PARENT", fks["CHILD_FK"].ReferTableName)
+	assert.Equal(t, constants.FK_CASCADE, fks["CHILD_FK"].OnDelete)
+	assert.Equal(t, constants.FK_NO_ACTION, fks["CHILD_FK"].OnUpdate)
+	assert.False(t, fks["CHILD_FK"].IsDeferrable)
+
 	assert.Equal(t, []string{"OTHER_ID"}, fks["CHILD_OTHER_FK"].ColumnNames)
 	assert.Equal(t, []string{"ID"}, fks["CHILD_OTHER_FK"].ReferColumnNames)
+	assert.Equal(t, constants.FK_SET_NULL, fks["CHILD_OTHER_FK"].OnDelete)
+	assert.Equal(t, constants.FK_NO_ACTION, fks["CHILD_OTHER_FK"].OnUpdate)
+	assert.True(t, fks["CHILD_OTHER_FK"].IsDeferrable)
+
+	assert.Equal(t, constants.FK_NO_ACTION, fks["CHILD_NULL_RULE_FK"].OnDelete)
+	assert.Equal(t, []string{"CHILD_DISABLED_FK"}, result["CHILD"].DisabledForeignKeys)
 }
 
 func TestGetIndexesBatchExpressions(t *testing.T) {
@@ -590,11 +621,19 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 			IC.descend,
 			I.uniqueness,
 			IE.column_expression,
-			I.index_type
+			I.index_type,
+			CASE
+				WHEN I.status = 'N/A'
+					AND NOT EXISTS (SELECT 1 FROM all_ind_partitions IP WHERE IP.index_owner = I.owner AND IP.index_name = I.index_name AND IP.status = 'USABLE')
+					AND NOT EXISTS (SELECT 1 FROM all_ind_subpartitions ISP WHERE ISP.index_owner = I.owner AND ISP.index_name = I.index_name AND ISP.status = 'USABLE')
+				THEN 'UNUSABLE'
+				ELSE I.status
+			END AS status,
+			I.funcidx_status
 		FROM all_ind_columns IC 
 		LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position = IE.column_position AND IC.index_owner = IE.index_owner
-		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.table_owner = IC.index_owner
-		WHERE IC.index_owner = :1 AND IC.table_name IN (:2)
+		LEFT JOIN all_indexes I ON IC.index_name = I.index_name AND I.owner = IC.index_owner
+		WHERE IC.index_owner = :1 AND IC.table_owner = IC.index_owner AND IC.table_name IN (:2)
 		AND NOT EXISTS (
 			SELECT 1 FROM all_nested_tables NT
 			WHERE NT.owner = IC.table_owner AND NT.parent_table_name = IC.table_name
@@ -614,16 +653,23 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 					AND CC.position = X.column_position AND CC.column_name = X.column_name)))
 		ORDER BY IC.table_name, IC.index_name, IC.column_position`),
 			args: []driver.Value{"TESTDB", "VCOLS"},
-			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type"},
+			cols: []string{"table_name", "index_name", "column_name", "descend", "uniqueness", "column_expression", "index_type", "status", "funcidx_status"},
 			rows: [][]driver.Value{
-				{"VCOLS", "IDX_NORM", "QTY", "ASC", "NONUNIQUE", nil, "NORMAL"},
-				{"VCOLS", "IDX_DESC", "SYS_NC00012$", "DESC", "NONUNIQUE", `"FIRST_NAME"`, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_DESC", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_VCOL", "TOTAL", "ASC", "NONUNIQUE", `"PRICE"*"QTY"`, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_FUNC", "SYS_NC00014$", "ASC", "NONUNIQUE", `LOWER("LAST_NAME")`, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_ARITH", "SYS_NC00013$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_MIXED", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL"},
-				{"VCOLS", "IDX_MIXED", "SYS_NC00015$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL"},
+				{"VCOLS", "IDX_NORM", "QTY", "ASC", "NONUNIQUE", nil, "NORMAL", "VALID", nil},
+				{"VCOLS", "IDX_DESC", "SYS_NC00012$", "DESC", "NONUNIQUE", `"FIRST_NAME"`, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_DESC", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_VCOL", "TOTAL", "ASC", "NONUNIQUE", `"PRICE"*"QTY"`, "FUNCTION-BASED NORMAL", "N/A", "ENABLED"},
+				{"VCOLS", "IDX_FUNC", "SYS_NC00014$", "ASC", "NONUNIQUE", `LOWER("LAST_NAME")`, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_ARITH", "SYS_NC00013$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_MIXED", "QTY", "ASC", "NONUNIQUE", nil, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_MIXED", "SYS_NC00015$", "ASC", "NONUNIQUE", `"PRICE"+"QTY"`, "FUNCTION-BASED NORMAL", "VALID", "ENABLED"},
+				{"VCOLS", "IDX_UNUSABLE", "FIRST_NAME", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
+				{"VCOLS", "IDX_UNUSABLE", "LAST_NAME", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
+				{"VCOLS", "IDX_DESC_DISABLED", "SYS_NC00016$", "DESC", "NONUNIQUE", `"LAST_NAME"`, "FUNCTION-BASED NORMAL", "VALID", "DISABLED"},
+				// Partitioned index with no USABLE partition: the query reports its 'N/A' status as UNUSABLE.
+				{"VCOLS", "IDX_PART_UNUSABLE", "QTY", "ASC", "NONUNIQUE", nil, "NORMAL", "UNUSABLE", nil},
+				// Partitioned index with at least one USABLE partition keeps its 'N/A' status and is migrated.
+				{"VCOLS", "IDX_PART_USABLE", "PRICE", "ASC", "NONUNIQUE", nil, "NORMAL", "N/A", nil},
 			},
 		},
 	}
@@ -649,13 +695,15 @@ func TestGetIndexesBatchExpressions(t *testing.T) {
 	assert.Nil(t, err)
 
 	byName := map[string]schema.Index{}
-	for _, idx := range result["VCOLS"] {
+	for _, idx := range result["VCOLS"].Indexes {
 		byName[idx.Name] = idx
 	}
-	assert.Equal(t, 3, len(byName))
+	assert.Equal(t, 4, len(byName))
 	assert.Equal(t, []schema.Key{{ColId: "c4", Desc: false}}, byName["IDX_NORM"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c1", Desc: true}, {ColId: "c4", Desc: false}}, byName["IDX_DESC"].Keys)
 	assert.Equal(t, []schema.Key{{ColId: "c5", Desc: false}}, byName["IDX_VCOL"].Keys)
+	assert.Equal(t, []schema.Key{{ColId: "c3", Desc: false}}, byName["IDX_PART_USABLE"].Keys)
+	assert.Equal(t, []string{"IDX_UNUSABLE", "IDX_DESC_DISABLED", "IDX_PART_UNUSABLE"}, result["VCOLS"].DisabledIndexes)
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_FUNC on table VCOLS"])
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_ARITH on table VCOLS"])
 	assert.Equal(t, int64(1), conv.Stats.Unexpected["Skipping function-based index IDX_MIXED on table VCOLS"])
@@ -668,17 +716,21 @@ func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
 			t.constraint_type,
 			t.search_condition,
 			t.constraint_name,
-			c.nullable
+			c.nullable,
+			t.status
 		FROM all_constraints t
 		INNER JOIN all_cons_columns k
 		ON (k.constraint_name = t.constraint_name AND k.owner = t.owner AND k.table_name = t.table_name)
 		LEFT JOIN all_tab_cols c
 		ON (c.owner = k.owner AND c.table_name = k.table_name AND c.column_name = k.column_name)
 		WHERE t.owner = :1 AND k.table_name IN (:2)
-		ORDER BY k.table_name, k.position`)
+		ORDER BY k.table_name, k.position, t.constraint_name`)
 	rows := [][]driver.Value{
-		{"ORDERS", "QTY", "C", `"QTY" > 0`, "CK_QTY", "Y"},
-		{"ORDERS", "STATUS", "C", `"STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s'`, "CK_STATUS", "Y"},
+		{"ORDERS", "QTY", "C", `"QTY" > 0`, "CK_QTY", "Y", "ENABLED"},
+		{"ORDERS", "STATUS", "C", `"STATUS" IN ('A', 'B') AND "NOTE" <> 'it''s'`, "CK_STATUS", "Y", "ENABLED"},
+		{"ORDERS", "START_DT", "C", `"END_DT" > "START_DT"`, "CK_DATES_DISABLED", "Y", "DISABLED"},
+		{"ORDERS", "END_DT", "C", `"END_DT" > "START_DT"`, "CK_DATES_DISABLED", "Y", "DISABLED"},
+		{"ORDERS", "DOC", "C", `"DOC" IS JSON`, "CK_DOC_JSON_DISABLED", "Y", "DISABLED"},
 	}
 
 	for _, tc := range []struct {
@@ -701,7 +753,7 @@ func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
 			db := mkMockDB(t, []mockSpec{{
 				query: query,
 				args:  []driver.Value{"TESTDB", "ORDERS"},
-				cols:  []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable"},
+				cols:  []string{"table_name", "column_name", "constraint_type", "search_condition", "constraint_name", "nullable", "status"},
 				rows:  rows,
 			}})
 			defer db.Close()
@@ -712,12 +764,16 @@ func TestGetConstraintsBatchCheckExpressions(t *testing.T) {
 			res, err := isi.GetConstraintsBatch(conv, []common.SchemaAndName{{Schema: "TESTDB", Name: "ORDERS"}})
 			assert.Nil(t, err)
 
-			byName := map[string]string{}
+			byName := map[string]schema.CheckConstraint{}
 			for _, ck := range res["ORDERS"].CheckConstraints {
-				byName[ck.Name] = ck.Expr
+				byName[ck.Name] = ck
 			}
-			assert.Equal(t, tc.expectedQty, byName["CK_QTY"])
-			assert.Equal(t, tc.expectedStat, byName["CK_STATUS"])
+			assert.Equal(t, 2, len(byName))
+			assert.Equal(t, tc.expectedQty, byName["CK_QTY"].Expr)
+			assert.Equal(t, tc.expectedStat, byName["CK_STATUS"].Expr)
+			assert.Equal(t, []string{"CK_DATES_DISABLED", "CK_DOC_JSON_DISABLED"}, res["ORDERS"].DisabledCheckConstraints)
+			// A disabled IS JSON check must not mark the column as JSON.
+			assert.NotContains(t, res["ORDERS"].ColumnConstraints["DOC"], "J")
 		})
 	}
 }

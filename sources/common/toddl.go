@@ -508,6 +508,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	if len(conv.NonPublicRefs[srcTable.Name]) > 0 {
 		tableLevelIssues = append(tableLevelIssues, internal.NonPublicSchemaRef)
 	}
+	for range srcTable.DisabledForeignKeys {
+		tableLevelIssues = append(tableLevelIssues, internal.DisabledObjectSkipped)
+	}
+	for range srcTable.DisabledCheckConstraints {
+		tableLevelIssues = append(tableLevelIssues, internal.DisabledObjectSkipped)
+	}
+	for range srcTable.DisabledIndexes {
+		tableLevelIssues = append(tableLevelIssues, internal.DisabledObjectSkipped)
+	}
 	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,
@@ -619,6 +628,17 @@ func cvtPrimaryKeys(srcKeys []schema.Key) []ddl.IndexKey {
 	return spKeys
 }
 
+func appendTableLevelIssue(conv *internal.Conv, tableId string, issue internal.SchemaIssue) {
+	if conv.SchemaIssues == nil {
+		conv.SchemaIssues = make(map[string]internal.TableIssues)
+	}
+	tableIssues := conv.SchemaIssues[tableId]
+	conv.SchemaIssues[tableId] = internal.TableIssues{
+		TableLevelIssues:  append(tableIssues.TableLevelIssues, issue),
+		ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+	}
+}
+
 func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
@@ -672,6 +692,9 @@ func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId st
 	spKeyName := internal.ToSpannerForeignKey(conv, srcKey.Name)
 	spDeleteRule := internal.ToSpannerOnDelete(conv, srcTableId, srcKey.OnDelete)
 	spUpdateRule := internal.ToSpannerOnUpdate(conv, srcTableId, srcKey.OnUpdate)
+	if srcKey.IsDeferrable {
+		appendTableLevelIssue(conv, srcTableId, internal.ForeignKeyDeferrableNotSupported)
+	}
 
 	spKey := ddl.Foreignkey{
 		Name:           spKeyName,
@@ -720,8 +743,14 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 }
 
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, referTableId string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
+	existingIds := make(map[string]bool, len(spKeys))
+	for _, spKey := range spKeys {
+		if spKey.Id != "" {
+			existingIds[spKey.Id] = true
+		}
+	}
 	for _, key := range srcKeys {
-		if key.ReferTableId == referTableId {
+		if key.ReferTableId == referTableId && (key.Id == "" || !existingIds[key.Id]) {
 			spKey, err := CvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, key, true)
 			if err != nil {
 				continue
@@ -729,6 +758,9 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, refer
 
 			spKey.Id = key.Id
 			spKeys = append(spKeys, spKey)
+			if key.Id != "" {
+				existingIds[key.Id] = true
+			}
 		}
 	}
 	return spKeys

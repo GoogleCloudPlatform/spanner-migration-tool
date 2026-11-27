@@ -16,10 +16,14 @@ package helpers
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSourceDatabaseFromDriver(t *testing.T) {
@@ -92,4 +96,101 @@ func TestGetSourceDatabaseFromDriver(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateUploadFilename(t *testing.T) {
+	validCases := []string{
+		"valid.sql",
+		"nonexistent.sql",
+		"my dump (1).sql",
+		".hidden.json",
+		"backup..2026.sql",
+		"..leading.sql",
+	}
+	for _, filename := range validCases {
+		t.Run("valid/"+filename, func(t *testing.T) {
+			assert.NoError(t, ValidateUploadFilename(filename))
+		})
+	}
+
+	invalidCases := []struct {
+		name     string
+		filename string
+	}{
+		{name: "empty", filename: ""},
+		{name: "dot", filename: "."},
+		{name: "dotdot", filename: ".."},
+		{name: "parent traversal", filename: "../secret.txt"},
+		{name: "deep traversal", filename: "../../../../etc/passwd"},
+		{name: "absolute path", filename: "/etc/passwd"},
+		{name: "subdirectory slash", filename: "sub/file.sql"},
+		{name: "backslash separator", filename: `sub\file.sql`},
+		{name: "windows traversal", filename: `..\..\etc\passwd`},
+		{name: "embedded traversal", filename: "foo/../valid.sql"},
+		{name: "trailing traversal", filename: "foo/.."},
+		{name: "null byte", filename: "valid.sql\x00.txt"},
+	}
+	for _, tc := range invalidCases {
+		t.Run("invalid/"+tc.name, func(t *testing.T) {
+			err := ValidateUploadFilename(tc.filename)
+			assert.ErrorIs(t, err, ErrInvalidUploadPath)
+		})
+	}
+}
+
+func TestOpenUploadFile(t *testing.T) {
+	t.Run("missing upload directory returns ErrNotExist", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		f, err := OpenUploadFile("valid.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+		assert.NotErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	uploadDir := filepath.Join(tmpDir, constants.UPLOAD_FILE_DIR)
+	require.NoError(t, os.MkdirAll(uploadDir, os.ModePerm))
+
+	outsideFile := filepath.Join(tmpDir, "secret.txt")
+	require.NoError(t, os.WriteFile(outsideFile, []byte("SECRET_DATA"), 0600))
+
+	require.NoError(t, os.WriteFile(filepath.Join(uploadDir, "valid.sql"), []byte("SELECT 1;"), 0600))
+	require.NoError(t, os.Symlink(outsideFile, filepath.Join(uploadDir, "symlink.sql")))
+	require.NoError(t, os.MkdirAll(filepath.Join(uploadDir, "subdir"), os.ModePerm))
+
+	t.Run("valid regular file opens cleanly", func(t *testing.T) {
+		f, err := OpenUploadFile("valid.sql")
+		require.NoError(t, err)
+		defer f.Close()
+		data, err := io.ReadAll(f)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT 1;", string(data))
+	})
+
+	t.Run("missing file returns ErrNotExist", func(t *testing.T) {
+		f, err := OpenUploadFile("missing.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+		assert.NotErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("traversal rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("../secret.txt")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("symlink inside upload dir rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("symlink.sql")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
+
+	t.Run("directory inside upload dir rejected with ErrInvalidUploadPath", func(t *testing.T) {
+		f, err := OpenUploadFile("subdir")
+		assert.Nil(t, f)
+		assert.ErrorIs(t, err, ErrInvalidUploadPath)
+	})
 }
