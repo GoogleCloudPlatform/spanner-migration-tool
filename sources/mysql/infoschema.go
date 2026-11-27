@@ -580,7 +580,7 @@ func buildForeignKeys(fKeys map[string]map[string]common.FkConstraint) map[strin
 }
 
 // GetIndexesBatch returns a list of all indexes for the specified batch of tables.
-func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string][]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.SchemaAndName, colDefs map[string]common.TableColumns) (map[string]common.TableIndexes, error) {
 	if len(tables) == 0 {
 		return nil, nil
 	}
@@ -654,12 +654,14 @@ func (isi InfoSchemaImpl) GetIndexesBatch(conv *internal.Conv, tables []common.S
 	return buildIndexes(indexNames, indexMap), nil
 }
 
-func buildIndexes(indexNames map[string][]string, indexMap map[string]map[string]schema.Index) map[string][]schema.Index {
-	indexes := make(map[string][]schema.Index)
+func buildIndexes(indexNames map[string][]string, indexMap map[string]map[string]schema.Index) map[string]common.TableIndexes {
+	indexes := make(map[string]common.TableIndexes)
 	for tName, names := range indexNames {
+		var tblIndexes []schema.Index
 		for _, k := range names {
-			indexes[tName] = append(indexes[tName], indexMap[tName][k])
+			tblIndexes = append(tblIndexes, indexMap[tName][k])
 		}
+		indexes[tName] = common.TableIndexes{Indexes: tblIndexes}
 	}
 	return indexes
 }

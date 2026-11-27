@@ -384,3 +384,24 @@ func TestConvertData_GeneratedColumn(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, cols)
 	assert.Equal(t, []interface{}{int64(10), int64(20)}, vals)
 }
+
+func TestConvRowVersion(t *testing.T) {
+	conv := internal.MakeConv()
+	// SQL Server reads rowversion 0x00000000000007D1 as 2001 (CAST ... AS BIGINT).
+	for _, srcType := range []string{"timestamp", "rowversion"} {
+		v, err := convScalar(conv, ddl.Type{Name: ddl.Bytes, Len: 8}, srcType, "", "2001")
+		assert.Nil(t, err, srcType)
+		assert.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0x07, 0xd1}, v, srcType)
+	}
+	// Values with the top bit set come back as negative BIGINTs.
+	v, err := convScalar(conv, ddl.Type{Name: ddl.Bytes, Len: 8}, "timestamp", "", "-1")
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, v)
+	// Other source types keep the existing string-to-bytes conversion.
+	v, err = convScalar(conv, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "varbinary", "", "2001")
+	assert.Nil(t, err)
+	assert.Equal(t, []byte("2001"), v)
+	// A value that is not a number is an error.
+	_, err = convScalar(conv, ddl.Type{Name: ddl.Bytes, Len: 8}, "timestamp", "", "abc")
+	assert.NotNil(t, err)
+}
