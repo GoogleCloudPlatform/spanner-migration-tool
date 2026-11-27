@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ func TestBatchedIssuesListAllColumns(t *testing.T) {
 		{
 			name:     "Time mixed types",
 			cols:     []testCol{{"t3", timeType, strMax, internal.Time}, {"y1", yearType, strMax, internal.Time}},
-			expected: []string{"Table 'events': Columns 't3' (time to string(max)), 'y1' (year to string(max)). Spanner does not support time/year types"},
+			expected: []string{"Table 'events': Columns 't3' (time mapped to string(max)), 'y1' (year mapped to string(max)). Spanner does not support time/year types"},
 		},
 		{
 			name:     "Time single column",
@@ -96,7 +96,12 @@ func TestBatchedIssuesListAllColumns(t *testing.T) {
 		{
 			name:     "Widened mixed types",
 			cols:     []testCol{{"a", intType, int64Type, internal.Widened}, {"b", smallintType, int64Type, internal.Widened}},
-			expected: []string{"Table 'events': Some columns will consume more storage in Spanner: columns 'a' (int to int64), 'b' (smallint to int64)"},
+			expected: []string{"Table 'events': Some columns will consume more storage in Spanner: columns 'a' (int mapped to int64), 'b' (smallint mapped to int64)"},
+		},
+		{
+			name:     "Widened source types containing TO (#1562)",
+			cols:     []testCol{{"DS", schema.Type{Name: "INTERVAL DAY(3) TO SECOND(2)"}, strMax, internal.Widened}, {"YM", schema.Type{Name: "INTERVAL YEAR(4) TO MONTH"}, strMax, internal.Widened}},
+			expected: []string{"Table 'events': Some columns will consume more storage in Spanner: columns 'DS' (INTERVAL DAY(3) TO SECOND(2) mapped to string(max)), 'YM' (INTERVAL YEAR(4) TO MONTH mapped to string(max))"},
 		},
 		{
 			name:     "Datetime same types",
@@ -106,7 +111,7 @@ func TestBatchedIssuesListAllColumns(t *testing.T) {
 		{
 			name:     "Datetime mixed types",
 			cols:     []testCol{{"d1", datetime2, tsType, internal.Datetime}, {"d2", smalldatetime, tsType, internal.Datetime}},
-			expected: []string{"Some columns have a source DB type without a time zone in table 'events': columns 'd1' (datetime2 to timestamp), 'd2' (smalldatetime to timestamp). " + IssueDB[internal.Datetime].Brief},
+			expected: []string{"Some columns have a source DB type without a time zone in table 'events': columns 'd1' (datetime2 mapped to timestamp), 'd2' (smalldatetime mapped to timestamp). " + IssueDB[internal.Datetime].Brief},
 		},
 		{
 			name:     "Timestamp",

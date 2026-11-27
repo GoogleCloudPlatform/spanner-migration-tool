@@ -33,7 +33,7 @@ Data conversion: OK (94% of 1000 rows written to Spanner).
 
 Warnings
 1) Table 'bad_schema': Some columns will consume more storage in Spanner: columns
-   'b' (int4 to int64), 'c' (int4[4][2] to string(max)).
+   'b' (int4 mapped to int64), 'c' (int4[4][2] mapped to string(max)).
 2) Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max).
    Spanner doesn't support multi-dimensional arrays.
 3) Table 'bad_schema': Column 'd', type circle is mapped to string(max). No

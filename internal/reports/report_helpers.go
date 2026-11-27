@@ -173,7 +173,8 @@ const maxBatchedCols = 10
 
 // describeBatchedCols lists the columns of a batched issue, e.g.
 // "columns 'a', 'b' of type int are mapped to int64", or
-// "columns 'a' (int to int64), 'b' (smallint to int64)" when the types differ.
+// "columns 'a' (int mapped to int64), 'b' (smallint mapped to int64)" when the
+// types differ.
 // Without types it lists names only: "columns 'a', 'b'".
 // Only the first maxBatchedCols columns are listed, followed by "and N more".
 func describeBatchedCols(cols []batchedCol, withTypes bool) string {
@@ -190,7 +191,7 @@ func describeBatchedCols(cols []batchedCol, withTypes bool) string {
 		}
 		name := fmt.Sprintf("'%s'", c.name)
 		if withTypes && !sameTypes {
-			name = fmt.Sprintf("%s (%s to %s)", name, c.srcType, c.spType)
+			name = fmt.Sprintf("%s (%s mapped to %s)", name, c.srcType, c.spType)
 		}
 		names = append(names, name)
 	}
