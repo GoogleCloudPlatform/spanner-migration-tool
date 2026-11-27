@@ -676,7 +676,10 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			COL_NAME(IX.object_id, IXC.column_id) as [Column Name],
 			IX.is_unique,
 			IXC.is_descending_key,
-			IXC.is_included_column
+			IXC.is_included_column,
+			IX.type_desc,
+			IX.is_disabled,
+			IX.filter_definition
 		FROM sys.indexes IX 
 		INNER JOIN sys.index_columns IXC 
 			ON  IX.object_id = IXC.object_id AND IX.index_id = IXC.index_id
@@ -687,7 +690,8 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			AND TAB.is_ms_shipped = 0   
 			AND TAB.name=@p1
 			AND TAB.schema_id = SCHEMA_ID(@p2)
-			AND IX.type IN (1, 2)
+			AND IX.type NOT IN (0, 5)      -- 0: heap, 5: clustered columnstore (table storage, not a secondary index)
+			AND IX.is_hypothetical = 0     -- hypothetical indexes (e.g. left by the Database Engine Tuning Advisor) hold no data
 		ORDER BY IX.name, IXC.is_included_column, IXC.key_ordinal, IXC.index_column_id;
 	`
 	rows, err := isi.Db.Query(q2, table.Name, table.Schema)
@@ -695,16 +699,21 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, isUnique, collation, isStored string
+	var name, column, isUnique, collation, isStored, typeDesc, isDisabled string
+	var filterDefinition sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
-	// Indexes that reference a column not present in colNameIdMap (e.g. a HIDDEN
-	// temporal period column filtered out by GetColumns) cannot be expressed in
-	// Spanner and are skipped as a whole.
+	// Indexes that cannot be expressed in Spanner are skipped as a whole:
+	//   - an index of a type other than a row-store B-tree (XML, spatial,
+	//     columnstore, hash; full-text indexes are reported separately by
+	//     reportFullTextIndex),
+	//   - an index that is disabled in the source,
+	//   - an index that references a column not present in colNameIdMap (e.g. a
+	//     HIDDEN temporal period column filtered out by GetColumns).
 	skipped := make(map[string]bool)
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored); err != nil {
+		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored, &typeDesc, &isDisabled, &filterDefinition); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
@@ -715,6 +724,27 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
 				Unique: (isUnique == "true" || isUnique == "1")}
+			// The checks below depend only on the index, so they run once per
+			// index, on its first row. Each one is reported in the conversion
+			// report, since the Spanner schema differs from the source.
+			filter := strings.TrimSpace(filterDefinition.String)
+			switch {
+			case !isRowStoreIndexType(typeDesc):
+				skipped[name] = true
+				conv.Unexpected(fmt.Sprintf("Skipping index %s on table %s.%s: index type %s has no Spanner equivalent", name, table.Schema, table.Name, strings.ToUpper(strings.TrimSpace(typeDesc))))
+			case isDisabled == "true" || isDisabled == "1":
+				skipped[name] = true
+				conv.Unexpected(fmt.Sprintf("Skipping index %s on table %s.%s: it is disabled in the source database", name, table.Schema, table.Name))
+			case filterDefinition.Valid && filter != "":
+				msg := fmt.Sprintf("Index %s on table %s.%s has the filter %s, which is not migrated: the Spanner index covers all rows", name, table.Schema, table.Name, filter)
+				if indexMap[name].Unique {
+					msg += ", so as a unique index it can reject rows that the source allowed"
+				}
+				conv.Unexpected(msg)
+			}
+		}
+		if skipped[name] {
+			continue
 		}
 		colId, ok := colNameIdMap[column]
 		if !ok || colId == "" {
@@ -740,7 +770,35 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 		indexes = append(indexes, indexMap[k])
 	}
+	isi.reportFullTextIndex(conv, table)
 	return indexes, nil
+}
+
+// reportFullTextIndex reports the table's full-text index, if any, as skipped.
+// SQL Server keeps full-text indexes in sys.fulltext_indexes, not in
+// sys.indexes, and a table has at most one. Spanner has no equivalent index
+// type, so it is not migrated.
+func (isi InfoSchemaImpl) reportFullTextIndex(conv *internal.Conv, table common.SchemaAndName) {
+	q := `SELECT COUNT(*) FROM sys.fulltext_indexes WHERE object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2));`
+	var count int64
+	if err := isi.Db.QueryRow(q, table.Schema, table.Name).Scan(&count); err != nil {
+		logger.Log.Warn(fmt.Sprintf("Couldn't check for a full-text index on table %s.%s: %v", table.Schema, table.Name, err))
+		return
+	}
+	if count > 0 {
+		conv.Unexpected(fmt.Sprintf("Skipping the full-text index on table %s.%s: index type FULLTEXT has no Spanner equivalent", table.Schema, table.Name))
+	}
+}
+
+// isRowStoreIndexType reports whether sys.indexes.type_desc names a row-store
+// B-tree index (CLUSTERED or NONCLUSTERED), the only kind that maps to a
+// Spanner secondary index.
+func isRowStoreIndexType(typeDesc string) bool {
+	switch strings.ToUpper(strings.TrimSpace(typeDesc)) {
+	case "CLUSTERED", "NONCLUSTERED":
+		return true
+	}
+	return false
 }
 
 func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

@@ -15,6 +15,8 @@
 package internal
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -282,5 +284,30 @@ func TestAddPrimaryKeys(t *testing.T) {
 			AssertSpSchema(conv, t, tc.expectedSchema, conv.SpSchema)
 			assert.Equal(t, tc.syntheticKey, conv.SpSchema["t1"].ColDefs[conv.SyntheticPKeys["t1"].ColId].Name)
 		}
+	}
+}
+
+// Schema workers process tables in parallel and can all record unexpected
+// conditions at once; conv.Unexpected must not race on the stats map.
+func TestUnexpected_Concurrent(t *testing.T) {
+	conv := MakeConv()
+	const workers, calls = 20, 200
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < calls; i++ {
+				conv.Unexpected("shared condition")
+				conv.Unexpected(fmt.Sprintf("worker %d condition", w))
+				_ = conv.Unexpecteds()
+			}
+		}(w)
+	}
+	wg.Wait()
+	assert.Equal(t, int64(workers+1), conv.Unexpecteds())
+	assert.Equal(t, int64(workers*calls), conv.Stats.Unexpected["shared condition"])
+	for w := 0; w < workers; w++ {
+		assert.Equal(t, int64(calls), conv.Stats.Unexpected[fmt.Sprintf("worker %d condition", w)])
 	}
 }

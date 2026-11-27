@@ -51,6 +51,7 @@ type Conv struct {
 	Rules                  []Rule                  // Stores applied rules during schema conversion
 	IsSharded              bool                    // Flag denoting if the migration is sharded or not
 	ConvLock               sync.RWMutex            `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
+	unexpectedLock         sync.Mutex              // Guards Stats.Unexpected, which schema workers update in parallel. Separate from ConvLock, which web API handlers hold while calling code that records unexpected conditions.
 	SpRegion               string                  // Leader Region for Spanner Instance
 	ResourceValidation     bool                    // Flag denoting if validation for resources to generated is complete
 	UI                     bool                    // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
@@ -421,6 +422,8 @@ func (conv *Conv) StatementErrors() int64 {
 // Unexpecteds returns the total number of distinct unexpected conditions
 // encountered during processing.
 func (conv *Conv) Unexpecteds() int64 {
+	conv.unexpectedLock.Lock()
+	defer conv.unexpectedLock.Unlock()
 	return int64(len(conv.Stats.Unexpected))
 }
 
@@ -556,10 +559,14 @@ func UniqueColumnName(colDefs map[string]ddl.ColumnDef, base string) string {
 // that were not expected. Note that the counts maybe not
 // be completely reliable due to potential double-counting
 // because we process dump data twice.
+// It is safe to call from concurrent goroutines (e.g. the parallel
+// per-table schema workers).
 func (conv *Conv) Unexpected(u string) {
 	VerbosePrintf("Unexpected condition: %s\n", u)
 	logger.Log.Debug("Unexpected condition", zap.String("condition", u))
 
+	conv.unexpectedLock.Lock()
+	defer conv.unexpectedLock.Unlock()
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
 	if _, ok := conv.Stats.Unexpected[u]; ok || len(conv.Stats.Unexpected) < 1000 {

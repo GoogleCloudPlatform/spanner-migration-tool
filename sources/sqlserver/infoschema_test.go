@@ -100,6 +100,12 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		},
 		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "user"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -173,6 +179,12 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"test", "dbo"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "test"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -217,13 +229,19 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"cart", "dbo"},
-			cols:  []string{"index_name", "column_name", "is_unique", "order", "is_included_column"},
-			rows: [][]driver.Value{{"index1", "userid", "false", "ASC", "false"},
-				{"index2", "userid", "true", "ASC", "false"},
-				{"index2", "productid", "true", "DESC", "true"},
-				{"index3", "productid", "true", "DESC", "false"},
-				{"index3", "userid", "true", "ASC", "false"},
+			cols:  []string{"index_name", "column_name", "is_unique", "order", "is_included_column", "type_desc", "is_disabled", "filter_definition"},
+			rows: [][]driver.Value{{"index1", "userid", "false", "ASC", "false", "NONCLUSTERED", "false", nil},
+				{"index2", "userid", "true", "ASC", "false", "NONCLUSTERED", "false", nil},
+				{"index2", "productid", "true", "DESC", "true", "NONCLUSTERED", "false", nil},
+				{"index3", "productid", "true", "DESC", "false", "NONCLUSTERED", "false", nil},
+				{"index3", "userid", "true", "ASC", "false", "NONCLUSTERED", "false", nil},
 			},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
 		},
 
 		{
@@ -263,6 +281,12 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"product", "production"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"production", "product"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
 		},
 
 		{
@@ -304,6 +328,12 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"test_ref", "dbo"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "test_ref"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -714,24 +744,30 @@ func TestGetIndexes_UniqueAndBitDescAndEmptyKeys(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"order_table", "dbo"},
-			cols:  []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column"},
+			cols:  []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column", "IX.type_desc", "IX.is_disabled", "IX.filter_definition"},
 			rows: [][]driver.Value{
 				// Index with bit "1" for unique and "1" for desc
-				{"ix_desc_numeric", "amount", "1", "1", "0"},
+				{"ix_desc_numeric", "amount", "1", "1", "0", "NONCLUSTERED", "0", nil},
 				// Index with boolean strings "true" and "false"
-				{"ix_composite", "cust_id", "false", "false", "0"},
-				{"ix_composite", "order_date", "false", "true", "0"},
-				{"ix_composite", "extra_info", "false", "false", "1"}, // stored column
+				{"ix_composite", "cust_id", "false", "false", "0", "NONCLUSTERED", "0", nil},
+				{"ix_composite", "order_date", "false", "true", "0", "NONCLUSTERED", "0", nil},
+				{"ix_composite", "extra_info", "false", "false", "1", "NONCLUSTERED", "0", nil}, // stored column
 				// Index with only stored columns and 0 key columns (should be skipped)
-				{"ix_stored_only", "extra_info", "false", "false", "1"},
+				{"ix_stored_only", "extra_info", "false", "false", "1", "NONCLUSTERED", "0", nil},
 				// Indexes referencing a column absent from colNameIdMap (e.g. a HIDDEN
 				// temporal period column) are skipped as a whole, whether the missing
 				// column is a key or a stored column.
-				{"ix_hidden_key", "cust_id", "false", "false", "0"},
-				{"ix_hidden_key", "SysStartTime", "false", "false", "0"},
-				{"ix_hidden_stored", "amount", "false", "false", "0"},
-				{"ix_hidden_stored", "SysEndTime", "false", "false", "1"},
+				{"ix_hidden_key", "cust_id", "false", "false", "0", "NONCLUSTERED", "0", nil},
+				{"ix_hidden_key", "SysStartTime", "false", "false", "0", "NONCLUSTERED", "0", nil},
+				{"ix_hidden_stored", "amount", "false", "false", "0", "NONCLUSTERED", "0", nil},
+				{"ix_hidden_stored", "SysEndTime", "false", "false", "1", "NONCLUSTERED", "0", nil},
 			},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "order_table"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -781,6 +817,99 @@ func TestGetSelectQuery_RowVersion(t *testing.T) {
 	}
 	q := getSelectQuery("db", "dbo", "t", []string{"c1", "c2", "c3"}, colDefs)
 	assert.Equal(t, "SELECT [id], CAST([ts] AS BIGINT) AS ts, CAST([rv] AS BIGINT) AS rv FROM [db].[dbo].[t]", q)
+}
+
+func TestGetIndexes_SkippedAndFilteredIndexes(t *testing.T) {
+	cols := []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column", "IX.type_desc", "IX.is_disabled", "IX.filter_definition"}
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"items", "dbo"},
+			cols:  cols,
+			rows: [][]driver.Value{
+				// A plain index is migrated.
+				{"ix_plain", "a", "0", "0", "0", "NONCLUSTERED", "0", nil},
+				// A clustered row-store index that is not the primary key is migrated.
+				{"ix_clustered", "b", "false", "false", "false", "CLUSTERED", "false", nil},
+				// A disabled index is skipped, whether the flag arrives as a bit or a bool.
+				{"ix_disabled_bit", "a", "0", "0", "0", "NONCLUSTERED", "1", nil},
+				{"ix_disabled_bool", "b", "0", "0", "0", "NONCLUSTERED", "true", nil},
+				// Index types with no Spanner equivalent are skipped, on every row of the index.
+				{"ix_columnstore", "a", "0", "0", "1", "NONCLUSTERED COLUMNSTORE", "0", nil},
+				{"ix_columnstore", "b", "0", "0", "1", "NONCLUSTERED COLUMNSTORE", "0", nil},
+				{"ix_xml", "doc", "0", "0", "0", "XML", "0", nil},
+				{"ix_spatial", "place", "0", "0", "0", "SPATIAL", "0", nil},
+				{"ix_hash", "a", "0", "0", "0", "NONCLUSTERED HASH", "0", nil},
+				// A filtered index is migrated without its filter, and reported.
+				{"ix_filtered", "code", "1", "0", "0", "NONCLUSTERED", "0", "([code] IS NOT NULL)"},
+				// An empty filter definition is not a filter.
+				{"ix_empty_filter", "code", "0", "0", "0", "NONCLUSTERED", "0", ""},
+			},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "items"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{1}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	colNameIdMap := map[string]string{"a": "c_a", "b": "c_b", "doc": "c_doc", "place": "c_place", "code": "c_code"}
+	indexes, err := isi.GetIndexes(conv, common.SchemaAndName{Schema: "dbo", Name: "items"}, colNameIdMap)
+	assert.NoError(t, err)
+
+	var got []string
+	for _, idx := range indexes {
+		got = append(got, idx.Name)
+		assert.NotEmpty(t, idx.Keys, idx.Name)
+	}
+	assert.Equal(t, []string{"ix_plain", "ix_clustered", "ix_filtered", "ix_empty_filter"}, got)
+	assert.True(t, indexes[2].Unique)
+
+	// Every skipped index and the dropped filter are reported, once each.
+	want := []string{
+		"Skipping index ix_disabled_bit on table dbo.items: it is disabled in the source database",
+		"Skipping index ix_disabled_bool on table dbo.items: it is disabled in the source database",
+		"Skipping index ix_columnstore on table dbo.items: index type NONCLUSTERED COLUMNSTORE has no Spanner equivalent",
+		"Skipping index ix_xml on table dbo.items: index type XML has no Spanner equivalent",
+		"Skipping index ix_spatial on table dbo.items: index type SPATIAL has no Spanner equivalent",
+		"Skipping index ix_hash on table dbo.items: index type NONCLUSTERED HASH has no Spanner equivalent",
+		"Index ix_filtered on table dbo.items has the filter ([code] IS NOT NULL), which is not migrated: the Spanner index covers all rows, so as a unique index it can reject rows that the source allowed",
+		"Skipping the full-text index on table dbo.items: index type FULLTEXT has no Spanner equivalent",
+	}
+	assert.Equal(t, int64(len(want)), conv.Unexpecteds())
+	for _, w := range want {
+		assert.Equal(t, int64(1), conv.Stats.Unexpected[w], w)
+	}
+}
+
+// Hypothetical indexes (e.g. left by the Database Engine Tuning Advisor) hold
+// no data, so the query must filter them out. The mock only matches a query
+// that has the filter.
+func TestGetIndexes_SkipsHypotheticalIndexes(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+) AND IX.is_hypothetical = 0 (.+)",
+			args:  []driver.Value{"items", "dbo"},
+			cols:  []string{"IX.name", "Column Name", "IX.is_unique", "IXC.is_descending_key", "IXC.is_included_column", "IX.type_desc", "IX.is_disabled", "IX.filter_definition"},
+			rows:  [][]driver.Value{{"ix_real", "a", "0", "0", "0", "NONCLUSTERED", "0", nil}},
+		},
+		{
+			query: "SELECT (.+) FROM sys.fulltext_indexes (.+)",
+			args:  []driver.Value{"dbo", "items"},
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{0}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	indexes, err := isi.GetIndexes(conv, common.SchemaAndName{Schema: "dbo", Name: "items"}, map[string]string{"a": "c_a"})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(indexes))
+	assert.Equal(t, "ix_real", indexes[0].Name)
 }
 
 func TestGetTableName(t *testing.T) {
