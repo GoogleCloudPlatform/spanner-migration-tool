@@ -3190,3 +3190,191 @@ func TestHandleExpressionColError(t *testing.T) {
 	res2 := handler.HandleExpressionColErrorForTest(tc2, conv, internal.DefaultValueError)
 	assert.Equal(t, "", res2)
 }
+
+func TestDropTable_ClearsUniquePKeyAndCheckConstraintUsedNames(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+
+	sessionState.Conv = &internal.Conv{
+		UsedNames: map[string]bool{
+			"items":          true,
+			"ck_qty_enabled": true,
+			"CK_QTY_ENABLED": true,
+			"other_tbl":      true,
+		},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+		},
+		UniquePKey: map[string][]string{
+			"t1": {"c1"},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {Id: "t1", Name: "ITEMS"},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "ITEMS",
+				CheckConstraints: []ddl.CheckConstraint{
+					{Id: "ck1", Name: "CK_QTY_ENABLED", Expr: "(QTY > 0)", ExprId: "e1"},
+				},
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+		ToSpanner: map[string]internal.NameAndCols{
+			"ITEMS": {Name: "ITEMS"},
+		},
+	}
+
+	req, err := http.NewRequest("POST", "/drop/table?table=t1", strings.NewReader(`{}`))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.DropTable).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, sessionState.Conv.UniquePKey, "t1")
+	assert.NotContains(t, sessionState.Conv.UsedNames, "ck_qty_enabled")
+	assert.NotContains(t, sessionState.Conv.UsedNames, "CK_QTY_ENABLED")
+	assert.Contains(t, sessionState.Conv.UsedNames, "other_tbl")
+}
+
+func TestDropTable_CleansUpMultipleChildForeignKeysWithoutMutatingRemainingFks(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+
+	sessionState.Conv = &internal.Conv{
+		UsedNames: map[string]bool{
+			"parent1": true, "parent2": true, "child": true,
+			"fk_set_null": true, "fk_deferred": true, "fk_other": true,
+		},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+			"t3": {},
+			"t2": {
+				TableLevelIssues: []internal.SchemaIssue{
+					internal.ForeignKeyOnDelete,
+					internal.ForeignKeyDeferrableNotSupported,
+					internal.ForeignKeyDeferrableNotSupported,
+				},
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+			},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {Id: "t1", Name: "PARENT1"},
+			"t3": {Id: "t3", Name: "PARENT2"},
+			"t2": {
+				Id:   "t2",
+				Name: "CHILD",
+				ForeignKeys: []schema.ForeignKey{
+					{Id: "fk1", Name: "FK_SET_NULL", ReferTableId: "t1", OnDelete: constants.FK_SET_NULL, OnUpdate: constants.FK_NO_ACTION},
+					{Id: "fk2", Name: "FK_DEFERRED", ReferTableId: "t1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION, IsDeferrable: true},
+					{Id: "fk3", Name: "FK_OTHER", ReferTableId: "t3", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION, IsDeferrable: true},
+				},
+			},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {Id: "t1", Name: "PARENT1"},
+			"t3": {Id: "t3", Name: "PARENT2"},
+			"t2": {
+				Id:   "t2",
+				Name: "CHILD",
+				ForeignKeys: []ddl.Foreignkey{
+					{Id: "fk1", Name: "FK_SET_NULL", ReferTableId: "t1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+					{Id: "fk2", Name: "FK_DEFERRED", ReferTableId: "t1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+					{Id: "fk3", Name: "FK_OTHER", ReferTableId: "t3", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+				},
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+		ToSpanner: map[string]internal.NameAndCols{
+			"PARENT1": {Name: "PARENT1"},
+			"PARENT2": {Name: "PARENT2"},
+			"CHILD":   {Name: "CHILD"},
+		},
+	}
+
+	req, err := http.NewRequest("POST", "/drop/table?table=t1", strings.NewReader(`{}`))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.DropTable).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []ddl.Foreignkey{
+		{Id: "fk3", Name: "FK_OTHER", ReferTableId: "t3", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+	}, sessionState.Conv.SpSchema["t2"].ForeignKeys)
+	assert.Equal(t, []internal.SchemaIssue{
+		internal.ForeignKeyDeferrableNotSupported,
+	}, sessionState.Conv.SchemaIssues["t2"].TableLevelIssues)
+	assert.NotContains(t, sessionState.Conv.UsedNames, "fk_set_null")
+	assert.NotContains(t, sessionState.Conv.UsedNames, "fk_deferred")
+	assert.Contains(t, sessionState.Conv.UsedNames, "fk_other")
+}
+
+func TestUpdateForeignKeys_DropFirstOfThreeKeepsRemainingFks(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.ORACLE
+
+	sessionState.Conv = &internal.Conv{
+		UsedNames: map[string]bool{"t1": true, "fk_1": true, "fk_2": true, "fk_3": true},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1": {internal.InterleavedAddColumn},
+				},
+			},
+		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Id:   "t1",
+				Name: "CHILD",
+				ForeignKeys: []schema.ForeignKey{
+					{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+				},
+			},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "CHILD",
+				ForeignKeys: []ddl.Foreignkey{
+					{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+					{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+				},
+			},
+		},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+		},
+	}
+
+	// Drop FK_1 (empty refer table/columns) and keep FK_2 and FK_3 unchanged.
+	input := []ddl.Foreignkey{
+		{Id: "f1", Name: "FK_1", ColIds: []string{"c1"}},
+		{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+		{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+	}
+	inputBytes, err := json.Marshal(input)
+	assert.NoError(t, err)
+	req, err := http.NewRequest("POST", "/update/fks?table=t1", bytes.NewBuffer(inputBytes))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(api.UpdateForeignKeys).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []ddl.Foreignkey{
+		{Id: "f2", Name: "FK_2", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+		{Id: "f3", Name: "FK_3", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"p1"}},
+	}, sessionState.Conv.SpSchema["t1"].ForeignKeys)
+	// Interleave suggestions are cleared from the dropped FK's own column.
+	assert.Empty(t, sessionState.Conv.SchemaIssues["t1"].ColumnLevelIssues["c1"])
+}
