@@ -356,6 +356,12 @@ func toSpannerType(conv *internal.Conv, spType string, srcType string, mods []in
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
+			if baseType == "UROWID" {
+				// UROWID(n) specifies a maximum internal binary size in bytes, whereas
+				// Spanner STRING stores its Base64 character representation, so it is
+				// mapped to STRING(MAX) with a storage/widening warning.
+				return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "BOOLEAN":
