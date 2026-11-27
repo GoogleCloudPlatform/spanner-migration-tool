@@ -61,6 +61,11 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 		SkipRangeMax: targetProfile.DefaultIdentityOptions.SkipRangeMax,
 		StartCounterWith: targetProfile.DefaultIdentityOptions.StartCounterWith,
 	}
+	conv.DatabaseOptions = ddl.DatabaseOptions{
+		DbName:                      targetProfile.Conn.Sp.Dbname,
+		DefaultTimezone:             targetProfile.Conn.Sp.DefaultTimezone,
+		DefaultTransactionIsolation: targetProfile.Conn.Sp.DefaultTransactionIsolation,
+	}
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
