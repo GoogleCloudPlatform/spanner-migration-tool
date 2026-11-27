@@ -15,6 +15,7 @@
 package sqlserver
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/bits"
@@ -105,6 +106,9 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, t
 	case ddl.Bool:
 		return convBool(val)
 	case ddl.Bytes:
+		if srcTypeName == timestampType || srcTypeName == rowVersionType {
+			return convRowVersion(val)
+		}
 		return convBytes(val)
 	case ddl.Date:
 		return convDate(val)
@@ -136,6 +140,19 @@ func convBool(val string) (bool, error) {
 func convBytes(val string) ([]byte, error) {
 	// convert a string to a byte slice.
 	b := []byte(val)
+	return b, nil
+}
+
+// convRowVersion converts a rowversion value, read as CAST(... AS BIGINT) (see
+// GetRowsFromTable), back into its 8 bytes. SQL Server reads the binary(8) value
+// as a big-endian integer, so writing it big-endian restores the original bytes.
+func convRowVersion(val string) ([]byte, error) {
+	n, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("can't convert rowversion to bytes: %w", err)
+	}
+	b := make([]byte, rowVersionLength)
+	binary.BigEndian.PutUint64(b, uint64(n))
 	return b, nil
 }
 

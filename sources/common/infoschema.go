@@ -64,14 +64,22 @@ type TableColumns struct {
 
 // TableConstraints contains constraints for a table.
 type TableConstraints struct {
-	PrimaryKeys       []string
-	CheckConstraints  []schema.CheckConstraint
-	ColumnConstraints map[string][]string // colName -> constraintTypes
+	PrimaryKeys              []string
+	CheckConstraints         []schema.CheckConstraint
+	DisabledCheckConstraints []string
+	ColumnConstraints        map[string][]string // colName -> constraintTypes
 }
 
 // TableForeignKeys contains foreign keys for a table.
 type TableForeignKeys struct {
-	ForeignKeys []schema.ForeignKey
+	ForeignKeys         []schema.ForeignKey
+	DisabledForeignKeys []string
+}
+
+// TableIndexes contains indexes for a table.
+type TableIndexes struct {
+	Indexes         []schema.Index
+	DisabledIndexes []string
 }
 
 // BatchedInfoSchema supports bulk fetching of metadata for multiple tables.
@@ -84,7 +92,7 @@ type BatchedInfoSchema interface {
 	// GetForeignKeysBatch fetches foreign key constraints for a batch of tables.
 	GetForeignKeysBatch(conv *internal.Conv, tables []SchemaAndName) (map[string]TableForeignKeys, error)
 	// GetIndexesBatch fetches indexes for a batch of tables.
-	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colDefs map[string]TableColumns) (map[string][]schema.Index, error)
+	GetIndexesBatch(conv *internal.Conv, tables []SchemaAndName, colDefs map[string]TableColumns) (map[string]TableIndexes, error)
 }
 
 // PartitionInfoSchema is an optional interface implemented by sources that can
@@ -113,12 +121,13 @@ type SchemaAndName struct {
 
 // FkConstraint contains foreign key constraints
 type FkConstraint struct {
-	Name     string
-	Table    string
-	Refcols  []string
-	Cols     []string
-	OnDelete string
-	OnUpdate string
+	Name         string
+	Table        string
+	Refcols      []string
+	Cols         []string
+	OnDelete     string
+	OnUpdate     string
+	IsDeferrable bool
 }
 
 type InfoSchemaInterface interface {
@@ -306,7 +315,12 @@ func (is *InfoSchemaImpl) generateSrcSchemaBatched(conv *internal.Conv, bis Batc
 			constraints := tableConstraints[t.Name]
 			fks := tableForeignKeys[t.Name]
 
-			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, indexes[t.Name], fks.ForeignKeys, partitionParent[t.Name])
+			idx := indexes[t.Name]
+
+			tableObj := BuildSchemaTable(t, name, cols.ColDefs, cols.ColIds, constraints.PrimaryKeys, constraints.CheckConstraints, idx.Indexes, fks.ForeignKeys, partitionParent[t.Name])
+			tableObj.DisabledCheckConstraints = constraints.DisabledCheckConstraints
+			tableObj.DisabledForeignKeys = fks.DisabledForeignKeys
+			tableObj.DisabledIndexes = idx.DisabledIndexes
 			conv.SrcSchema[tableObj.Id] = tableObj
 		}
 		mutex.Unlock()
