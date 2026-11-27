@@ -57,10 +57,45 @@ type pgDumpState struct {
 	lookupOnlyTables map[string]bool
 	// nonPublicTables names the lookup-only tables read from non-public schemas.
 	nonPublicTables map[string]bool
+	// dbIsolation maps database name (lowercase) to normalized isolation from ALTER DATABASE.
+	dbIsolation map[string]string
+	// lastAlteredDb records the most recent ALTER DATABASE target when no \connect is seen.
+	lastAlteredDb string
+	// connectedDb records the database targeted by psql \connect / \c meta-commands.
+	connectedDb string
+	// sessionIsolation tracks session-level SET default_transaction_isolation / SESSION CHARACTERISTICS.
+	sessionIsolation    string
+	hasSessionIsolation bool
 }
 
 func newPgDumpState() *pgDumpState {
-	return &pgDumpState{lookupOnlyTables: make(map[string]bool), nonPublicTables: make(map[string]bool)}
+	return &pgDumpState{
+		lookupOnlyTables: make(map[string]bool),
+		nonPublicTables:  make(map[string]bool),
+		dbIsolation:      make(map[string]string),
+	}
+}
+
+func (s *pgDumpState) onConnect(dbName string) {
+	cleaned := strings.Trim(strings.TrimSpace(dbName), `"'`)
+	if cleaned != "" {
+		s.connectedDb = strings.ToLower(cleaned)
+	}
+	// A new \connect session starts without session-level overrides.
+	s.sessionIsolation = ""
+	s.hasSessionIsolation = false
+}
+
+func (s *pgDumpState) syncIsolation(conv *internal.Conv) {
+	if s.hasSessionIsolation {
+		conv.DatabaseOptions.DefaultTransactionIsolation = s.sessionIsolation
+		return
+	}
+	targetDb := s.connectedDb
+	if targetDb == "" {
+		targetDb = s.lastAlteredDb
+	}
+	conv.DatabaseOptions.DefaultTransactionIsolation = s.dbIsolation[targetDb]
 }
 
 func (s *pgDumpState) addLookupOnlyTable(tableId string) {
@@ -119,7 +154,7 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
-		b, stmts, err := readAndParseChunk(conv, r)
+		b, stmts, err := readAndParseChunk(conv, r, state)
 		if err != nil {
 			return err
 		}
@@ -184,13 +219,41 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 	return nil
 }
 
+func allBlankOrLineComments(lines [][]byte) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(string(line))
+		if trimmed != "" && !strings.HasPrefix(trimmed, "--") {
+			return false
+		}
+	}
+	return true
+}
+
+func handlePsqlMetaCommand(conv *internal.Conv, line string, state *pgDumpState) {
+	fields := strings.Fields(line)
+	if len(fields) >= 2 && (fields[0] == `\connect` || fields[0] == `\c`) {
+		state.onConnect(fields[1])
+		state.syncIsolation(conv)
+	}
+}
+
 // readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
 // the parsed AST (nil if nothing read), and whether we've hit end-of-file.
-func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_query.RawStmt, error) {
+func readAndParseChunk(conv *internal.Conv, r *internal.Reader, state *pgDumpState) ([]byte, []*pg_query.RawStmt, error) {
 	var l [][]byte
 	for {
 		b := r.ReadLine()
-		l = append(l, b)
+		trimmed := strings.TrimSpace(string(b))
+		if allBlankOrLineComments(l) && strings.HasPrefix(trimmed, `\`) {
+			if conv.SchemaMode() && state != nil {
+				handlePsqlMetaCommand(conv, trimmed, state)
+			}
+			if !r.EOF {
+				continue
+			}
+		} else {
+			l = append(l, b)
+		}
 		// If we see a semicolon or eof, we're likely to have a command, so try to parse it.
 		// Note: we could just parse every iteration, but that would mean more attempts at parsing.
 		if strings.Contains(string(b), ";") || r.EOF {
@@ -325,7 +388,11 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt, state 
 			return processInsertStmt(conv, n.InsertStmt)
 		case *pg_query.Node_VariableSetStmt:
 			if conv.SchemaMode() {
-				processVariableSetStmt(conv, n.VariableSetStmt)
+				processVariableSetStmt(conv, n.VariableSetStmt, state, false, "")
+			}
+		case *pg_query.Node_AlterDatabaseSetStmt:
+			if conv.SchemaMode() && n.AlterDatabaseSetStmt != nil && n.AlterDatabaseSetStmt.Setstmt != nil {
+				processVariableSetStmt(conv, n.AlterDatabaseSetStmt.Setstmt, state, true, n.AlterDatabaseSetStmt.Dbname)
 			}
 		case *pg_query.Node_IndexStmt:
 			if conv.SchemaMode() {
@@ -696,8 +763,59 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 	return &copyOrInsert{stmt: copyFrom, table: table, cols: cols}
 }
 
-func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
-	if n.Name == "timezone" {
+func setPgIsolationState(conv *internal.Conv, state *pgDumpState, isDatabaseLevel bool, dbName string, val string, isReset bool) {
+	if state == nil {
+		if isReset {
+			conv.DatabaseOptions.DefaultTransactionIsolation = ""
+		} else {
+			conv.DatabaseOptions.DefaultTransactionIsolation = val
+		}
+		return
+	}
+	if isDatabaseLevel {
+		key := strings.ToLower(strings.TrimSpace(dbName))
+		state.lastAlteredDb = key
+		if isReset {
+			delete(state.dbIsolation, key)
+		} else {
+			state.dbIsolation[key] = val
+		}
+	} else {
+		if isReset {
+			state.sessionIsolation = ""
+			state.hasSessionIsolation = false
+		} else {
+			state.sessionIsolation = val
+			state.hasSessionIsolation = true
+		}
+	}
+	state.syncIsolation(conv)
+}
+
+func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt, state *pgDumpState, isDatabaseLevel bool, dbName string) {
+	if n.Kind == pg_query.VariableSetKind_VAR_RESET_ALL {
+		setPgIsolationState(conv, state, isDatabaseLevel, dbName, "", true)
+		return
+	}
+	if n.Kind == pg_query.VariableSetKind_VAR_SET_MULTI && strings.EqualFold(n.Name, "SESSION CHARACTERISTICS") {
+		if n.IsLocal {
+			return
+		}
+		for _, arg := range n.Args {
+			defElem, ok := arg.GetNode().(*pg_query.Node_DefElem)
+			if !ok || defElem.DefElem == nil || !strings.EqualFold(defElem.DefElem.Defname, "transaction_isolation") {
+				continue
+			}
+			if c, ok := defElem.DefElem.GetArg().GetNode().(*pg_query.Node_AConst); ok {
+				if sval := c.AConst.GetSval(); sval != nil {
+					setPgIsolationState(conv, state, isDatabaseLevel, dbName, common.NormalizeSupportedIsolationLevel(sval.Sval), false)
+				}
+			}
+		}
+		return
+	}
+	switch strings.ToLower(n.Name) {
+	case "timezone":
 		if len(n.Args) == 1 {
 			arg := n.Args[0]
 			switch c := arg.GetNode().(type) {
@@ -716,6 +834,23 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 			default:
 				logStmtError(conv, arg, fmt.Errorf("found %s node in Arg", printNodeType(c)))
 				return
+			}
+		}
+	case "default_transaction_isolation":
+		if n.IsLocal {
+			return
+		}
+		switch n.Kind {
+		case pg_query.VariableSetKind_VAR_SET_DEFAULT, pg_query.VariableSetKind_VAR_RESET:
+			setPgIsolationState(conv, state, isDatabaseLevel, dbName, "", true)
+		case pg_query.VariableSetKind_VAR_SET_VALUE:
+			if len(n.Args) == 1 {
+				arg := n.Args[0]
+				if c, ok := arg.GetNode().(*pg_query.Node_AConst); ok {
+					if sval := c.AConst.GetSval(); sval != nil {
+						setPgIsolationState(conv, state, isDatabaseLevel, dbName, common.NormalizeSupportedIsolationLevel(sval.Sval), false)
+					}
+				}
 			}
 		}
 	}
