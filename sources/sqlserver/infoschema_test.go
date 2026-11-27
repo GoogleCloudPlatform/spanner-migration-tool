@@ -18,12 +18,14 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -74,9 +76,9 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo", "user"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
 			rows: [][]driver.Value{
-				{"dbo", "test", "ref", "Id", "fk_test"},
+				{"dbo", "test", "ref", "Id", "fk_test", "NO_ACTION", "NO_ACTION"},
 			},
 		},
 		{
@@ -106,6 +108,11 @@ func TestProcessSchema(t *testing.T) {
 			rows:  [][]driver.Value{{0}},
 		},
 		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+)",
+			args:  []driver.Value{"dbo", "user"},
+			cols:  []string{"kind", "name"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -121,8 +128,8 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4"}},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
+			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4", "NO_ACTION", "NO_ACTION"}},
 		},
 		{
 			query: "SELECT (.+) FROM sys.computed_columns (.+)",
@@ -185,6 +192,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{0}},
 		},
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+)",
+			args:  []driver.Value{"dbo", "test"},
+			cols:  []string{"kind", "name"},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -206,10 +218,10 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo", "cart"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
 			rows: [][]driver.Value{
-				{"production", "product", "productid", "product_id", "fk_test2"},
-				{"dbo", "user", "userid", "user_id", "fk_test3"}},
+				{"production", "product", "productid", "product_id", "fk_test2", "NO_ACTION", "NO_ACTION"},
+				{"dbo", "user", "userid", "user_id", "fk_test3", "NO_ACTION", "NO_ACTION"}},
 		},
 		{
 			query: "SELECT (.+) FROM sys.computed_columns (.+)",
@@ -243,6 +255,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{0}},
 		},
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"kind", "name"},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -260,7 +277,7 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"production", "product"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
 		},
 		{
 			query: "SELECT (.+) FROM sys.computed_columns (.+)",
@@ -288,6 +305,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{0}},
 		},
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+)",
+			args:  []driver.Value{"production", "product"},
+			cols:  []string{"kind", "name"},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -306,7 +328,7 @@ func TestProcessSchema(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
 		},
 		{
 			query: "SELECT (.+) FROM sys.computed_columns (.+)",
@@ -334,6 +356,11 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"dbo", "test_ref"},
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{0}},
+		},
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+)",
+			args:  []driver.Value{"dbo", "test_ref"},
+			cols:  []string{"kind", "name"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -363,7 +390,7 @@ func TestProcessSchema(t *testing.T) {
 				"ref":     {Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "user_id", Order: 1}},
-			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"Id"}}}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"Id"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"}}},
 		"test": {
 			Name: "test",
 			ColIds: []string{"Id", "BigInt", "Binary", "Bit", "Char", "Date", "DateTime",
@@ -411,7 +438,7 @@ func TestProcessSchema(t *testing.T) {
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
-			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"Id"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id"}}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"Id"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"}},
 		},
 		"cart": {
 			Name:   "cart",
@@ -422,8 +449,8 @@ func TestProcessSchema(t *testing.T) {
 				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}},
-			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}},
-				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"},
+				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"}},
 			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}},
 				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}, StoredColumnIds: []string{"productid"}},
 				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}},
@@ -578,6 +605,7 @@ func TestGetCheckConstraints(t *testing.T) {
 				{"ck_items_price", "(([price] > 0))"},
 				{"ck_items_status", "([status] IN ('a', 'b'))"},
 				{"ck_items_not_null", "([unit$price] IS NOT NULL AND [unit$price] > 0)"},
+				{"ck prix ñ", "([price] < 1000)"},
 			},
 		},
 	}
@@ -586,13 +614,86 @@ func TestGetCheckConstraints(t *testing.T) {
 	isi := InfoSchemaImpl{"testdb", db}
 	cks, err := isi.getCheckConstraints(conv, common.SchemaAndName{Schema: "dbo", Name: "items"})
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(cks))
+	assert.Equal(t, 4, len(cks))
 	assert.Equal(t, "ck_items_price", cks[0].Name)
 	assert.Equal(t, "(price > 0)", cks[0].Expr)
 	assert.Equal(t, "ck_items_status", cks[1].Name)
 	assert.Equal(t, "(status IN ('a', 'b'))", cks[1].Expr)
 	assert.Equal(t, "ck_items_not_null", cks[2].Name)
 	assert.Equal(t, "(unit_price IS NOT NULL AND unit_price > 0)", cks[2].Expr)
+	// The source name is kept as is; the Spanner name is fixed at conversion,
+	// so the report can list the rename.
+	assert.Equal(t, "ck prix ñ", cks[3].Name)
+}
+
+func TestGetForeignKeys_Actions(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"dbo", "child"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
+			rows: [][]driver.Value{
+				{"dbo", "parent", "p1", "id", "fk_cascade", "CASCADE", "CASCADE"},
+				{"dbo", "pair", "a", "x", "fk_composite", "CASCADE", "NO_ACTION"},
+				{"dbo", "pair", "b", "y", "fk_composite", "CASCADE", "NO_ACTION"},
+				{"dbo", "parent", "p2", "id", "fk_no_action", "NO_ACTION", "NO_ACTION"},
+				{"dbo", "parent", "p3", "id", "fk_set_default", "SET_DEFAULT", "SET_DEFAULT"},
+				{"dbo", "parent", "p4", "id", "fk_set_null", "SET_NULL", "SET_NULL"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	fks, err := isi.GetForeignKeys(conv, common.SchemaAndName{Schema: "dbo", Name: "child"})
+	assert.NoError(t, err)
+	type action struct{ name, onDelete, onUpdate string }
+	var got []action
+	for _, fk := range fks {
+		got = append(got, action{fk.Name, fk.OnDelete, fk.OnUpdate})
+	}
+	assert.Equal(t, []action{
+		{"fk_cascade", "CASCADE", "CASCADE"},
+		{"fk_composite", "CASCADE", "NO ACTION"},
+		{"fk_no_action", "NO ACTION", "NO ACTION"},
+		{"fk_set_default", "SET DEFAULT", "SET DEFAULT"},
+		{"fk_set_null", "SET NULL", "SET NULL"},
+	}, got)
+	assert.Equal(t, []string{"a", "b"}, fks[1].ColumnNames)
+	assert.Equal(t, []string{"x", "y"}, fks[1].ReferColumnNames)
+}
+
+func TestGetDisabledObjects(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM sys.foreign_keys fk (.+) FROM sys.check_constraints cc (.+)",
+			args:  []driver.Value{"dbo", "child"},
+			cols:  []string{"kind", "name"},
+			rows: [][]driver.Value{
+				{"CHECK", "ck_off"},
+				{"FK", "fk_off"},
+				{"FK", "fk_off2"},
+			},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"testdb", db}
+	fks, checks, indexes, err := isi.GetDisabledObjects(conv, common.SchemaAndName{Schema: "dbo", Name: "child"})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"fk_off", "fk_off2"}, fks)
+	assert.Equal(t, []string{"ck_off"}, checks)
+	assert.Nil(t, indexes)
+	var _ common.DisabledObjectsProvider = InfoSchemaImpl{}
+}
+
+func TestToFkAction(t *testing.T) {
+	for in, want := range map[string]string{
+		"NO_ACTION": "NO ACTION", "CASCADE": "CASCADE", "SET_NULL": "SET NULL",
+		"SET_DEFAULT": "SET DEFAULT", "set_null": "SET NULL", " CASCADE ": "CASCADE",
+	} {
+		assert.Equal(t, want, toFkAction(in), in)
+	}
 }
 
 func TestGetColumns_DefaultsAndComputed(t *testing.T) {
@@ -721,10 +822,10 @@ func TestGetForeignKeys_CompositeOrder(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo", "child"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"},
 			rows: [][]driver.Value{
-				{"dbo", "parent", "col_a", "ref_a", "fk_composite"},
-				{"dbo", "parent", "col_b", "ref_b", "fk_composite"},
+				{"dbo", "parent", "col_a", "ref_a", "fk_composite", "NO_ACTION", "NO_ACTION"},
+				{"dbo", "parent", "col_b", "ref_b", "fk_composite", "NO_ACTION", "NO_ACTION"},
 			},
 		},
 	}
@@ -916,4 +1017,121 @@ func TestGetTableName(t *testing.T) {
 	isi := InfoSchemaImpl{}
 	assert.Equal(t, "orders", isi.GetTableName("dbo", "orders"))
 	assert.Equal(t, "orders", isi.GetTableName("dimension", "orders"))
+}
+
+// End to end through the shared conversion and report: FK actions, disabled
+// FK/CHECK reported via GetDisabledObjects, and a renamed CHECK constraint.
+func TestProcessSchema_ForeignKeyActionsDisabledObjectsAndCheckRename(t *testing.T) {
+	tcCols := []string{"column_name", "constraint_type"}
+	ccCols := []string{"name", "definition"}
+	fkCols := []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_ACTION", "UPDATE_ACTION"}
+	compCols := []string{"name", "definition", "is_persisted"}
+	colCols := []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "is_identity"}
+	ixCols := []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"}
+	disCols := []string{"kind", "name"}
+	ms := []mockSpec{
+		{
+			query: `SELECT (.+) WHERE TBL.type = 'U' AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'`,
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"dbo", "parent"}, {"dbo", "child"}},
+		},
+		// parent: no foreign keys, nothing disabled.
+		{query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)", args: []driver.Value{"dbo", "parent"}, cols: tcCols, rows: [][]driver.Value{{"id", "PRIMARY KEY"}}},
+		{query: "SELECT (.+) FROM sys.check_constraints (.+)", args: []driver.Value{"dbo", "parent"}, cols: ccCols},
+		{query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)", args: []driver.Value{"dbo", "parent"}, cols: fkCols},
+		{query: "SELECT (.+) FROM sys.computed_columns (.+)", args: []driver.Value{"dbo", "parent"}, cols: compCols},
+		{query: "SELECT (.+) FROM information_schema.COLUMNS (.+)", args: []driver.Value{"dbo", "parent"}, cols: colCols, rows: [][]driver.Value{{"id", "int", "NO", nil, nil, 10, 0, 0}}},
+		{query: "SELECT (.+) FROM sys.indexes (.+)", args: []driver.Value{"parent", "dbo"}, cols: ixCols},
+		{query: "SELECT (.+) FROM sys.foreign_keys fk (.+)", args: []driver.Value{"dbo", "parent"}, cols: disCols},
+		// child: three foreign keys with actions, a CHECK whose name needs fixing,
+		// and a disabled FK and CHECK.
+		{query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)", args: []driver.Value{"dbo", "child"}, cols: tcCols,
+			rows: [][]driver.Value{{"id", "PRIMARY KEY"}, {"p1", "FOREIGN KEY"}, {"p2", "FOREIGN KEY"}, {"p3", "FOREIGN KEY"}}},
+		{query: "SELECT (.+) FROM sys.check_constraints (.+)", args: []driver.Value{"dbo", "child"}, cols: ccCols, rows: [][]driver.Value{{"ck qté", "([qty]>(0))"}}},
+		{query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)", args: []driver.Value{"dbo", "child"}, cols: fkCols,
+			rows: [][]driver.Value{
+				{"dbo", "parent", "p1", "id", "fk_cascade", "CASCADE", "CASCADE"},
+				{"dbo", "parent", "p2", "id", "fk_plain", "NO_ACTION", "NO_ACTION"},
+				{"dbo", "parent", "p3", "id", "fk_set_null", "SET_NULL", "SET_NULL"},
+			}},
+		{query: "SELECT (.+) FROM sys.computed_columns (.+)", args: []driver.Value{"dbo", "child"}, cols: compCols},
+		{query: "SELECT (.+) FROM information_schema.COLUMNS (.+)", args: []driver.Value{"dbo", "child"}, cols: colCols,
+			rows: [][]driver.Value{
+				{"id", "int", "NO", nil, nil, 10, 0, 0},
+				{"p1", "int", "YES", nil, nil, 10, 0, 0},
+				{"p2", "int", "YES", nil, nil, 10, 0, 0},
+				{"p3", "int", "YES", nil, nil, 10, 0, 0},
+				{"qty", "int", "YES", nil, nil, 10, 0, 0},
+			}},
+		{query: "SELECT (.+) FROM sys.indexes (.+)", args: []driver.Value{"child", "dbo"}, cols: ixCols},
+		{query: "SELECT (.+) FROM sys.foreign_keys fk (.+)", args: []driver.Value{"dbo", "child"}, cols: disCols,
+			rows: [][]driver.Value{{"CHECK", "ck_off"}, {"FK", "fk_off"}}},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	mockAccessor.On("VerifyExpressions", context.Background(), mock.Anything).Return(internal.VerifyExpressionsOutput{})
+	schemaToSpanner := common.SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor, DdlV: &expressions_api.MockDDLVerifier{}}
+	err := (&common.ProcessSchemaImpl{}).ProcessSchema(conv, InfoSchemaImpl{"test", db}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	assert.Nil(t, err)
+
+	parentId, err := internal.GetTableIdFromSpName(conv.SpSchema, "parent")
+	assert.Nil(t, err)
+	childId, err := internal.GetTableIdFromSpName(conv.SpSchema, "child")
+	assert.Nil(t, err)
+
+	// ON DELETE CASCADE is kept; everything else becomes NO ACTION.
+	type action struct{ name, onDelete, onUpdate string }
+	var got []action
+	for _, fk := range conv.SpSchema[childId].ForeignKeys {
+		got = append(got, action{fk.Name, fk.OnDelete, fk.OnUpdate})
+	}
+	assert.Equal(t, []action{
+		{"fk_cascade", "CASCADE", "NO ACTION"},
+		{"fk_plain", "NO ACTION", "NO ACTION"},
+		{"fk_set_null", "NO ACTION", "NO ACTION"},
+	}, got)
+	assert.Equal(t, []string{"fk_off"}, conv.SrcSchema[childId].DisabledForeignKeys)
+	assert.Equal(t, []string{"ck_off"}, conv.SrcSchema[childId].DisabledCheckConstraints)
+	assert.NotContains(t, conv.SchemaIssues[childId].TableLevelIssues, internal.ForeignKeyActionNotSupported)
+	assert.Empty(t, conv.SchemaIssues[parentId].TableLevelIssues)
+
+	// The CHECK keeps its source name in the source schema; Spanner gets a fixed one.
+	assert.Equal(t, "ck qté", conv.SrcSchema[childId].CheckConstraints[0].Name)
+	spCheckName := conv.SpSchema[childId].CheckConstraints[0].Name
+	assert.NotEqual(t, "ck qté", spCheckName)
+
+	rep := (&reports.ReportImpl{}).GenerateStructuredReport(constants.SQLSERVER, "testdb", conv, nil, true, true)
+	var descriptions []string
+	for _, tr := range rep.TableReports {
+		if tr.SrcTableName != "child" {
+			continue
+		}
+		for _, issues := range tr.Issues {
+			for _, i := range issues.IssueList {
+				descriptions = append(descriptions, i.Description)
+			}
+		}
+	}
+	for _, want := range []string{
+		"Table 'child': ON UPDATE action of Foreign Key 'fk_cascade' mapped from CASCADE to NO ACTION - Spanner supports only ON UPDATE NO ACTION",
+		"Table 'child': ON DELETE action of Foreign Key 'fk_set_null' mapped from SET NULL to NO ACTION - Spanner supports only ON DELETE CASCADE/NO ACTION",
+		"Table 'child': ON UPDATE action of Foreign Key 'fk_set_null' mapped from SET NULL to NO ACTION - Spanner supports only ON UPDATE NO ACTION",
+		"Table 'child': Foreign Key 'fk_off' is disabled in the source database and has been skipped",
+		"Table 'child': Check constraint 'ck_off' is disabled in the source database and has been skipped",
+		"Check Constraint 'ck qté' is mapped to '" + spCheckName + "' for table 'child'",
+	} {
+		found := false
+		for _, d := range descriptions {
+			if strings.Contains(d, want) {
+				found = true
+			}
+		}
+		assert.True(t, found, "missing report line: %s\ngot: %v", want, descriptions)
+	}
+	for _, d := range descriptions {
+		assert.NotContains(t, d, "fk_plain")
+	}
+	assert.Contains(t, rep.NameChanges, reports.NameChange{NameChangeType: "CheckConstraint", SourceTable: "child", OldName: "ck qté", NewName: spCheckName})
 }
