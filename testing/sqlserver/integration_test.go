@@ -507,20 +507,49 @@ func checkOtherTables(ctx context.Context, t *testing.T, client *spanner.Client)
 		}
 	}
 
-	// Check RowVersionType
-	iter2 := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT count(*) FROM RowVersionType"})
-	defer iter2.Stop()
-	row2, err := iter2.Next()
+	// Check RowVersionType: rowversion is migrated as BYTES(8) holding the
+	// original 8 bytes of each value.
+	checkRowVersion(ctx, t, client)
+}
+
+func checkRowVersion(ctx context.Context, t *testing.T, client *spanner.Client) {
+	typeIter := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'RowVersionType' AND COLUMN_NAME = 'RowVersionCol'"})
+	defer typeIter.Stop()
+	typeRow, err := typeIter.Next()
 	if err != nil {
-		t.Logf("Failed to query RowVersionType: %v", err)
-	} else {
-		var count int64
-		if err := row2.Columns(&count); err != nil {
+		t.Fatalf("Failed to read the type of RowVersionType.RowVersionCol: %v", err)
+	}
+	var spannerType string
+	if err := typeRow.Columns(&spannerType); err != nil {
+		t.Fatal(err)
+	}
+	if spannerType != "BYTES(8)" {
+		t.Fatalf("RowVersionType.RowVersionCol type mismatch, got %s, want BYTES(8)", spannerType)
+	}
+
+	iter := client.Single().Query(ctx, spanner.Statement{SQL: "SELECT RowVersionCol FROM RowVersionType ORDER BY Id"})
+	defer iter.Stop()
+	seen := make(map[string]bool)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed to query RowVersionType: %v", err)
+		}
+		var val []byte
+		if err := row.Columns(&val); err != nil {
 			t.Fatal(err)
 		}
-		if count != 3 {
-			t.Fatalf("RowVersionType count mismatch, got %d, want 3", count)
+		if len(val) != 8 {
+			t.Fatalf("RowVersionCol value %x has %d bytes, want 8", val, len(val))
 		}
+		seen[string(val)] = true
+	}
+	// Every row gets its own rowversion value in SQL Server.
+	if len(seen) != 3 {
+		t.Fatalf("RowVersionType distinct values mismatch, got %d, want 3", len(seen))
 	}
 }
 
