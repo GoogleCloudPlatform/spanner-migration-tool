@@ -16,8 +16,10 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -150,4 +153,42 @@ func GetDialectDisplayStringFromDialect(dialect string) string {
 		return POSTGRESQL_DIALECT
 	}
 	return GOOGLE_SQL_DIALECT
+}
+
+// ErrInvalidUploadPath is returned when an upload filename fails lexical
+// validation or refers to a disallowed entry such as a symlink or directory.
+var ErrInvalidUploadPath = errors.New("invalid upload file path")
+
+// ValidateUploadFilename checks that filename is a plain single filename
+// without directory separators, traversal components, NUL bytes, or reserved
+// platform device names.
+func ValidateUploadFilename(filename string) error {
+	if filename == "" || filename == "." || filename == ".." ||
+		strings.ContainsAny(filename, "/\\\x00") ||
+		!filepath.IsLocal(filename) {
+		return ErrInvalidUploadPath
+	}
+	return nil
+}
+
+// OpenUploadFile validates filename and opens the regular file inside
+// constants.UPLOAD_FILE_DIR via os.Root, rejecting symlinks and directories.
+func OpenUploadFile(filename string) (*os.File, error) {
+	if err := ValidateUploadFilename(filename); err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(constants.UPLOAD_FILE_DIR)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+
+	info, err := root.Lstat(filename)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || info.IsDir() {
+		return nil, ErrInvalidUploadPath
+	}
+	return root.Open(filename)
 }
