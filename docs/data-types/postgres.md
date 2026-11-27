@@ -182,7 +182,7 @@ since they have no effect anyway, the tool just drops them.
 Spanner requires primary keys for all tables. PostgreSQL recommends the use of
 primary keys for all tables, but does not enforce this. When converting a table
 without a primary key, Spanner migration tool will create a new primary key of type
-INT64. By default, the name of the new column is `synth_id`. If there is already
+`STRING(50)` (`character varying(50)` in the PostgreSQL dialect). By default, the name of the new column is `synth_id`. If there is already
 a column with that name, then a variation is used to avoid collisions.
 
 ## NOT NULL Constraints
