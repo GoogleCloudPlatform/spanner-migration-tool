@@ -40,6 +40,10 @@ func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable,
 		}
 	}
 
+	// Hotspot warnings depend on which column is first, so they are recomputed
+	// on the final key after any add, remove or reorder.
+	isHotSpot(spannerTable.PrimaryKeys, spannerTable)
+
 	return spannerTable, isSynthPkRemoved
 }
 
@@ -54,8 +58,6 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	// hence new primary key add primary key into  spannerTable.Pk list
 	leftjoin := utilities.Difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
-
-	isHotSpot(insert, spannerTable)
 
 	spannerTable.PrimaryKeys = append(spannerTable.PrimaryKeys, insert...)
 
