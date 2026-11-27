@@ -218,9 +218,8 @@ Example
 
 ```json
 {
-  "Albums": "Note\n1) Some columns will consume more storage in Spanner
-e.g. for column 'AlbumId', source DB type smallint(6) is mapped to Spanner
-type int64.\n\n"
+  "Albums": "Note\n1) Table 'Albums': Some columns will consume more storage in
+Spanner: column 'AlbumId' of type smallint(6) is mapped to int64.\n\n"
 }
 ```
 

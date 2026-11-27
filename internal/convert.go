@@ -171,6 +171,7 @@ const (
 	IdentityPrimaryKeyAdded
 	ForeignKeyDeferrableNotSupported
 	DisabledObjectSkipped
+	PGBytesLengthNotSupported
 )
 
 const (

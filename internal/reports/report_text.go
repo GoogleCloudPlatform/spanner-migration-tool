@@ -100,8 +100,8 @@ func writeUnexpectedConditionsv2(structuredReport StructuredReport, w *bufio.Wri
 // Warnings
 // 1) Column 'synth_id' was added because this table didn't have a primary key.
 //    Spanner requires a primary key for every table.
-// 2) Some columns will consume more storage in Spanner e.g. for column 'b', source
-//    DB type int(11) is mapped to Spanner data type int64.
+// 2) Table 'no_pk': Some columns will consume more storage in Spanner: column 'b'
+//    of type int(11) is mapped to int64.
 func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 	for _, tableReport := range structuredReport.TableReports {
 		h := fmt.Sprintf("Table %s", tableReport.SrcTableName)

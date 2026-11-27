@@ -79,7 +79,7 @@ func TestGetSummary(t *testing.T) {
 
 		actualSummary := getSummary()
 
-		assert.Equal(t, []reports.Issue([]reports.Issue{reports.Issue{Category: "TIME_YEAR_TYPE_USES", Description: "Table 'tn1': Column 'cn1', type varchar is mapped to string(0). Spanner does not support time/year types"}}), actualSummary["t1"].Warnings)
+		assert.Equal(t, []reports.Issue([]reports.Issue{reports.Issue{Category: "TIME_YEAR_TYPE_USES", Description: "Table 'tn1': Column 'cn1' of type varchar is mapped to string(0). Spanner does not support time/year types"}}), actualSummary["t1"].Warnings)
 		assert.Equal(t, int(1), actualSummary["t1"].WarningsCount)
 
 	}

@@ -554,6 +554,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
 			"c1":  {internal.Widened},
 			"c3":  {internal.Widened},
+			"c6":  {internal.PGBytesLengthNotSupported},
+			"c7":  {internal.PGBytesLengthNotSupported},
 			"c10": {internal.Datetime},
 			"c12": {internal.PossibleOverflow},
 			"c13": {internal.NoGoodType},

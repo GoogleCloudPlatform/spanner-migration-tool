@@ -300,3 +300,28 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 		})
 	}
 }
+
+func TestToPGDialectType(t *testing.T) {
+	tests := []struct {
+		name           string
+		in             ddl.Type
+		isPk           bool
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		{"bounded bytes", ddl.Type{Name: ddl.Bytes, Len: 16}, false, ddl.Type{Name: ddl.Bytes, Len: 16}, []internal.SchemaIssue{internal.PGBytesLengthNotSupported}},
+		{"bounded bytes pk", ddl.Type{Name: ddl.Bytes, Len: 8}, true, ddl.Type{Name: ddl.Bytes, Len: 8}, []internal.SchemaIssue{internal.PGBytesLengthNotSupported}},
+		{"bytes max", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, false, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil},
+		{"bytes at spanner limit", ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, false, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, nil},
+		{"bounded string", ddl.Type{Name: ddl.String, Len: 16}, false, ddl.Type{Name: ddl.String, Len: 16}, nil},
+		{"array", ddl.Type{Name: ddl.Bytes, Len: 16, IsArray: true}, false, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.ArrayTypeNotSupported}},
+		{"numeric pk", ddl.Type{Name: ddl.Numeric}, true, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NumericPKNotSupported}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, issues := ToPGDialectType(tc.in, tc.isPk)
+			assert.Equal(t, tc.expected, actual)
+			assert.Equal(t, tc.expectedIssues, issues)
+		})
+	}
+}

@@ -586,3 +586,29 @@ func TestGetMaxSize(t *testing.T) {
 		})
 	}
 }
+
+func TestToSpannerTypeBinaryLength(t *testing.T) {
+	toddl := ToDdlImpl{}
+	tests := []struct {
+		name           string
+		srcType        schema.Type
+		dialect        string
+		expected       ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		{"binary PG", schema.Type{Name: "binary", Mods: []int64{16}}, constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, []internal.SchemaIssue{internal.PGBytesLengthNotSupported}},
+		{"varbinary PG", schema.Type{Name: "varbinary", Mods: []int64{255}}, constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.Bytes, Len: 255}, []internal.SchemaIssue{internal.PGBytesLengthNotSupported}},
+		{"longblob PG", schema.Type{Name: "longblob"}, constants.DIALECT_POSTGRESQL, ddl.Type{Name: ddl.Bytes, Len: ddl.BytesMaxLength}, []internal.SchemaIssue{internal.PossibleOverflow}},
+		{"binary GoogleSQL", schema.Type{Name: "binary", Mods: []int64{16}}, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 16}, nil},
+		{"varbinary GoogleSQL", schema.Type{Name: "varbinary", Mods: []int64{255}}, constants.DIALECT_GOOGLESQL, ddl.Type{Name: ddl.Bytes, Len: 255}, nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			conv.SpDialect = tc.dialect
+			actual, issues := toddl.ToSpannerType(conv, "", tc.srcType, false)
+			assert.Equal(t, tc.expected, actual)
+			assert.Equal(t, tc.expectedIssues, issues)
+		})
+	}
+}

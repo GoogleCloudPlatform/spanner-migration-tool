@@ -161,6 +161,57 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 	return tr
 }
 
+// batchedCol is one column that has a batched issue.
+type batchedCol struct {
+	name    string
+	srcType string
+	spType  string
+}
+
+// maxBatchedCols caps how many columns a batched issue message lists.
+const maxBatchedCols = 10
+
+// describeBatchedCols lists the columns of a batched issue, e.g.
+// "columns 'a', 'b' of type int are mapped to int64", or
+// "columns 'a' (int to int64), 'b' (smallint to int64)" when the types differ.
+// Without types it lists names only: "columns 'a', 'b'".
+// Only the first maxBatchedCols columns are listed, followed by "and N more".
+func describeBatchedCols(cols []batchedCol, withTypes bool) string {
+	sameTypes := true
+	for _, c := range cols {
+		if c.srcType != cols[0].srcType || c.spType != cols[0].spType {
+			sameTypes = false
+		}
+	}
+	var names []string
+	for idx, c := range cols {
+		if idx == maxBatchedCols {
+			break
+		}
+		name := fmt.Sprintf("'%s'", c.name)
+		if withTypes && !sameTypes {
+			name = fmt.Sprintf("%s (%s to %s)", name, c.srcType, c.spType)
+		}
+		names = append(names, name)
+	}
+	list := strings.Join(names, ", ")
+	if len(cols) > maxBatchedCols {
+		list = fmt.Sprintf("%s and %d more", list, len(cols)-maxBatchedCols)
+	}
+	noun := "column"
+	if len(cols) > 1 {
+		noun = "columns"
+	}
+	if !withTypes || !sameTypes {
+		return fmt.Sprintf("%s %s", noun, list)
+	}
+	verb := "is"
+	if len(cols) > 1 {
+		verb = "are"
+	}
+	return fmt.Sprintf("%s %s of type %s %s mapped to %s", noun, list, cols[0].srcType, verb, cols[0].spType)
+}
+
 func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string][]internal.SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string, tableLevelIssues []internal.SchemaIssue) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
@@ -405,6 +456,33 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			}
 		}
 
+		colTypes := func(colId string) (string, string) {
+			srcColType := srcSchema.ColDefs[colId].Type.Print()
+			spColType := spSchema.ColDefs[colId].T.PrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
+			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				spColType = spSchema.ColDefs[colId].T.PGPrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
+			}
+			// A note on case: Spanner types are case insensitive, but
+			// default to upper case. In particular, the Spanner AST uses
+			// upper case, so spType is upper case. Many source DBs
+			// default to lower case. When printing source DB and
+			// Spanner types for comparison purposes, this can be distracting.
+			// Hence we switch to lower-case for Spanner types here.
+			// TODO: add logic to choose case for Spanner types based
+			// on case of srcType.
+			return srcColType, strings.ToLower(spColType)
+		}
+		// Batched issues are reported once per table, listing every affected column.
+		batchedCols := make(map[internal.SchemaIssue][]batchedCol)
+		for _, colName := range colNames {
+			colId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+			for _, i := range issues[colId] {
+				if IssueDB[i].Severity == p.severity && IssueDB[i].batch {
+					srcColType, spColType := colTypes(colId)
+					batchedCols[i] = append(batchedCols[i], batchedCol{name: colName, srcType: srcColType, spType: spColType})
+				}
+			}
+		}
 		issueBatcher := make(map[internal.SchemaIssue]bool)
 		for _, colName := range colNames {
 			colId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
@@ -414,31 +492,24 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				if IssueDB[i].batch {
 					if issueBatcher[i] {
-						// Have already reported a previous instance of this
-						// (batched) issue, so skip this one.
+						// Have already reported this (batched) issue for
+						// all its columns, so skip this one.
 						continue
 					}
 					issueBatcher[i] = true
 				}
-				srcColType := srcSchema.ColDefs[colId].Type.Print()
-				spColType := spSchema.ColDefs[colId].T.PrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
-				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-					spColType = spSchema.ColDefs[colId].T.PGPrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
-				}
+				srcColType, spColType := colTypes(colId)
 				srcColName := srcSchema.ColDefs[colId].Name
 				spColName := spSchema.ColDefs[colId].Name
 
-				// A note on case: Spanner types are case insensitive, but
-				// default to upper case. In particular, the Spanner AST uses
-				// upper case, so spType is upper case. Many source DBs
-				// default to lower case. When printing source DB and
-				// Spanner types for comparison purposes, this can be distracting.
-				// Hence we switch to lower-case for Spanner types here.
-				// TODO: add logic to choose case for Spanner types based
-				// on case of srcType.
-				spColType = strings.ToLower(spColType)
 				switch i {
-				case internal.DefaultValue, internal.GeneratedColumnValueError:
+				case internal.DefaultValue:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("%s for table '%s': %s", IssueDB[i].Brief, conv.SpSchema[tableId].Name, describeBatchedCols(batchedCols[i], false)),
+					}
+					l = append(l, toAppend)
+				case internal.GeneratedColumnValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
@@ -484,22 +555,22 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
+						Description: fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp in table '%s': %s. %s", conv.SpSchema[tableId].Name, describeBatchedCols(batchedCols[i], false), IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Datetime:
 					// Shared by sources whose date/time types have no time zone (e.g. MySQL
 					// DATETIME, Oracle DATE/TIMESTAMP). Batched: reported once per table
-					// with an example column.
+					// with all affected columns.
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Some columns have a source DB type without a time zone which is mapped to Spanner type %s in table '%s' e.g. column '%s' of type %s. %s", spColType, conv.SpSchema[tableId].Name, spColName, srcColType, IssueDB[i].Brief),
+						Description: fmt.Sprintf("Some columns have a source DB type without a time zone in table '%s': %s. %s", conv.SpSchema[tableId].Name, describeBatchedCols(batchedCols[i], true), IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Widened:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': %s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, spColName, srcColType, spColType),
+						Description: fmt.Sprintf("Table '%s': %s: %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, describeBatchedCols(batchedCols[i], true)),
 					}
 					l = append(l, toAppend)
 				case internal.HotspotTimestamp:
@@ -653,13 +724,18 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.DefaultValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
+						Description: fmt.Sprintf("%s for table '%s': %s", IssueDB[i].Brief, conv.SpSchema[tableId].Name, describeBatchedCols(batchedCols[i], false)),
 					}
 					l = append(l, toAppend)
 				default:
+					description := fmt.Sprintf("Table '%s': Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief)
+					if IssueDB[i].batch {
+						cols := describeBatchedCols(batchedCols[i], true)
+						description = fmt.Sprintf("Table '%s': %s. %s", conv.SpSchema[tableId].Name, strings.ToUpper(cols[:1])+cols[1:], IssueDB[i].Brief)
+					}
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief),
+						Description: description,
 					}
 					l = append(l, toAppend)
 				}
@@ -844,6 +920,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.ForeignKeyDeferrableNotSupported: {Brief: "Spanner does not support deferrable foreign keys, so it will be enforced immediately", Severity: warning, Category: "FOREIGN_KEY_DEFERRABLE_NOT_SUPPORTED"},
 	internal.DisabledObjectSkipped: {Brief: "is disabled or unusable in the source database and has been skipped", Severity: warning, Category: "DISABLED_OBJECT_SKIPPED",
 		CategoryDescription: "Disabled or unusable source database objects were skipped"},
+	internal.PGBytesLengthNotSupported: {Brief: "Spanner PostgreSQL bytea has no length, so the source length limit is not enforced", Severity: warning, Category: "PG_BYTES_LENGTH_NOT_SUPPORTED"},
 }
 
 type Severity int
